@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class AuthTextField extends StatelessWidget {
+class AuthTextField extends StatefulWidget {
   const AuthTextField({
     super.key,
     required this.label,
@@ -26,12 +26,27 @@ class AuthTextField extends StatelessWidget {
   final Widget? suffixWidget;
 
   @override
+  State<AuthTextField> createState() => _AuthTextFieldState();
+}
+
+class _AuthTextFieldState extends State<AuthTextField> {
+  late bool _obscured;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscured = widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final showEye = widget.obscureText;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          widget.label,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -40,36 +55,53 @@ class AuthTextField extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Container(
+          padding: EdgeInsets.only(
+            left: widget.prefixWidget != null ? 0 : 0,
+            right: showEye || widget.suffixWidget != null ? 4 : 0,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFFEEEEEE),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
-              ?prefixWidget,
+              if (widget.prefixWidget != null) widget.prefixWidget!,
               Expanded(
                 child: TextField(
-                  controller: controller,
-                  obscureText: obscureText,
-                  keyboardType: keyboardType,
-                  inputFormatters: inputFormatters,
-                  onChanged: onChanged,
+                  controller: widget.controller,
+                  obscureText: _obscured,
+                  keyboardType: widget.keyboardType,
+                  inputFormatters: widget.inputFormatters,
+                  onChanged: widget.onChanged,
                   decoration: InputDecoration(
-                    hintText: hintText,
+                    hintText: widget.hintText,
                     hintStyle: const TextStyle(
                       color: Color(0xFFAAAAAA),
                       fontSize: 16,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: prefixWidget != null ? 12 : 16,
+                      horizontal: widget.prefixWidget != null ? 12 : 16,
                       vertical: 18,
                     ),
                   ),
                   style: const TextStyle(color: Colors.black87, fontSize: 16),
                 ),
               ),
-              ?suffixWidget,
+              if (showEye)
+                GestureDetector(
+                  onTap: () => setState(() => _obscured = !_obscured),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Icon(
+                      _obscured ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.black38,
+                      size: 20,
+                    ),
+                  ),
+                )
+              else if (widget.suffixWidget != null)
+                widget.suffixWidget!,
             ],
           ),
         ),
