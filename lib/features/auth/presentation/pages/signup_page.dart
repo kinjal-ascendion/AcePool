@@ -121,7 +121,7 @@ class _SignupPageState extends State<SignupPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Top row: back button + ASCENDION brand ──────────────
+              // ── Back button ──────────────────────────────────────────
               GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -145,21 +145,32 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // ── Heading ─────────────────────────────────────────────
-              const Text(
-                'Create Your Account',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              // ── Logo + Heading (centered) ────────────────────────────
+              Center(
+                child: Image.asset(
+                  'assets/images/Ascendion_Primary_Logo_Black_RGB-1024x388.png',
+                  height: 75,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text(
+                  'Create Your Account',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Only Ascendion employees can sign up',
-                style: TextStyle(fontSize: 14, color: Colors.black45),
+              const Center(
+                child: Text(
+                  'Only Ascendion employees can sign up',
+                  style: TextStyle(fontSize: 14, color: Colors.black45),
+                ),
               ),
               const SizedBox(height: 28),
 
