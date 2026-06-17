@@ -21,73 +21,52 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   Future<void> login() async {
-  if (_emailController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please enter your username'),
-      ),
-    );
-    return;
-  }
-
-  if (_passwordController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please enter your password'),
-      ),
-    );
-    return;
-  }
-
-  try {
-    setState(() {
-  _isLoading = true;
-});
-    final email =
-        '${_emailController.text.trim()}@ascendion.com';
-
-    final password =
-        _passwordController.text.trim();
-
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    if (mounted) {
-      context.go('/home');
-    }
-  } on FirebaseAuthException catch (e) {
-    String errorMessage;
-
-    switch (e.code) {
-      case 'invalid-credential':
-        errorMessage = 'Invalid username or password';
-        break;
-
-      case 'invalid-email':
-        errorMessage = 'Please enter a valid email';
-        break;
-
-      default:
-        errorMessage = 'Login failed. Please try again.';
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your username')),
+      );
+      return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(errorMessage),
-        //backgroundColor: Colors.red,
-      ),
-    );
-  }
-  finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    if (_passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password')),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+
+      final email = '${_emailController.text.trim()}@ascendion.com';
+      final password = _passwordController.text.trim();
+
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (mounted) context.go('/home');
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-credential':
+          errorMessage = 'Invalid username or password';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Please enter a valid email';
+          break;
+        default:
+          errorMessage = 'Login failed. Please try again.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -99,30 +78,14 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 80),
-
               const LoginHeader(),
-
               const SizedBox(height: 40),
-
-              EmailField(
-                controller: _emailController,
-              ),
-
+              EmailField(controller: _emailController),
               const SizedBox(height: 16),
-
-              PasswordField(
-                controller: _passwordController,
-              ),
-
+              PasswordField(controller: _passwordController),
               const SizedBox(height: 24),
-
-              LoginButton(
-                onPressed: login,
-                isLoading: _isLoading,
-              ),
-
+              LoginButton(onPressed: login, isLoading: _isLoading),
               const SizedBox(height: 12),
-
               const SignupText(),
             ],
           ),

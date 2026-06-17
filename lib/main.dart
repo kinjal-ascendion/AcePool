@@ -4,6 +4,8 @@ import 'package:acepool/core/router/app_router.dart';
 import 'package:acepool/core/theme/app_theme.dart';
 import 'package:acepool/di/injection.dart';
 
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -23,6 +25,7 @@ class AcePoolApp extends StatelessWidget {
       title: 'AcePool',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       routerConfig: AppRouter.router,
     );
   }
