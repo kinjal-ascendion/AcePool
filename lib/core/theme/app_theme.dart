@@ -4,9 +4,11 @@ class AppTheme {
   AppTheme._();
 
   static const Color _primaryGreen = Color(0xFF1B8A3F);
-  static const Color _accentGold = Color(0xFFD4A017);
+  static const Color _accentBlue = Color(0xFF2D6CDF);
   static const Color _darkBg = Color(0xFF0D1117);
   static const Color _surfaceDark = Color(0xFF161B22);
+
+  static const Color scheduleButtonColor = Color(0xFF111317);
 
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
@@ -14,7 +16,7 @@ class AppTheme {
         scaffoldBackgroundColor: _darkBg,
         colorScheme: const ColorScheme.dark(
           primary: _primaryGreen,
-          secondary: _accentGold,
+          secondary: _accentBlue,
           surface: _surfaceDark,
         ),
         textTheme: const TextTheme(
@@ -34,7 +36,7 @@ class AppTheme {
         scaffoldBackgroundColor: const Color(0xFFF5F5F5),
         colorScheme: const ColorScheme.light(
           primary: _primaryGreen,
-          secondary: _accentGold,
+          secondary: _accentBlue,
           surface: Color(0xFFFFFFFF),
         ),
         textTheme: const TextTheme(
