@@ -89,7 +89,7 @@ class _SplashViewState extends State<_SplashView>
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashComplete) {
-          context.go('/home');
+          context.go('/login');
         } else if (state is SplashError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
