@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:acepool/features/splash/presentation/pages/splash_page.dart';
 import 'package:acepool/features/home/presentation/pages/home_page.dart';
+import 'package:acepool/features/auth/presentation/pages/login_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -12,6 +13,10 @@ class AppRouter {
         path: '/splash',
         name: 'splash',
         builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
         path: '/home',
