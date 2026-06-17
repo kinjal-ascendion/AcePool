@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "249027644688",
+    "project_id": "acepool-59978",
+    "storage_bucket": "acepool-59978.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:249027644688:android:468263df65fdccd52ce995",
+        "android_client_info": {
+          "package_name": "com.acepool"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDs6TWmqiZwoUmTjTNrqHT2U46Wu2G18F0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
