@@ -1,6 +1,8 @@
 part of 'home_bloc.dart';
 
-enum HomeStatus { initial, loading, success, failure }
+const _unset = Object();
+
+enum HomeStatus { initial, loading, success, failure, scheduling, scheduled }
 
 enum RideMode { find, offer }
 
@@ -31,34 +33,40 @@ class HomeState extends Equatable {
     this.errorMessage,
   });
 
+  bool get isFormValid =>
+      fromAddress != null &&
+      fromAddress!.trim().isNotEmpty &&
+      toAddress != null &&
+      toAddress!.trim().isNotEmpty &&
+      selectedDate != null &&
+      selectedTime != null;
+
   HomeState copyWith({
     HomeStatus? status,
     RideMode? rideMode,
     VehicleType? vehicleType,
-    String? fromAddress,
-    String? toAddress,
+    Object? fromAddress = _unset,
+    Object? toAddress = _unset,
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     int? seatCount,
     List<UpcomingTrip>? upcomingTrips,
-    String? errorMessage,
+    Object? errorMessage = _unset,
   }) {
     return HomeState(
       status: status ?? this.status,
       rideMode: rideMode ?? this.rideMode,
       vehicleType: vehicleType ?? this.vehicleType,
-      fromAddress: fromAddress ?? this.fromAddress,
-      toAddress: toAddress ?? this.toAddress,
+      fromAddress: fromAddress == _unset ? this.fromAddress : fromAddress as String?,
+      toAddress: toAddress == _unset ? this.toAddress : toAddress as String?,
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
       seatCount: seatCount ?? this.seatCount,
       upcomingTrips: upcomingTrips ?? this.upcomingTrips,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage == _unset ? this.errorMessage : errorMessage as String?,
     );
   }
 
-  // copyWith can't represent "set back to null", so swapping (where either
-  // side may be null) needs a dedicated constructor call instead.
   HomeState swapLocations() {
     return HomeState(
       status: status,
@@ -71,6 +79,15 @@ class HomeState extends Equatable {
       seatCount: seatCount,
       upcomingTrips: upcomingTrips,
       errorMessage: errorMessage,
+    );
+  }
+
+  HomeState resetForm() {
+    return HomeState(
+      status: HomeStatus.success,
+      rideMode: rideMode,
+      vehicleType: vehicleType,
+      upcomingTrips: upcomingTrips,
     );
   }
 

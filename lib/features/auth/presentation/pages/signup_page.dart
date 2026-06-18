@@ -1,6 +1,7 @@
 import 'package:acepool/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -63,16 +64,20 @@ class _SignupPageState extends State<SignupPage> {
 
       final uid = credential.user!.uid;
 
-      await Future.wait([
-        credential.user!.updateDisplayName(fullName),
-        FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'fullName': fullName,
-          'employeeId': _employeeIdController.text.trim(),
-          'email': email,
-          'mobile': _mobileController.text.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
-        }),
-      ]);
+      // Update display name so home screen shows the correct name immediately
+      await credential.user!.updateDisplayName(fullName);
+
+      // Save profile in background — don't block navigation
+      FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool')
+          .collection('users')
+          .doc(uid)
+          .set({
+        'fullName': fullName,
+        'employeeId': _employeeIdController.text.trim(),
+        'email': email,
+        'mobile': _mobileController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }).ignore();
 
       if (mounted) {
         context.go('/home');

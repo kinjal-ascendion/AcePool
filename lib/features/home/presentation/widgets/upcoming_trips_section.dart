@@ -3,9 +3,15 @@ import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
 
 class UpcomingTripsSection extends StatelessWidget {
-  const UpcomingTripsSection({super.key, required this.trips, this.onViewAll});
+  const UpcomingTripsSection({
+    super.key,
+    required this.trips,
+    this.isLoading = false,
+    this.onViewAll,
+  });
 
   final List<UpcomingTrip> trips;
+  final bool isLoading;
   final VoidCallback? onViewAll;
 
   @override
@@ -16,14 +22,10 @@ class UpcomingTripsSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Expanded(
-              child: Text(
-                'Upcoming trips',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
+            const Text(
+              'Upcoming trips',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            // TODO: wire once a full trips-list page exists
             TextButton(
               onPressed: onViewAll,
               style: TextButton.styleFrom(
@@ -33,16 +35,35 @@ class UpcomingTripsSection extends StatelessWidget {
               ),
               child: Text(
                 'View all',
-                style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        for (final trip in trips) ...[
-          TripCard(trip: trip),
-          const SizedBox(height: 12),
-        ],
+        if (isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (trips.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'No upcoming trips.\nSchedule a ride to get started!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black45),
+              ),
+            ),
+          )
+        else
+          for (final trip in trips) ...[
+            TripCard(trip: trip),
+            const SizedBox(height: 12),
+          ],
       ],
     );
   }

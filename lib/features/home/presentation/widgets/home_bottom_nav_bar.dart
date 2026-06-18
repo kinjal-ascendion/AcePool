@@ -6,7 +6,6 @@ class HomeBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  // Sampled directly from the reference mockup.
   static const Color _activeColor = Color(0xFF2E8B57);
   static const Color _inactiveColor = Colors.black54;
 
