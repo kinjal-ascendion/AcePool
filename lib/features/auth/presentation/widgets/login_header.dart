@@ -22,6 +22,7 @@ class LoginHeader extends StatelessWidget {
         SizedBox(height: 8),
         Text(
           "Sign in with your Ascendion account",
+          style: TextStyle(fontSize: 14, color: Colors.black45),
         ),
       ],
     );

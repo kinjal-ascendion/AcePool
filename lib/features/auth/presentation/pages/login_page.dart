@@ -2,11 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../widgets/email_field.dart';
 import '../widgets/login_button.dart';
 import '../widgets/login_header.dart';
-import '../widgets/password_field.dart';
 import '../widgets/signup_text.dart';
+import '../widgets/auth_text_field.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  
 
   Future<void> login() async {
     if (_emailController.text.trim().isEmpty) {
@@ -80,9 +82,27 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 80),
               const LoginHeader(),
               const SizedBox(height: 40),
-              EmailField(controller: _emailController),
+              AuthTextField(
+               label: 'Work Email',
+               controller: _emailController,
+               hintText: 'username',
+               suffixWidget: const Padding(
+                 padding: EdgeInsets.only(right: 16),
+                 child: Text(
+                  '@ascendion.com',
+                   style: TextStyle(
+                     color: Colors.black54,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
-              PasswordField(controller: _passwordController),
+              AuthTextField(
+               label: 'Password',
+               controller: _passwordController,
+               hintText: 'Minimum 6 characters',
+               obscureText: true,
+              ),
               const SizedBox(height: 24),
               LoginButton(onPressed: login, isLoading: _isLoading),
               const SizedBox(height: 12),
