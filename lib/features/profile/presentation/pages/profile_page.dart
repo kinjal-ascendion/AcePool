@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:acepool/features/home/presentation/widgets/home_bottom_nav_bar.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -144,14 +143,6 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: HomeBottomNavBar(
-    currentIndex: 3,
-    onTap: (index) {
-      if (index == 0) {
-        Navigator.pop(context);
-      }
-    },
-  ),
     );
   }
 

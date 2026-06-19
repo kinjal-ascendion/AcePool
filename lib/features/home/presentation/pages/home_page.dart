@@ -2,14 +2,12 @@ import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
 import 'package:acepool/features/home/presentation/widgets/home_app_bar_greeting.dart';
-import 'package:acepool/features/home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_schedule_form.dart';
 import 'package:acepool/features/home/presentation/widgets/upcoming_trips_section.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:acepool/features/profile/presentation/pages/profile_page.dart';
 import 'package:go_router/go_router.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -168,23 +166,6 @@ class _HomeView extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-            bottomNavigationBar: HomeBottomNavBar(
-              currentIndex: 0,
-              onTap: (index) {
-if (index == 3) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const ProfilePage(),
-    ),
-  );
-} else if (index != 0) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Coming soon')),
-  );
-}
-},
             ),
           );
         },

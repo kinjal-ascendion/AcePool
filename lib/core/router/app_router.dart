@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:acepool/features/splash/presentation/pages/splash_page.dart';
-import 'package:acepool/features/home/presentation/pages/home_page.dart';
+import 'package:acepool/features/home/presentation/pages/main_shell_page.dart';
 import 'package:acepool/features/auth/presentation/pages/login_page.dart';
 import 'package:acepool/features/auth/presentation/pages/signup_page.dart';
 
@@ -37,7 +37,7 @@ class AppRouter {
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) => const MainShellPage(),
       ),
     ],
   );
