@@ -1,28 +1,40 @@
 import 'package:flutter/material.dart';
 
 class HomeAppBarGreeting extends StatelessWidget {
-  const HomeAppBarGreeting({super.key, required this.initials, required this.name});
+  const HomeAppBarGreeting({
+    super.key,
+    required this.initials,
+    required this.name,
+    this.onAvatarTap,
+  });
 
   final String initials;
   final String name;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
-          child: Text(
-            initials,
-            style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold),
+        GestureDetector(
+          onTap: onAvatarTap,
+          child: CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.grey.shade500,
+            child: Text(
+              initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Text(
           'Hi, $name 👋',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
       ],
     );

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -89,7 +90,8 @@ class _SplashViewState extends State<_SplashView>
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashComplete) {
-          context.go('/login');
+          final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+          context.go(isLoggedIn ? '/home' : '/login');
         } else if (state is SplashError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),

@@ -27,6 +27,22 @@ class VehicleTypeChanged extends HomeEvent {
   List<Object?> get props => [vehicleType];
 }
 
+class FromAddressChanged extends HomeEvent {
+  final String address;
+  const FromAddressChanged(this.address);
+
+  @override
+  List<Object?> get props => [address];
+}
+
+class ToAddressChanged extends HomeEvent {
+  final String address;
+  const ToAddressChanged(this.address);
+
+  @override
+  List<Object?> get props => [address];
+}
+
 class LocationsSwapped extends HomeEvent {
   const LocationsSwapped();
 }
@@ -53,4 +69,8 @@ class SeatCountChanged extends HomeEvent {
 
   @override
   List<Object?> get props => [seatCount];
+}
+
+class ScheduleRideRequested extends HomeEvent {
+  const ScheduleRideRequested();
 }

@@ -15,7 +15,11 @@ class RideScheduleForm extends StatelessWidget {
     required this.selectedDate,
     required this.selectedTime,
     required this.seatCount,
+    required this.isScheduling,
+    required this.isFormValid,
     required this.onVehicleTypeChanged,
+    required this.onFromTap,
+    required this.onToTap,
     required this.onSwap,
     required this.onDateTap,
     required this.onTimeTap,
@@ -29,7 +33,11 @@ class RideScheduleForm extends StatelessWidget {
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
+  final bool isScheduling;
+  final bool isFormValid;
   final ValueChanged<VehicleType> onVehicleTypeChanged;
+  final VoidCallback onFromTap;
+  final VoidCallback onToTap;
   final VoidCallback onSwap;
   final VoidCallback onDateTap;
   final VoidCallback onTimeTap;
@@ -39,7 +47,6 @@ class RideScheduleForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      opacity: 1,
       borderRadius: 26,
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -47,7 +54,13 @@ class RideScheduleForm extends StatelessWidget {
         children: [
           VehicleTypeToggle(selected: vehicleType, onChanged: onVehicleTypeChanged),
           const SizedBox(height: 16),
-          LocationSwapRow(fromAddress: fromAddress, toAddress: toAddress, onSwap: onSwap),
+          LocationSwapRow(
+            fromAddress: fromAddress,
+            toAddress: toAddress,
+            onSwap: onSwap,
+            onFromTap: onFromTap,
+            onToTap: onToTap,
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(height: 1),
@@ -61,7 +74,10 @@ class RideScheduleForm extends StatelessWidget {
             onSeatCountChanged: onSeatCountChanged,
           ),
           const SizedBox(height: 20),
-          ScheduleRideButton(onPressed: onSchedulePressed),
+          ScheduleRideButton(
+            onPressed: isFormValid && !isScheduling ? onSchedulePressed : null,
+            isLoading: isScheduling,
+          ),
         ],
       ),
     );
