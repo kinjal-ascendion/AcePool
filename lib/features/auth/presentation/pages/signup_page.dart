@@ -67,8 +67,7 @@ class _SignupPageState extends State<SignupPage> {
       // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
-      // Save profile in background — don't block navigation
-      FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool')
+      await FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool')
           .collection('users')
           .doc(uid)
           .set({
@@ -77,7 +76,7 @@ class _SignupPageState extends State<SignupPage> {
         'email': email,
         'mobile': _mobileController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
-      }).ignore();
+      });
 
       if (mounted) {
         context.go('/home');
@@ -106,6 +105,12 @@ class _SignupPageState extends State<SignupPage> {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign up failed. Please try again.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
