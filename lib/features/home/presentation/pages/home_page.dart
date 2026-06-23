@@ -10,19 +10,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onViewAllTrips});
+
+  final VoidCallback? onViewAllTrips;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<HomeBloc>()..add(const HomeStarted()),
-      child: const _HomeView(),
+      child: _HomeView(onViewAllTrips: onViewAllTrips),
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView();
+  const _HomeView({this.onViewAllTrips});
+
+  final VoidCallback? onViewAllTrips;
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -156,11 +160,7 @@ class _HomeView extends StatelessWidget {
                     UpcomingTripsSection(
                       trips: state.upcomingTrips,
                       isLoading: state.status == HomeStatus.loading,
-                      onViewAll: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon')),
-                        );
-                      },
+                      onViewAll: onViewAllTrips,
                     ),
                     const SizedBox(height: 16),
                   ],
