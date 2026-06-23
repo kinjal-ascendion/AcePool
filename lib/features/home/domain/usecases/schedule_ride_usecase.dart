@@ -30,6 +30,7 @@ class ScheduleRideUseCase {
       'date': Timestamp.fromDate(date),
       'time': {'hour': time.hour, 'minute': time.minute},
       'seatCount': seatCount,
+      'seatsFilled': 0,
       'createdAt': FieldValue.serverTimestamp(),
     }).timeout(
       const Duration(seconds: 15),

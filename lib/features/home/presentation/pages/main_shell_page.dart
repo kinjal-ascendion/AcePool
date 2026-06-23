@@ -13,12 +13,24 @@ class MainShellPage extends StatefulWidget {
 
 class _MainShellPageState extends State<MainShellPage> {
   int _currentIndex = 0;
+  int _tripsRefreshKey = 0;
+
+  void _goToTrips() {
+    setState(() {
+      _tripsRefreshKey++;
+      _currentIndex = 1;
+    });
+  }
 
   void _onTap(int index) {
     if (index == 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Coming soon')),
       );
+      return;
+    }
+    if (index == 1) {
+      _goToTrips();
       return;
     }
     setState(() => _currentIndex = index);
@@ -30,8 +42,8 @@ class _MainShellPageState extends State<MainShellPage> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          HomePage(onViewAllTrips: () => setState(() => _currentIndex = 1)),
-          const TripsPage(),
+          HomePage(onViewAllTrips: _goToTrips),
+          TripsPage(key: ValueKey(_tripsRefreshKey)),
           const SizedBox.shrink(),
           const ProfilePage(),
         ],

@@ -27,7 +27,7 @@ class GetUpcomingTripsUseCase {
         .where('uid', isEqualTo: uid)
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
         .orderBy('date')
-        .limit(10)
+        .limit(3)
         .get();
 
     return snapshot.docs.map((doc) {
@@ -43,7 +43,7 @@ class GetUpcomingTripsUseCase {
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
-        seatsFilled: 0,
+        seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );
     }).toList();

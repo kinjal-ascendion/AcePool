@@ -69,7 +69,7 @@ class _TripsPageState extends State<TripsPage>
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
-        seatsFilled: 0,
+        seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );
     }).toList();

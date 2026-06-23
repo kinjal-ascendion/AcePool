@@ -60,7 +60,7 @@ class UpcomingTripsSection extends StatelessWidget {
             ),
           )
         else
-          for (final trip in trips) ...[
+          for (final trip in trips.take(3)) ...[
             TripCard(trip: trip),
             const SizedBox(height: 12),
           ],
