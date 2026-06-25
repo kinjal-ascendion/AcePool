@@ -1,4 +1,3 @@
-import 'package:acepool/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,16 +23,71 @@ class _SignupPageState extends State<SignupPage> {
   final _mobileController = TextEditingController();
 
   bool _isLoading = false;
+  bool _submitted = false;
 
-  bool get _isFormValid {
-    final mobile = _mobileController.text.trim();
-    return _fullNameController.text.trim().isNotEmpty &&
-        _employeeIdController.text.trim().isNotEmpty &&
-        _emailUsernameController.text.trim().isNotEmpty &&
-        _passwordController.text.length >= 6 &&
-        _passwordController.text == _confirmPasswordController.text &&
-        RegExp(r'^\d{10}$').hasMatch(mobile);
+  // Validation errors
+  String? get _fullNameError {
+    if (!_submitted) return null;
+    final v = _fullNameController.text.trim();
+    if (v.isEmpty) return 'Full name is required';
+    if (v.length < 2) return 'Enter a valid full name';
+    return null;
   }
+
+  String? get _employeeIdError {
+    if (!_submitted) return null;
+    if (_employeeIdController.text.trim().isEmpty) return 'Employee ID is required';
+    return null;
+  }
+
+  String? get _emailError {
+    if (!_submitted) return null;
+    final v = _emailUsernameController.text.trim();
+    if (v.isEmpty) return 'Work email username is required';
+    if (v.contains(' ')) return 'Username must not contain spaces';
+    if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v)) {
+      return 'Username can only contain letters, numbers, dots and underscores';
+    }
+    return null;
+  }
+
+  String? get _passwordError {
+    if (!_submitted) return null;
+    if (_passwordController.text.isEmpty) return 'Password is required';
+    if (_passwordController.text.length < 6) return 'Password must be at least 6 characters';
+    return null;
+  }
+
+  String? get _confirmPasswordError {
+    if (!_submitted) return null;
+    if (_confirmPasswordController.text.isEmpty) return 'Please confirm your password';
+    if (_confirmPasswordController.text != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
+  }
+
+  String? get _mobileError {
+    if (!_submitted) return null;
+    final mobile = _mobileController.text.trim();
+    if (mobile.isEmpty) return 'Mobile number is required';
+    if (!RegExp(r'^\d{10}$').hasMatch(mobile)) return 'Enter a valid 10-digit mobile number';
+    return null;
+  }
+
+  bool get _isFormValid =>
+      _fullNameError == null &&
+      _employeeIdError == null &&
+      _emailError == null &&
+      _passwordError == null &&
+      _confirmPasswordError == null &&
+      _mobileError == null &&
+      _fullNameController.text.isNotEmpty &&
+      _employeeIdController.text.isNotEmpty &&
+      _emailUsernameController.text.isNotEmpty &&
+      _passwordController.text.isNotEmpty &&
+      _confirmPasswordController.text.isNotEmpty &&
+      _mobileController.text.isNotEmpty;
 
   @override
   void dispose() {
@@ -47,6 +101,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _signup() async {
+    setState(() => _submitted = true);
     if (!_isFormValid) return;
 
     setState(() => _isLoading = true);
@@ -64,10 +119,10 @@ class _SignupPageState extends State<SignupPage> {
 
       final uid = credential.user!.uid;
 
-      // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
-      await FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool')
+      await FirebaseFirestore.instanceFor(
+              app: Firebase.app(), databaseId: 'acepool')
           .collection('users')
           .doc(uid)
           .set({
@@ -79,13 +134,7 @@ class _SignupPageState extends State<SignupPage> {
       });
 
       if (mounted) {
-        context.go('/home');
-        scaffoldMessengerKey.currentState?.showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Welcome to Acepool.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        context.go('/otp', extra: {'email': email, 'uid': uid});
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -117,7 +166,9 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  void _onFieldChanged(String _) => setState(() {});
+  void _onFieldChanged(String _) {
+    if (_submitted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +182,6 @@ class _SignupPageState extends State<SignupPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Back button ──────────────────────────────────────────
               GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -156,8 +206,6 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // ── Logo + Heading (centered) ────────────────────────────
               Center(
                 child: Image.asset(
                   'assets/images/Ascendion_Primary_Logo_Black_RGB-1024x388.png',
@@ -183,31 +231,30 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 28),
-
-              // ── Form fields ─────────────────────────────────────────
               AuthTextField(
                 label: 'Full Name',
                 controller: _fullNameController,
                 hintText: 'e.g. Rahul Sharma',
                 keyboardType: TextInputType.name,
                 onChanged: _onFieldChanged,
+                errorText: _fullNameError,
               ),
               const SizedBox(height: 16),
-
               AuthTextField(
                 label: 'Employee ID',
                 controller: _employeeIdController,
                 hintText: 'e.g. ASC12345',
                 onChanged: _onFieldChanged,
+                errorText: _employeeIdError,
               ),
               const SizedBox(height: 16),
-
               AuthTextField(
                 label: 'Work Email',
                 controller: _emailUsernameController,
                 hintText: 'username',
                 keyboardType: TextInputType.emailAddress,
                 onChanged: _onFieldChanged,
+                errorText: _emailError,
                 suffixWidget: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -228,25 +275,24 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               AuthTextField(
                 label: 'Password',
                 controller: _passwordController,
                 hintText: 'Minimum 6 characters',
                 obscureText: true,
                 onChanged: _onFieldChanged,
+                errorText: _passwordError,
               ),
               const SizedBox(height: 16),
-
               AuthTextField(
                 label: 'Confirm Password',
                 controller: _confirmPasswordController,
                 hintText: 'Re-enter your password',
                 obscureText: true,
                 onChanged: _onFieldChanged,
+                errorText: _confirmPasswordError,
               ),
               const SizedBox(height: 16),
-
               AuthTextField(
                 label: 'Mobile Number',
                 controller: _mobileController,
@@ -257,6 +303,7 @@ class _SignupPageState extends State<SignupPage> {
                   LengthLimitingTextInputFormatter(10),
                 ],
                 onChanged: _onFieldChanged,
+                errorText: _mobileError,
                 prefixWidget: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -280,13 +327,10 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // ── Create Account button ────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed:
-                      _isFormValid && !_isLoading ? _signup : null,
+                  onPressed: _isLoading ? null : _signup,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     disabledBackgroundColor: Colors.grey.shade300,
@@ -315,8 +359,6 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // ── "Already have an account?" link ─────────────────────
               Center(
                 child: GestureDetector(
                   onTap: () => context.pop(),
