@@ -19,23 +19,23 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-
-  
+  String? _emailError;
+  String? _passwordError;
 
   Future<void> login() async {
-    if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your username')),
-      );
-      return;
-    }
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    if (_passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your password')),
-      );
-      return;
-    }
+    setState(() {
+      _emailError = email.isEmpty ? 'Username is required' : null;
+      _passwordError = password.isEmpty
+          ? 'Password is required'
+          : password.length < 6
+              ? 'Password must be at least 6 characters'
+              : null;
+    });
+
+    if (_emailError != null || _passwordError != null) return;
 
     try {
       setState(() => _isLoading = true);
@@ -86,6 +86,8 @@ class _LoginPageState extends State<LoginPage> {
                label: 'Work Email',
                controller: _emailController,
                hintText: 'username',
+               errorText: _emailError,
+               onChanged: (_) => setState(() => _emailError = null),
                suffixWidget: const Padding(
                  padding: EdgeInsets.only(right: 16),
                  child: Text(
@@ -102,6 +104,8 @@ class _LoginPageState extends State<LoginPage> {
                controller: _passwordController,
                hintText: 'Minimum 6 characters',
                obscureText: true,
+               errorText: _passwordError,
+               onChanged: (_) => setState(() => _passwordError = null),
               ),
               const SizedBox(height: 24),
               LoginButton(onPressed: login, isLoading: _isLoading),

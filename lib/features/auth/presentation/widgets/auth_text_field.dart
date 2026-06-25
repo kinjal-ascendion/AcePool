@@ -13,6 +13,7 @@ class AuthTextField extends StatefulWidget {
     this.onChanged,
     this.prefixWidget,
     this.suffixWidget,
+    this.errorText,
   });
 
   final String label;
@@ -24,6 +25,7 @@ class AuthTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final Widget? prefixWidget;
   final Widget? suffixWidget;
+  final String? errorText;
 
   @override
   State<AuthTextField> createState() => _AuthTextFieldState();
@@ -62,6 +64,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
           decoration: BoxDecoration(
             color: const Color(0xFFEEEEEE),
             borderRadius: BorderRadius.circular(12),
+            border: widget.errorText != null
+                ? Border.all(color: Colors.red.shade400, width: 1.2)
+                : null,
           ),
           child: Row(
             children: [
@@ -105,6 +110,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
             ],
           ),
         ),
+        if (widget.errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              widget.errorText!,
+              style: TextStyle(color: Colors.red.shade600, fontSize: 12),
+            ),
+          ),
       ],
     );
   }

@@ -25,14 +25,50 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
 
-  bool get _isFormValid {
+  String? _fullNameError;
+  String? _employeeIdError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+  String? _mobileError;
+
+  bool _validate() {
     final mobile = _mobileController.text.trim();
-    return _fullNameController.text.trim().isNotEmpty &&
-        _employeeIdController.text.trim().isNotEmpty &&
-        _emailUsernameController.text.trim().isNotEmpty &&
-        _passwordController.text.length >= 6 &&
-        _passwordController.text == _confirmPasswordController.text &&
-        RegExp(r'^\d{10}$').hasMatch(mobile);
+    final password = _passwordController.text;
+
+    setState(() {
+      _fullNameError = _fullNameController.text.trim().isEmpty
+          ? 'Full name is required'
+          : null;
+      _employeeIdError = _employeeIdController.text.trim().isEmpty
+          ? 'Employee ID is required'
+          : null;
+      _emailError = _emailUsernameController.text.trim().isEmpty
+          ? 'Work email username is required'
+          : null;
+      _passwordError = password.isEmpty
+          ? 'Password is required'
+          : password.length < 6
+          ? 'Password must be at least 6 characters'
+          : null;
+      _confirmPasswordError = _confirmPasswordController.text.isEmpty
+          ? 'Please confirm your password'
+          : _confirmPasswordController.text != password
+          ? 'Passwords do not match'
+          : null;
+      _mobileError = mobile.isEmpty
+          ? 'Mobile number is required'
+          : !RegExp(r'^\d{10}$').hasMatch(mobile)
+          ? 'Enter a valid 10-digit mobile number'
+          : null;
+    });
+
+    return _fullNameError == null &&
+        _employeeIdError == null &&
+        _emailError == null &&
+        _passwordError == null &&
+        _confirmPasswordError == null &&
+        _mobileError == null;
   }
 
   @override
@@ -47,7 +83,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _signup() async {
-    if (!_isFormValid) return;
+    if (!_validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -56,21 +92,18 @@ class _SignupPageState extends State<SignupPage> {
       final email = '${_emailUsernameController.text.trim()}@ascendion.com';
       final password = _passwordController.text;
 
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       final uid = credential.user!.uid;
 
       // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
-      await FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool')
-          .collection('users')
-          .doc(uid)
-          .set({
+      await FirebaseFirestore.instanceFor(
+        app: Firebase.app(),
+        databaseId: 'acepool',
+      ).collection('users').doc(uid).set({
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
         'email': email,
@@ -103,8 +136,9 @@ class _SignupPageState extends State<SignupPage> {
           message = 'Sign up failed. Please try again.';
       }
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
       if (mounted) {
@@ -117,7 +151,14 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  void _onFieldChanged(String _) => setState(() {});
+  void _onFieldChanged(String _) => setState(() {
+    _fullNameError = null;
+    _employeeIdError = null;
+    _emailError = null;
+    _passwordError = null;
+    _confirmPasswordError = null;
+    _mobileError = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +232,7 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: 'e.g. Rahul Sharma',
                 keyboardType: TextInputType.name,
                 onChanged: _onFieldChanged,
+                errorText: _fullNameError,
               ),
               const SizedBox(height: 16),
 
@@ -199,6 +241,7 @@ class _SignupPageState extends State<SignupPage> {
                 controller: _employeeIdController,
                 hintText: 'e.g. ASC12345',
                 onChanged: _onFieldChanged,
+                errorText: _employeeIdError,
               ),
               const SizedBox(height: 16),
 
@@ -208,6 +251,7 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: 'username',
                 keyboardType: TextInputType.emailAddress,
                 onChanged: _onFieldChanged,
+                errorText: _emailError,
                 suffixWidget: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -235,6 +279,7 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: 'Minimum 6 characters',
                 obscureText: true,
                 onChanged: _onFieldChanged,
+                errorText: _passwordError,
               ),
               const SizedBox(height: 16),
 
@@ -244,6 +289,7 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: 'Re-enter your password',
                 obscureText: true,
                 onChanged: _onFieldChanged,
+                errorText: _confirmPasswordError,
               ),
               const SizedBox(height: 16),
 
@@ -257,6 +303,7 @@ class _SignupPageState extends State<SignupPage> {
                   LengthLimitingTextInputFormatter(10),
                 ],
                 onChanged: _onFieldChanged,
+                errorText: _mobileError,
                 prefixWidget: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -285,8 +332,7 @@ class _SignupPageState extends State<SignupPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed:
-                      _isFormValid && !_isLoading ? _signup : null,
+                  onPressed: _isLoading ? null : _signup,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     disabledBackgroundColor: Colors.grey.shade300,
