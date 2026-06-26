@@ -2,10 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../widgets/auth_text_field.dart';
 import '../widgets/login_button.dart';
 import '../widgets/login_header.dart';
 import '../widgets/signup_text.dart';
+import '../widgets/auth_text_field.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,34 +19,23 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _submitted = false;
-
-  String? get _emailError {
-    if (!_submitted) return null;
-    final v = _emailController.text.trim();
-    if (v.isEmpty) return 'Username is required';
-    if (v.contains(' ')) return 'Username must not contain spaces';
-    return null;
-  }
-
-  String? get _passwordError {
-    if (!_submitted) return null;
-    if (_passwordController.text.isEmpty) return 'Password is required';
-    if (_passwordController.text.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return null;
-  }
-
-  bool get _isFormValid =>
-      _emailError == null &&
-      _passwordError == null &&
-      _emailController.text.isNotEmpty &&
-      _passwordController.text.isNotEmpty;
+  String? _emailError;
+  String? _passwordError;
 
   Future<void> login() async {
-    setState(() => _submitted = true);
-    if (!_isFormValid) return;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    setState(() {
+      _emailError = email.isEmpty ? 'Username is required' : null;
+      _passwordError = password.isEmpty
+          ? 'Password is required'
+          : password.length < 6
+              ? 'Password must be at least 6 characters'
+              : null;
+    });
+
+    if (_emailError != null || _passwordError != null) return;
 
     try {
       setState(() => _isLoading = true);
@@ -68,12 +58,6 @@ class _LoginPageState extends State<LoginPage> {
         case 'invalid-email':
           errorMessage = 'Please enter a valid email';
           break;
-        case 'user-not-found':
-          errorMessage = 'No account found with this username';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Incorrect password';
-          break;
         default:
           errorMessage = 'Login failed. Please try again.';
       }
@@ -84,17 +68,6 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _onFieldChanged(String _) {
-    if (_submitted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -110,27 +83,29 @@ class _LoginPageState extends State<LoginPage> {
               const LoginHeader(),
               const SizedBox(height: 40),
               AuthTextField(
-                label: 'Work Email',
-                controller: _emailController,
-                hintText: 'username',
-                onChanged: _onFieldChanged,
-                errorText: _emailError,
-                suffixWidget: const Padding(
-                  padding: EdgeInsets.only(right: 16),
-                  child: Text(
-                    '@ascendion.com',
-                    style: TextStyle(color: Colors.black54),
+               label: 'Work Email',
+               controller: _emailController,
+               hintText: 'username',
+               errorText: _emailError,
+               onChanged: (_) => setState(() => _emailError = null),
+               suffixWidget: const Padding(
+                 padding: EdgeInsets.only(right: 16),
+                 child: Text(
+                  '@ascendion.com',
+                   style: TextStyle(
+                     color: Colors.black54,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
               AuthTextField(
-                label: 'Password',
-                controller: _passwordController,
-                hintText: 'Minimum 6 characters',
-                obscureText: true,
-                onChanged: _onFieldChanged,
-                errorText: _passwordError,
+               label: 'Password',
+               controller: _passwordController,
+               hintText: 'Minimum 6 characters',
+               obscureText: true,
+               errorText: _passwordError,
+               onChanged: (_) => setState(() => _passwordError = null),
               ),
               const SizedBox(height: 24),
               LoginButton(onPressed: login, isLoading: _isLoading),

@@ -110,16 +110,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
             ],
           ),
         ),
-        if (widget.errorText != null) ...[
-          const SizedBox(height: 4),
+        if (widget.errorText != null)
           Padding(
-            padding: const EdgeInsets.only(left: 4),
+            padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               widget.errorText!,
               style: TextStyle(color: Colors.red.shade600, fontSize: 12),
             ),
           ),
-        ],
       ],
     );
   }

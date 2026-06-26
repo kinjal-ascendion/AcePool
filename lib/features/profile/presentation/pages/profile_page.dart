@@ -2,9 +2,135 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'edit_profile_page.dart';
+import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+
+  double _calculateProfileCompletion(
+  Map<String, dynamic>? data,
+) {
+  if (data == null) return 0;
+
+  int completed = 0;
+
+  if ((data['fullName'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  if ((data['employeeId'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  if ((data['mobile'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  if ((data['homeAddress'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  if ((data['officeAddress'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  if ((data['profileImageUrl'] ?? '').toString().isNotEmpty) {
+    completed++;
+  }
+
+  return completed / 6;
+}
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _fetchVehicles() {
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+
+  return FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'acepool',
+  )
+      .collection('users')
+      .doc(uid)
+      .collection('vehicles')
+      .get();
+}
+
+  Future<void> _showAddVehicleDialog() async {
+  final nameController = TextEditingController();
+  final colorController = TextEditingController();
+  final numberController = TextEditingController();
+
+  await showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Add Vehicle'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Vehicle Name',
+              ),
+            ),
+
+            TextField(
+              controller: colorController,
+              decoration: const InputDecoration(
+                labelText: 'Color',
+              ),
+            ),
+
+            TextField(
+              controller: numberController,
+              decoration: const InputDecoration(
+                labelText: 'Registration Number',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            final uid =
+                FirebaseAuth.instance.currentUser!.uid;
+
+            await FirebaseFirestore.instanceFor(
+              app: Firebase.app(),
+              databaseId: 'acepool',
+            )
+                .collection('users')
+                .doc(uid)
+                .collection('vehicles')
+                .add({
+              'name': nameController.text.trim(),
+              'color': colorController.text.trim(),
+              'number': numberController.text.trim(),
+            });
+
+            if (mounted) {
+              Navigator.pop(context);
+              setState(() {});
+            }
+          },
+          child: const Text('Add'),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<Map<String, dynamic>?> _fetchUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -25,10 +151,17 @@ class ProfilePage extends StatelessWidget {
           future: _fetchUserData(),
           builder: (context, snapshot) {
             final data = snapshot.data;
+            final profileCompletion =
+    _calculateProfileCompletion(data);
+
+final profilePercentage =
+    (profileCompletion * 100).round();
             final fullName = data?['fullName'] as String? ?? '';
             final employeeId = data?['employeeId'] as String? ?? '';
             final email = data?['email'] as String? ?? '';
             final mobile = data?['mobile'] as String? ?? '';
+            final homeAddress = data?['homeAddress'] as String? ?? '';
+            final officeAddress = data?['officeAddress'] as String? ?? '';
 
             final isLoading =
                 snapshot.connectionState == ConnectionState.waiting;
@@ -47,33 +180,32 @@ class ProfilePage extends StatelessWidget {
                         width: 120,
                         height: 120,
                         child: CircularProgressIndicator(
-                          value: 1.0,
+                          value: profileCompletion,
                           strokeWidth: 5,
                           color: Colors.green,
                           backgroundColor: Colors.green.shade100,
                         ),
                       ),
                       CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey.shade300,
-                        child: isLoading
-                            ? const CircularProgressIndicator(strokeWidth: 2)
-                            : Text(
-                                fullName.isNotEmpty
-                                    ? fullName
-                                        .trim()
-                                        .split(' ')
-                                        .take(2)
-                                        .map((w) => w[0].toUpperCase())
-                                        .join()
-                                    : '?',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                      ),
+  radius: 50,
+  backgroundColor: Colors.grey.shade300,
+  child: Text(
+    fullName.isNotEmpty
+        ? fullName
+            .trim()
+            .split(' ')
+            .where((w) => w.isNotEmpty)
+            .take(2)
+            .map((w) => w[0].toUpperCase())
+            .join()
+        : '?',
+    style: const TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.bold,
+      color: Colors.black54,
+    ),
+  ),
+),
                       Positioned(
                         bottom: 0,
                         child: Container(
@@ -85,8 +217,8 @@ class ProfilePage extends StatelessWidget {
                             color: Colors.green,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Text(
-                            '100%',
+                          child: Text(
+                            '$profilePercentage%',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -125,19 +257,25 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit Profile'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                  ),
+  onPressed: () async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfilePage(
+          fullName: fullName,
+          employeeId: employeeId,
+          mobile: mobile,
+        ),
+      ),
+    );
+
+    if (updated == true) {
+      setState(() {});
+    }
+  },
+  icon: const Icon(Icons.edit),
+  label: const Text('Edit Profile'),
+),
 
                   const SizedBox(height: 30),
 
@@ -179,35 +317,78 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   _placeCard(
-                    icon: Icons.home,
-                    title: 'Home',
-                    address: 'Serenity Stays',
-                  ),
+  context,
+  icon: Icons.home,
+  title: 'Home',
+  address: homeAddress.isNotEmpty
+      ? homeAddress
+      : 'Add Home Address',
+),
 
-                  const SizedBox(height: 12),
+const SizedBox(height: 12),
 
-                  _placeCard(
-                    icon: Icons.business,
-                    title: 'Office',
-                    address: 'Prestige Sky Tech',
-                  ),
+_placeCard(
+  context,
+  icon: Icons.business,
+  title: 'Office',
+  address: officeAddress.isNotEmpty
+      ? officeAddress
+      : 'Add Office Address',
+),
 
                   const SizedBox(height: 30),
 
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Favourite Vehicles',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
+                  Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      'Favourite Vehicles',
+      style: Theme.of(context).textTheme.titleLarge,
+    ),
+    IconButton(
+      icon: const Icon(Icons.add_circle_outline),
+      onPressed: _showAddVehicleDialog,
+    ),
+  ],
+),
 
                   const SizedBox(height: 12),
 
-                  _vehicleCard(
-                    title: 'Tata Harrier',
-                    subtitle: 'Black • 4910',
-                  ),
+                  FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+  future: _fetchVehicles(),
+  builder: (context, snapshot) {
+
+    if (!snapshot.hasData) {
+      return const CircularProgressIndicator();
+    }
+
+    final vehicles = snapshot.data!.docs;
+
+    if (vehicles.isEmpty) {
+      return const Text(
+        'No vehicles added',
+      );
+    }
+
+    return Column(
+      children: vehicles.map((vehicle) {
+
+        final data = vehicle.data();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _vehicleCard(
+            vehicleId: vehicle.id,
+            title: data['name'] ?? '',
+            subtitle:
+                '${data['color']} • ${data['number']}',
+          ),
+        );
+
+      }).toList(),
+    );
+  },
+),
 
                   const SizedBox(height: 12),
                 ],
@@ -233,7 +414,8 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  static Widget _placeCard({
+  Widget _placeCard(
+    BuildContext context,{
     required IconData icon,
     required String title,
     required String address,
@@ -243,12 +425,42 @@ class ProfilePage extends StatelessWidget {
         leading: Icon(icon),
         title: Text(title),
         subtitle: Text(address),
-        trailing: const Icon(Icons.edit),
+        trailing: IconButton(
+  icon: const Icon(Icons.edit),
+  onPressed: () async {
+  final result = await Navigator.push<String>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => LocationSearchPage(
+        title: 'Search $title Location',
+      ),
+    ),
+  );
+
+  if (result != null && result.isNotEmpty) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    await FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: 'acepool',
+    ).collection('users').doc(uid).update({
+      title == 'Home'
+          ? 'homeAddress'
+          : 'officeAddress': result,
+    });
+
+    if (context.mounted) {
+      setState(() {});
+    }
+  }
+},
+),
       ),
     );
   }
 
-  static Widget _vehicleCard({
+  Widget _vehicleCard({
+    required String vehicleId,
     required String title,
     required String subtitle,
   }) {
@@ -257,10 +469,29 @@ class ProfilePage extends StatelessWidget {
         leading: const Icon(Icons.directions_car),
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: const Icon(
-          Icons.delete_outline,
-          color: Colors.red,
-        ),
+        trailing: IconButton(
+  icon: const Icon(
+    Icons.delete_outline,
+    color: Colors.red,
+  ),
+  onPressed: () async {
+
+    final uid =
+        FirebaseAuth.instance.currentUser!.uid;
+
+    await FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: 'acepool',
+    )
+        .collection('users')
+        .doc(uid)
+        .collection('vehicles')
+        .doc(vehicleId)
+        .delete();
+
+    setState(() {});
+  },
+),
       ),
     );
   }

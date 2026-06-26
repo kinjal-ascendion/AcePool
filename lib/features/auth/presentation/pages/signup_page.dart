@@ -1,3 +1,4 @@
+import 'package:acepool/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,71 +24,52 @@ class _SignupPageState extends State<SignupPage> {
   final _mobileController = TextEditingController();
 
   bool _isLoading = false;
-  bool _submitted = false;
 
-  // Validation errors
-  String? get _fullNameError {
-    if (!_submitted) return null;
-    final v = _fullNameController.text.trim();
-    if (v.isEmpty) return 'Full name is required';
-    if (v.length < 2) return 'Enter a valid full name';
-    return null;
-  }
+  String? _fullNameError;
+  String? _employeeIdError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+  String? _mobileError;
 
-  String? get _employeeIdError {
-    if (!_submitted) return null;
-    if (_employeeIdController.text.trim().isEmpty) return 'Employee ID is required';
-    return null;
-  }
-
-  String? get _emailError {
-    if (!_submitted) return null;
-    final v = _emailUsernameController.text.trim();
-    if (v.isEmpty) return 'Work email username is required';
-    if (v.contains(' ')) return 'Username must not contain spaces';
-    if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v)) {
-      return 'Username can only contain letters, numbers, dots and underscores';
-    }
-    return null;
-  }
-
-  String? get _passwordError {
-    if (!_submitted) return null;
-    if (_passwordController.text.isEmpty) return 'Password is required';
-    if (_passwordController.text.length < 6) return 'Password must be at least 6 characters';
-    return null;
-  }
-
-  String? get _confirmPasswordError {
-    if (!_submitted) return null;
-    if (_confirmPasswordController.text.isEmpty) return 'Please confirm your password';
-    if (_confirmPasswordController.text != _passwordController.text) {
-      return 'Passwords do not match';
-    }
-    return null;
-  }
-
-  String? get _mobileError {
-    if (!_submitted) return null;
+  bool _validate() {
     final mobile = _mobileController.text.trim();
-    if (mobile.isEmpty) return 'Mobile number is required';
-    if (!RegExp(r'^\d{10}$').hasMatch(mobile)) return 'Enter a valid 10-digit mobile number';
-    return null;
-  }
+    final password = _passwordController.text;
 
-  bool get _isFormValid =>
-      _fullNameError == null &&
-      _employeeIdError == null &&
-      _emailError == null &&
-      _passwordError == null &&
-      _confirmPasswordError == null &&
-      _mobileError == null &&
-      _fullNameController.text.isNotEmpty &&
-      _employeeIdController.text.isNotEmpty &&
-      _emailUsernameController.text.isNotEmpty &&
-      _passwordController.text.isNotEmpty &&
-      _confirmPasswordController.text.isNotEmpty &&
-      _mobileController.text.isNotEmpty;
+    setState(() {
+      _fullNameError = _fullNameController.text.trim().isEmpty
+          ? 'Full name is required'
+          : null;
+      _employeeIdError = _employeeIdController.text.trim().isEmpty
+          ? 'Employee ID is required'
+          : null;
+      _emailError = _emailUsernameController.text.trim().isEmpty
+          ? 'Work email username is required'
+          : null;
+      _passwordError = password.isEmpty
+          ? 'Password is required'
+          : password.length < 6
+          ? 'Password must be at least 6 characters'
+          : null;
+      _confirmPasswordError = _confirmPasswordController.text.isEmpty
+          ? 'Please confirm your password'
+          : _confirmPasswordController.text != password
+          ? 'Passwords do not match'
+          : null;
+      _mobileError = mobile.isEmpty
+          ? 'Mobile number is required'
+          : !RegExp(r'^\d{10}$').hasMatch(mobile)
+          ? 'Enter a valid 10-digit mobile number'
+          : null;
+    });
+
+    return _fullNameError == null &&
+        _employeeIdError == null &&
+        _emailError == null &&
+        _passwordError == null &&
+        _confirmPasswordError == null &&
+        _mobileError == null;
+  }
 
   @override
   void dispose() {
@@ -101,8 +83,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _signup() async {
-    setState(() => _submitted = true);
-    if (!_isFormValid) return;
+    if (!_validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -111,21 +92,18 @@ class _SignupPageState extends State<SignupPage> {
       final email = '${_emailUsernameController.text.trim()}@ascendion.com';
       final password = _passwordController.text;
 
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       final uid = credential.user!.uid;
 
+      // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
       await FirebaseFirestore.instanceFor(
-              app: Firebase.app(), databaseId: 'acepool')
-          .collection('users')
-          .doc(uid)
-          .set({
+        app: Firebase.app(),
+        databaseId: 'acepool',
+      ).collection('users').doc(uid).set({
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
         'email': email,
@@ -134,7 +112,13 @@ class _SignupPageState extends State<SignupPage> {
       });
 
       if (mounted) {
-        context.go('/otp', extra: {'email': email, 'uid': uid});
+        context.go('/home');
+        scaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Welcome to Acepool.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -152,8 +136,9 @@ class _SignupPageState extends State<SignupPage> {
           message = 'Sign up failed. Please try again.';
       }
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
       if (mounted) {
@@ -166,9 +151,14 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  void _onFieldChanged(String _) {
-    if (_submitted) setState(() {});
-  }
+  void _onFieldChanged(String _) => setState(() {
+    _fullNameError = null;
+    _employeeIdError = null;
+    _emailError = null;
+    _passwordError = null;
+    _confirmPasswordError = null;
+    _mobileError = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +172,7 @@ class _SignupPageState extends State<SignupPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Back button ──────────────────────────────────────────
               GestureDetector(
                 onTap: () => context.pop(),
                 child: Container(
@@ -206,6 +197,8 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // ── Logo + Heading (centered) ────────────────────────────
               Center(
                 child: Image.asset(
                   'assets/images/Ascendion_Primary_Logo_Black_RGB-1024x388.png',
@@ -231,6 +224,8 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 28),
+
+              // ── Form fields ─────────────────────────────────────────
               AuthTextField(
                 label: 'Full Name',
                 controller: _fullNameController,
@@ -240,6 +235,7 @@ class _SignupPageState extends State<SignupPage> {
                 errorText: _fullNameError,
               ),
               const SizedBox(height: 16),
+
               AuthTextField(
                 label: 'Employee ID',
                 controller: _employeeIdController,
@@ -248,6 +244,7 @@ class _SignupPageState extends State<SignupPage> {
                 errorText: _employeeIdError,
               ),
               const SizedBox(height: 16),
+
               AuthTextField(
                 label: 'Work Email',
                 controller: _emailUsernameController,
@@ -275,6 +272,7 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 16),
+
               AuthTextField(
                 label: 'Password',
                 controller: _passwordController,
@@ -284,6 +282,7 @@ class _SignupPageState extends State<SignupPage> {
                 errorText: _passwordError,
               ),
               const SizedBox(height: 16),
+
               AuthTextField(
                 label: 'Confirm Password',
                 controller: _confirmPasswordController,
@@ -293,6 +292,7 @@ class _SignupPageState extends State<SignupPage> {
                 errorText: _confirmPasswordError,
               ),
               const SizedBox(height: 16),
+
               AuthTextField(
                 label: 'Mobile Number',
                 controller: _mobileController,
@@ -327,6 +327,8 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              // ── Create Account button ────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -359,6 +361,8 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // ── "Already have an account?" link ─────────────────────
               Center(
                 child: GestureDetector(
                   onTap: () => context.pop(),
