@@ -1,5 +1,6 @@
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
+import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -75,7 +76,11 @@ class _TripsPageState extends State<TripsPage>
     }).toList();
   }
 
-  Widget _buildList(Future<List<UpcomingTrip>> future, String emptyLabel) {
+  Widget _buildList(
+    Future<List<UpcomingTrip>> future,
+    String emptyLabel, {
+    void Function(UpcomingTrip)? onTap,
+  }) {
     return FutureBuilder<List<UpcomingTrip>>(
       future: future,
       builder: (context, snapshot) {
@@ -109,7 +114,12 @@ class _TripsPageState extends State<TripsPage>
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           itemCount: trips.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, i) => TripCard(trip: trips[i]),
+          itemBuilder: (_, i) => onTap != null
+              ? GestureDetector(
+                  onTap: () => onTap(trips[i]),
+                  child: TripCard(trip: trips[i]),
+                )
+              : TripCard(trip: trips[i]),
         );
       },
     );
@@ -221,7 +231,15 @@ class _TripsPageState extends State<TripsPage>
                 controller: _tabController,
                 children: [
                   _buildList(_ridesFuture, 'No rides booked yet'),
-                  _buildList(_drivesFuture, 'No drives scheduled yet'),
+                  _buildList(
+                    _drivesFuture,
+                    'No drives scheduled yet',
+                    onTap: (trip) => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DrivesDetailPage(trip: trip),
+                      ),
+                    ),
+                  ),
                   Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

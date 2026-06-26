@@ -1,0 +1,9 @@
+{
+  "firestore": [
+    {
+      "database": "acepool",
+      "rules": "firestore.acepool.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ]
+}

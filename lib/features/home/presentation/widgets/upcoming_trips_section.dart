@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
+import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
+import 'package:flutter/material.dart';
 
 class UpcomingTripsSection extends StatelessWidget {
   const UpcomingTripsSection({
@@ -61,7 +62,14 @@ class UpcomingTripsSection extends StatelessWidget {
           )
         else
           for (final trip in trips.take(3)) ...[
-            TripCard(trip: trip),
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => DrivesDetailPage(trip: trip),
+                ),
+              ),
+              child: TripCard(trip: trip),
+            ),
             const SizedBox(height: 12),
           ],
       ],
