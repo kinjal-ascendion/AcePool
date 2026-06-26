@@ -1,4 +1,3 @@
-import 'package:acepool/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -112,13 +111,7 @@ class _SignupPageState extends State<SignupPage> {
       });
 
       if (mounted) {
-        context.go('/home');
-        scaffoldMessengerKey.currentState?.showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Welcome to Acepool.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        context.go('/otp', extra: {'email': email, 'uid': uid});
       }
     } on FirebaseAuthException catch (e) {
       String message;
