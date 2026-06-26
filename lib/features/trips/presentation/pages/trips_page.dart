@@ -31,7 +31,7 @@ class _TripsPageState extends State<TripsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
     _tabController.addListener(() => setState(() {}));
     _ridesFuture = _fetchAvailableRides();
     _drivesFuture = _fetchTrips('offer');
@@ -152,6 +152,7 @@ class _TripsPageState extends State<TripsPage>
       ));
     }
 
+    rides.removeWhere((r) => r.matchPercent < 60);
     rides.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
     return rides;
   }

@@ -103,6 +103,7 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
       ));
     }
 
+    results.removeWhere((r) => r.matchPercent < 60);
     results.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
     return results;
   }
