@@ -5,6 +5,7 @@ import 'package:acepool/features/home/presentation/widgets/home_app_bar_greeting
 import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_schedule_form.dart';
 import 'package:acepool/features/home/presentation/widgets/upcoming_trips_section.dart';
+import 'package:acepool/features/rides/presentation/pages/find_ride_results_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -78,8 +79,9 @@ class _HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<HomeBloc, HomeState>(
       listenWhen: (previous, current) =>
-          current.status == HomeStatus.failure ||
-          current.status == HomeStatus.scheduled,
+          previous.status != current.status &&
+          (current.status == HomeStatus.failure ||
+              current.status == HomeStatus.scheduled),
       listener: (context, state) {
         if (state.status == HomeStatus.scheduled) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -153,8 +155,20 @@ class _HomeView extends StatelessWidget {
                       onTimeTap: () => _pickTime(context),
                       onSeatCountChanged: (count) =>
                           bloc.add(SeatCountChanged(count)),
-                      onSchedulePressed: () =>
-                          bloc.add(const ScheduleRideRequested()),
+                      onSchedulePressed: () {
+                        if (state.rideMode == RideMode.find) {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => FindRideResultsPage(
+                              fromAddress: state.fromAddress!,
+                              toAddress: state.toAddress!,
+                              date: state.selectedDate!,
+                              time: state.selectedTime!,
+                            ),
+                          ));
+                        } else {
+                          bloc.add(const ScheduleRideRequested());
+                        }
+                      },
                     ),
                     const SizedBox(height: 28),
                     UpcomingTripsSection(

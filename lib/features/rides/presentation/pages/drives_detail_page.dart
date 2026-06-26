@@ -547,7 +547,7 @@ class _RiderCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           Text(
-            'Pick up point: ${rider.pickupPoint}',
+            'Pick up point: ${rider.pickupPoint.isNotEmpty ? rider.pickupPoint : "Not specified"}',
             style: const TextStyle(fontSize: 13),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
