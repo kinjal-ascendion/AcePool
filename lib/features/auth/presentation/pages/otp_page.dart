@@ -106,9 +106,14 @@ class _OtpPageState extends State<OtpPage> {
         'service_id': ApiKeys.emailJsServiceId,
         'template_id': ApiKeys.emailJsTemplateId,
         'user_id': ApiKeys.emailJsPublicKey,
+        'accessToken': ApiKeys.emailJsPrivateKey,
         'template_params': {
           'to_email': email,
           'otp': otp,
+          'passcode': otp,
+          'otp_code': otp,
+          'company_name': 'AcePool',
+          'valid_minutes': '15',
         },
       }),
     );

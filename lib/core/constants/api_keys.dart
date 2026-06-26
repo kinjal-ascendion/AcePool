@@ -10,7 +10,8 @@ class ApiKeys {
   // 2. Add an email service (Gmail/Outlook) under Email Services
   // 3. Create a template with variables: {{otp}} and {{to_email}}
   // 4. Paste Service ID, Template ID, and Public Key below
-  static const String emailJsServiceId = 'service_m5bwlk8';
+  static const String emailJsServiceId = 'service_vb15p0f';
   static const String emailJsTemplateId = 'template_swisqbp';
   static const String emailJsPublicKey = 'vRIlgFkMhRAFo3qLw';
+  static const String emailJsPrivateKey = 'VAH8_1cp8ZNTB7M5_ck7w';
 }
