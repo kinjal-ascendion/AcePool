@@ -1,3 +1,4 @@
+import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
@@ -203,6 +204,7 @@ class _TripsPageState extends State<TripsPage>
             minute: rideTimeMap['minute'] as int,
           ),
           driverName: d['driverName'] as String? ?? '',
+          driverId: d['driverId'] as String? ?? '',
           status: d['status'] as String? ?? 'pending',
         );
       }).toList();
@@ -490,6 +492,7 @@ class _RideRequest {
     required this.rideDate,
     required this.rideTime,
     required this.driverName,
+    required this.driverId,
     required this.status,
   });
 
@@ -499,6 +502,7 @@ class _RideRequest {
   final DateTime rideDate;
   final TimeOfDay rideTime;
   final String driverName;
+  final String driverId;
   final String status;
 
   Color get statusColor {
@@ -657,11 +661,49 @@ class _RequestCard extends StatelessWidget {
                       Icon(Icons.directions_car_outlined,
                           size: 14, color: Colors.grey.shade500),
                       const SizedBox(width: 4),
-                      Text(
-                        'Driver: ${request.driverName}',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600),
+                      Expanded(
+                        child: Text(
+                          'Driver: ${request.driverName}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600),
+                        ),
                       ),
+                      if (request.status == 'accepted' &&
+                          request.driverId.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ChatPage(
+                                  receiverId: request.driverId,
+                                  receiverName: request.driverName,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.chat_bubble_outline,
+                                    size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Chat',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ],
