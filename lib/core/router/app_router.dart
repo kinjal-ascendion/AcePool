@@ -5,6 +5,8 @@ import 'package:acepool/features/splash/presentation/pages/splash_page.dart';
 import 'package:acepool/features/home/presentation/pages/main_shell_page.dart';
 import 'package:acepool/features/auth/presentation/pages/login_page.dart';
 import 'package:acepool/features/auth/presentation/pages/signup_page.dart';
+import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
+import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -47,6 +49,19 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra as Map<String, String>;
           return OtpPage(email: extra['email']!, uid: extra['uid']!);
+        },
+      ),
+      GoRoute(
+        path: '/onboarding/travel-preference',
+        name: 'travel-preference',
+        builder: (context, state) => const TravelPreferencePage(),
+      ),
+      GoRoute(
+        path: '/onboarding/vehicle-preference',
+        name: 'vehicle-preference',
+        builder: (context, state) {
+          final travelPreference = state.extra as TravelPreference;
+          return VehiclePreferencePage(travelPreference: travelPreference);
         },
       ),
       GoRoute(

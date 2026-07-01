@@ -160,7 +160,7 @@ class _OtpPageState extends State<OtpPage> {
 
       await doc.reference.delete();
 
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/onboarding/travel-preference');
     } catch (e) {
       setState(() => _errorMessage = 'Verification failed. Please try again.');
     } finally {
@@ -340,6 +340,7 @@ class _OtpPageState extends State<OtpPage> {
         focusNode: _focusNodes[index],
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(
@@ -351,6 +352,7 @@ class _OtpPageState extends State<OtpPage> {
           counterText: '',
           filled: true,
           fillColor: Colors.white,
+          contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.grey.shade300),
