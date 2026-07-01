@@ -1,0 +1,8 @@
+import '../entities/chat_message.dart';
+import '../entities/chat_room.dart';
+
+abstract class ChatRepository {
+  Stream<List<ChatRoom>> getChatRooms(String userId);
+  Stream<List<ChatMessage>> getMessages(String chatId);
+  Future<void> sendMessage(String chatId, ChatMessage message, String senderName, String receiverName);
+}
