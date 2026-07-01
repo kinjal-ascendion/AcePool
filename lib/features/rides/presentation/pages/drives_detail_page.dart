@@ -1,3 +1,4 @@
+import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -597,7 +598,16 @@ class _RiderCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChatPage(
+                            receiverId: rider.riderId,
+                            receiverName: rider.riderName,
+                          ),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.chat_bubble_outline, size: 14),
                     label: const Text('Chat',
                         style: TextStyle(fontSize: 13)),

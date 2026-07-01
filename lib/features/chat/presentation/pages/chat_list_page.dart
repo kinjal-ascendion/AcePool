@@ -1,122 +1,109 @@
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/presentation/bloc/chat_list_bloc.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return const Center(child: Text('Please log in'));
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Chats',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    return BlocProvider(
+      create: (context) => sl<ChatListBloc>()..add(ChatListSubscriptionRequested(uid)),
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const Text(
+            'Chats',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
         ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _db
-            .collection('chats')
-            .where('participants', arrayContains: uid)
-            .orderBy('lastMessageTime', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        body: BlocBuilder<ChatListBloc, ChatListState>(
+          builder: (context, state) {
+            if (state.status == ChatListStatus.failure) {
+              return Center(child: Text('Error: ${state.errorMessage}'));
+            }
+            if (state.status == ChatListStatus.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No conversations yet',
-                    style: TextStyle(color: Colors.black45),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final participantNames = data['participantNames'] as Map<String, dynamic>? ?? {};
-              
-              // Find the other participant
-              String otherId = '';
-              final participants = List<String>.from(data['participants'] ?? []);
-              for (final id in participants) {
-                if (id != uid) {
-                  otherId = id;
-                  break;
-                }
-              }
-              
-              final otherName = participantNames[otherId] as String? ?? 'User';
-              final lastMsg = data['lastMessage'] as String? ?? '';
-              final lastTime = (data['lastMessageTime'] as Timestamp?)?.toDate();
-
-              return ListTile(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        receiverId: otherId,
-                        receiverName: otherName,
-                      ),
+            if (state.rooms.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No conversations yet',
+                      style: TextStyle(color: Colors.black45),
                     ),
-                  );
-                },
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.grey.shade200,
-                  child: Text(otherName.isNotEmpty ? otherName[0].toUpperCase() : '?'),
+                  ],
                 ),
-                title: Text(
-                  otherName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  lastMsg,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: lastTime != null
-                    ? Text(
-                        _formatDate(lastTime),
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                      )
-                    : null,
               );
-            },
-          );
-        },
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: state.rooms.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final room = state.rooms[index];
+                
+                // Find the other participant's name
+                String otherId = room.participants.firstWhere(
+                  (id) => id != uid,
+                  orElse: () => '',
+                );
+                
+                final otherName = room.participantNames[otherId] ?? 'User';
+                final lastTime = room.lastMessageTime;
+
+                return ListTile(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatPage(
+                          receiverId: otherId,
+                          receiverName: otherName,
+                        ),
+                      ),
+                    );
+                  },
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.grey.shade200,
+                    child: Text(otherName.isNotEmpty ? otherName[0].toUpperCase() : '?'),
+                  ),
+                  title: Text(
+                    otherName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    room.lastMessage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: lastTime != null
+                      ? Text(
+                          _formatDate(lastTime),
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                        )
+                      : null,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
