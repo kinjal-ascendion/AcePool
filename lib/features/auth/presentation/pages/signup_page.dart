@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../widgets/auth_button.dart';
 import '../widgets/auth_text_field.dart';
 
 class SignupPage extends StatefulWidget {
@@ -142,8 +143,6 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF1B8A3F);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
@@ -228,26 +227,15 @@ class _SignupPageState extends State<SignupPage> {
               AuthTextField(
                 label: 'Work Email',
                 controller: _emailUsernameController,
-                hintText: 'username',
+                hintText: 'Username',
                 keyboardType: TextInputType.emailAddress,
                 onChanged: _onFieldChanged,
                 errorText: _emailError,
-                suffixWidget: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
+                suffixWidget: const Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: Text(
                     '@ascendion.com',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(color: Colors.black54),
                   ),
                 ),
               ),
@@ -274,36 +262,10 @@ class _SignupPageState extends State<SignupPage> {
               const SizedBox(height: 32),
 
               // ── Create Account button ────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
+              AuthButton(
+                onPressed: _signup,
+                isLoading: _isLoading,
+                label: 'Create Account',
               ),
               const SizedBox(height: 20),
 
@@ -319,8 +281,8 @@ class _SignupPageState extends State<SignupPage> {
                         TextSpan(
                           text: 'Log in',
                           style: TextStyle(
-                            color: primaryGreen,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),

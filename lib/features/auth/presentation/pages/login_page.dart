@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../widgets/login_button.dart';
+import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
 import '../widgets/signup_text.dart';
 import '../widgets/auth_text_field.dart';
@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
               AuthTextField(
                label: 'Work Email',
                controller: _emailController,
-               hintText: 'username',
+               hintText: 'Username',
                errorText: _emailError,
                onChanged: (_) => setState(() => _emailError = null),
                suffixWidget: const Padding(
@@ -107,8 +107,21 @@ class _LoginPageState extends State<LoginPage> {
                errorText: _passwordError,
                onChanged: (_) => setState(() => _passwordError = null),
               ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Coming soon')),
+                  ),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
-              LoginButton(onPressed: login, isLoading: _isLoading),
+              AuthButton(onPressed: login, isLoading: _isLoading, label: 'Log In'),
               const SizedBox(height: 12),
               const SignupText(),
             ],

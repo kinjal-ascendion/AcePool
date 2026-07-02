@@ -48,11 +48,12 @@ class _AuthTextFieldState extends State<AuthTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.label,
+          widget.label.toUpperCase(),
           style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.black54,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -62,11 +63,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
             right: showEye || widget.suffixWidget != null ? 4 : 0,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFEEEEEE),
-            borderRadius: BorderRadius.circular(12),
-            border: widget.errorText != null
-                ? Border.all(color: Colors.red.shade400, width: 1.2)
-                : null,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.errorText != null
+                  ? Colors.red.shade400
+                  : Colors.grey.shade300,
+              width: widget.errorText != null ? 1.2 : 1,
+            ),
           ),
           child: Row(
             children: [
@@ -82,15 +86,15 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     hintText: widget.hintText,
                     hintStyle: const TextStyle(
                       color: Color(0xFFAAAAAA),
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: widget.prefixWidget != null ? 12 : 16,
-                      vertical: 18,
+                      vertical: 12,
                     ),
                   ),
-                  style: const TextStyle(color: Colors.black87, fontSize: 16),
+                  style: const TextStyle(color: Colors.black87, fontSize: 14),
                 ),
               ),
               if (showEye)
