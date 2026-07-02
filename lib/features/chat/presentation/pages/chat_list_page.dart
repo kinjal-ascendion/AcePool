@@ -55,50 +55,72 @@ class ChatListPage extends StatelessWidget {
               itemCount: state.rooms.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final room = state.rooms[index];
-                
+              final room = state.rooms[index];
+              final isGroup = room.type == 'group';
+              
+              String displayName;
+              String otherId = '';
+              String? subtitle;
+              List<String> photos = [];
+              
+              if (isGroup) {
+                displayName = room.groupTitle ?? 'Group Chat';
+                final names = room.participantNames.values.toList();
+                subtitle = names.join(', ');
+                photos = room.participantPhotos.values.toList();
+              } else {
                 // Find the other participant's name
-                String otherId = room.participants.firstWhere(
+                otherId = room.participants.firstWhere(
                   (id) => id != uid,
                   orElse: () => '',
                 );
-                
-                final otherName = room.participantNames[otherId] ?? 'User';
-                final lastTime = room.lastMessageTime;
+                displayName = room.participantNames[otherId] ?? 'User';
+                subtitle = null;
+                final photo = room.participantPhotos[otherId];
+                photos = photo != null ? [photo] : [];
+              }
+              
+              final lastTime = room.lastMessageTime;
 
-                return ListTile(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChatPage(
-                          receiverId: otherId,
-                          receiverName: otherName,
-                        ),
+              return ListTile(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(
+                        chatId: room.id,
+                        title: displayName,
+                        subtitle: subtitle,
+                        profileImages: photos,
+                        receiverId: isGroup ? null : otherId,
+                        receiverName: isGroup ? null : displayName,
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   tileColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   leading: CircleAvatar(
-                    backgroundColor: Colors.grey.shade200,
-                    child: Text(otherName.isNotEmpty ? otherName[0].toUpperCase() : '?'),
+                    backgroundColor: isGroup ? Colors.blue.shade100 : Colors.grey.shade200,
+                    child: isGroup 
+                      ? const Icon(Icons.group, color: Colors.blue)
+                      : Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?'),
                   ),
                   title: Text(
-                    otherName,
+                    displayName,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    room.lastMessage,
+                    room.lastMessage.isEmpty ? 'No messages yet' : room.lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: lastTime != null
-                      ? Text(
-                          _formatDate(lastTime),
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                        )
-                      : null,
+                trailing: lastTime != null
+                    ? Text(
+                        _formatDate(lastTime),
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                      )
+                    : null,
                 );
               },
             );

@@ -4,6 +4,7 @@ class ChatMessage {
   final String receiverId;
   final String text;
   final DateTime? timestamp;
+  final String? senderName;
 
   ChatMessage({
     required this.id,
@@ -11,5 +12,6 @@ class ChatMessage {
     required this.receiverId,
     required this.text,
     this.timestamp,
+    this.senderName,
   });
 }

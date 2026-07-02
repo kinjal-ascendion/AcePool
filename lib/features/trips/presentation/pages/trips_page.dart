@@ -672,9 +672,17 @@ class _RequestCard extends StatelessWidget {
                           request.driverId.isNotEmpty)
                         GestureDetector(
                           onTap: () {
+                            final myId = FirebaseAuth.instance.currentUser?.uid;
+                            if (myId == null) return;
+                            final ids = [myId, request.driverId];
+                            ids.sort();
+                            final chatId = ids.join('_');
+
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => ChatPage(
+                                  chatId: chatId,
+                                  title: request.driverName,
                                   receiverId: request.driverId,
                                   receiverName: request.driverName,
                                 ),

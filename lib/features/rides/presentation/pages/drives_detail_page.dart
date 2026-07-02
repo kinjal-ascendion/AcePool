@@ -79,13 +79,30 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   }
 
   Future<void> _acceptRequest(String requestId) async {
+    final doc = await _db.collection('ride_requests').doc(requestId).get();
+    final data = doc.data();
+    if (data == null) return;
+
+    final riderId = data['riderId'] as String;
+    final driverId = data['driverId'] as String;
+
     await _db
         .collection('ride_requests')
         .doc(requestId)
         .update({'status': 'accepted'});
+
     await _db.collection('rides').doc(widget.trip.id).update({
       'seatsFilled': FieldValue.increment(1),
     });
+
+    // Add rider and driver to the group chat participants
+    await _db.collection('chats').doc(widget.trip.id).set({
+      'participants': FieldValue.arrayUnion([riderId, driverId]),
+      'type': 'group',
+      'groupTitle': widget.trip.dateLabel, // Use date as title for the group
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
     setState(_reload);
   }
 
@@ -285,37 +302,86 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 const SizedBox(height: 16),
 
                                 // Chat bar
-                                Container(
-                                  padding: const EdgeInsets.only(
-                                      left: 16, right: 6, top: 6, bottom: 6),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                        color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Expanded(
-                                        child: Text(
-                                          'Start your chat with all riders',
-                                          style: TextStyle(
-                                              color: Colors.black38,
-                                              fontSize: 14),
+                                GestureDetector(
+                                  onTap: () async {
+                                    final riders = await _confirmedFuture;
+                                    final myId = FirebaseAuth.instance.currentUser?.uid;
+                                    if (myId == null) return;
+
+                                    final participantIds = riders.map((r) => r.riderId).toList();
+                                    participantIds.add(myId);
+
+                                    final participantNames = {
+                                      for (var r in riders) r.riderId: r.riderName,
+                                      myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver'
+                                    };
+
+                                    final participantPhotos = {
+                                      for (var r in riders) if (r.riderPhotoUrl != null) r.riderId: r.riderPhotoUrl!,
+                                      if (FirebaseAuth.instance.currentUser?.photoURL != null) 
+                                        myId: FirebaseAuth.instance.currentUser!.photoURL!
+                                    };
+
+                                    // Ensure all confirmed riders are in the chat document
+                                    await _db.collection('chats').doc(widget.trip.id).set({
+                                      'participants': FieldValue.arrayUnion(participantIds),
+                                      'type': 'group',
+                                      'groupTitle': widget.trip.dateLabel,
+                                      'participantNames': participantNames,
+                                      'participantPhotos': participantPhotos,
+                                      'lastMessageTime': FieldValue.serverTimestamp(),
+                                    }, SetOptions(merge: true));
+
+                                    final profileImages = riders
+                                        .where((r) => r.riderPhotoUrl != null)
+                                        .map((r) => r.riderPhotoUrl!)
+                                        .toList();
+
+                                    if (mounted) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ChatPage(
+                                            chatId: widget.trip.id,
+                                            title: widget.trip.dateLabel,
+                                            subtitle: riders.map((r) => r.riderName).join(', '),
+                                            profileImages: profileImages,
+                                          ),
                                         ),
-                                      ),
-                                      Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: const BoxDecoration(
-                                          color: _green,
-                                          shape: BoxShape.circle,
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.only(
+                                        left: 16, right: 6, top: 6, bottom: 6),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'Start your chat with all riders',
+                                            style: TextStyle(
+                                                color: Colors.black38,
+                                                fontSize: 14),
+                                          ),
                                         ),
-                                        child: const Icon(
-                                            Icons.send_rounded,
-                                            color: Colors.white,
-                                            size: 18),
-                                      ),
-                                    ],
+                                        Container(
+                                          width: 38,
+                                          height: 38,
+                                          decoration: const BoxDecoration(
+                                            color: _green,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                              Icons.send_rounded,
+                                              color: Colors.white,
+                                              size: 18),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -599,9 +665,17 @@ class _RiderCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
+                      final myId = FirebaseAuth.instance.currentUser?.uid;
+                      if (myId == null) return;
+                      final ids = [myId, rider.riderId];
+                      ids.sort();
+                      final chatId = ids.join('_');
+
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => ChatPage(
+                            chatId: chatId,
+                            title: rider.riderName,
                             receiverId: rider.riderId,
                             receiverName: rider.riderName,
                           ),

@@ -25,6 +25,9 @@ class ChatRepositoryImpl implements ChatRepository {
                 lastMessageTime: (data['lastMessageTime'] as Timestamp?)?.toDate(),
                 participants: List<String>.from(data['participants'] ?? []),
                 participantNames: Map<String, String>.from(data['participantNames'] ?? {}),
+                participantPhotos: Map<String, String>.from(data['participantPhotos'] ?? {}),
+                type: data['type'] ?? 'private',
+                groupTitle: data['groupTitle'],
               );
             }).toList());
   }
@@ -45,6 +48,7 @@ class ChatRepositoryImpl implements ChatRepository {
                 receiverId: data['receiverId'] ?? '',
                 text: data['text'] ?? '',
                 timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
+                senderName: data['senderName'],
               );
             }).toList());
   }
@@ -55,15 +59,27 @@ class ChatRepositoryImpl implements ChatRepository {
     final batch = _db.batch();
     final chatRef = _db.collection('chats').doc(chatId);
 
-    batch.set(chatRef, {
+    final bool isGroup = message.receiverId == 'group';
+
+    Map<String, dynamic> updateData = {
       'lastMessage': message.text,
       'lastMessageTime': now,
-      'participants': [message.senderId, message.receiverId],
-      'participantNames': {
+    };
+
+    if (isGroup) {
+      updateData['participants'] = FieldValue.arrayUnion([message.senderId]);
+      updateData['participantNames.${message.senderId}'] = senderName;
+      updateData['type'] = 'group';
+    } else {
+      updateData['participants'] = [message.senderId, message.receiverId];
+      updateData['participantNames'] = {
         message.senderId: senderName,
         message.receiverId: receiverName,
-      }
-    }, SetOptions(merge: true));
+      };
+      updateData['type'] = 'private';
+    }
+
+    batch.set(chatRef, updateData, SetOptions(merge: true));
 
     final messageRef = chatRef.collection('messages').doc();
     batch.set(messageRef, {
@@ -71,6 +87,7 @@ class ChatRepositoryImpl implements ChatRepository {
       'receiverId': message.receiverId,
       'text': message.text,
       'timestamp': now,
+      'senderName': senderName,
     });
 
     await batch.commit();
