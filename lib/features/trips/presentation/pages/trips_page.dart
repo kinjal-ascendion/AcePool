@@ -152,7 +152,6 @@ class _TripsPageState extends State<TripsPage>
       ));
     }
 
-    rides.removeWhere((r) => r.matchPercent < 60);
     rides.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
     return rides;
   }
@@ -761,42 +760,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     super.dispose();
   }
 
-  Future<String?> _resolvePickupPoint() async {
-    if (widget.ride.defaultPickupPoint.isNotEmpty) {
-      return widget.ride.defaultPickupPoint;
-    }
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter pickup location'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'e.g. Building A, Gate 2',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    return (result != null && result.isNotEmpty) ? result : null;
-  }
-
   Future<void> _requestRide() async {
-    final pickupPoint = await _resolvePickupPoint();
-    if (pickupPoint == null) return;
-
     setState(() => _submitting = true);
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -817,7 +781,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         'riderId': uid,
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
-        'pickupPoint': pickupPoint,
+        'pickupPoint': widget.ride.defaultPickupPoint,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
