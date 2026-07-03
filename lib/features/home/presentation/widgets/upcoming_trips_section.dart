@@ -1,6 +1,6 @@
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
-import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
+import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:flutter/material.dart';
 
 class UpcomingTripsSection extends StatelessWidget {
@@ -68,7 +68,7 @@ class UpcomingTripsSection extends StatelessWidget {
                   builder: (_) => DrivesDetailPage(trip: trip),
                 ),
               ),
-              child: TripCard(trip: trip),
+              child: DriveTripCard(trip: trip),
             ),
             const SizedBox(height: 12),
           ],

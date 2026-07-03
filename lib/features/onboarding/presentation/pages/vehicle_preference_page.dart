@@ -9,7 +9,7 @@ import '../widgets/onboarding_option_tile.dart';
 import '../widgets/onboarding_progress_bar.dart';
 import 'travel_preference_page.dart';
 
-enum VehiclePreference { car, bike }
+enum VehiclePreference { car, bike, both }
 
 class VehiclePreferencePage extends StatefulWidget {
   const VehiclePreferencePage({super.key, required this.travelPreference});
@@ -75,6 +75,12 @@ class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
                 label: 'Bike/ Scooty',
                 selected: _selected == VehiclePreference.bike,
                 onTap: () => setState(() => _selected = VehiclePreference.bike),
+              ),
+              const SizedBox(height: 12),
+              OnboardingOptionTile(
+                label: 'Both',
+                selected: _selected == VehiclePreference.both,
+                onTap: () => setState(() => _selected = VehiclePreference.both),
               ),
               const SizedBox(height: 10),
               const Text(

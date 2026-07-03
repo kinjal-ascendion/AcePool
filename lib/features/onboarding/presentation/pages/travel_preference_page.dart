@@ -15,7 +15,7 @@ class TravelPreferencePage extends StatefulWidget {
 }
 
 class _TravelPreferencePageState extends State<TravelPreferencePage> {
-  TravelPreference _selected = TravelPreference.ride;
+  TravelPreference _selected = TravelPreference.drive;
 
   void _onNext() {
     context.go('/onboarding/vehicle-preference', extra: _selected);
@@ -44,15 +44,15 @@ class _TravelPreferencePageState extends State<TravelPreferencePage> {
               ),
               const SizedBox(height: 28),
               OnboardingOptionTile(
-                label: 'Ride',
-                selected: _selected == TravelPreference.ride,
-                onTap: () => setState(() => _selected = TravelPreference.ride),
-              ),
-              const SizedBox(height: 12),
-              OnboardingOptionTile(
                 label: 'Drive',
                 selected: _selected == TravelPreference.drive,
                 onTap: () => setState(() => _selected = TravelPreference.drive),
+              ),
+              const SizedBox(height: 12),
+              OnboardingOptionTile(
+                label: 'Ride',
+                selected: _selected == TravelPreference.ride,
+                onTap: () => setState(() => _selected = TravelPreference.ride),
               ),
               const SizedBox(height: 12),
               OnboardingOptionTile(

@@ -1,6 +1,6 @@
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
-import 'package:acepool/features/home/presentation/widgets/trip_card.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
+import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,9 +19,8 @@ class _TripsPageState extends State<TripsPage>
 
   late Future<List<_AvailableRide>> _ridesFuture;
   late final Future<List<UpcomingTrip>> _drivesFuture;
-  late final Future<List<_RideRequest>> _requestsFuture;
 
-  static const _tabs = ['Rides', 'Drives', 'Requests'];
+  static const _tabs = ['Rides', 'Drives'];
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -31,11 +30,10 @@ class _TripsPageState extends State<TripsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
     _tabController.addListener(() => setState(() {}));
     _ridesFuture = _fetchAvailableRides();
     _drivesFuture = _fetchTrips('offer');
-    _requestsFuture = _fetchMyRequests();
   }
 
   @override
@@ -177,41 +175,6 @@ class _TripsPageState extends State<TripsPage>
         .any((w) => bn.contains(w));
   }
 
-  Future<List<_RideRequest>> _fetchMyRequests() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    try {
-      final snap = await _db
-          .collection('ride_requests')
-          .where('riderId', isEqualTo: uid)
-          .get();
-
-      final results = snap.docs.map((doc) {
-        final d = doc.data();
-        final rideTimeMap =
-            d['rideTime'] as Map<String, dynamic>? ?? {'hour': 0, 'minute': 0};
-        final rideDate = (d['rideDate'] as Timestamp?)?.toDate() ?? DateTime.now();
-        return _RideRequest(
-          id: doc.id,
-          rideFrom: d['rideFrom'] as String? ?? '',
-          rideTo: d['rideTo'] as String? ?? '',
-          rideDate: rideDate,
-          rideTime: TimeOfDay(
-            hour: rideTimeMap['hour'] as int,
-            minute: rideTimeMap['minute'] as int,
-          ),
-          driverName: d['driverName'] as String? ?? '',
-          status: d['status'] as String? ?? 'pending',
-        );
-      }).toList();
-      results.sort((a, b) => b.rideDate.compareTo(a.rideDate));
-      return results;
-    } catch (_) {
-      return [];
-    }
-  }
-
   Widget _buildList(
     Future<List<UpcomingTrip>> future,
     String emptyLabel, {
@@ -253,9 +216,9 @@ class _TripsPageState extends State<TripsPage>
           itemBuilder: (_, i) => onTap != null
               ? GestureDetector(
                   onTap: () => onTap(trips[i]),
-                  child: TripCard(trip: trips[i]),
+                  child: DriveTripCard(trip: trips[i]),
                 )
-              : TripCard(trip: trips[i]),
+              : DriveTripCard(trip: trips[i]),
         );
       },
     );
@@ -430,45 +393,6 @@ class _TripsPageState extends State<TripsPage>
                       ),
                     ),
                   ),
-                  FutureBuilder<List<_RideRequest>>(
-                    future: _requestsFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                            child: CircularProgressIndicator());
-                      }
-                      final requests = snapshot.data ?? [];
-                      if (requests.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.inbox_outlined,
-                                  size: 64,
-                                  color: Colors.grey.shade300),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No ride requests yet',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 15),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                        itemCount: requests.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (_, i) =>
-                            _RequestCard(request: requests[i]),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
@@ -476,208 +400,6 @@ class _TripsPageState extends State<TripsPage>
         ),
       ),
     );
-  }
-}
-
-// ── Data class ────────────────────────────────────────────────────────────────
-
-class _RideRequest {
-  const _RideRequest({
-    required this.id,
-    required this.rideFrom,
-    required this.rideTo,
-    required this.rideDate,
-    required this.rideTime,
-    required this.driverName,
-    required this.status,
-  });
-
-  final String id;
-  final String rideFrom;
-  final String rideTo;
-  final DateTime rideDate;
-  final TimeOfDay rideTime;
-  final String driverName;
-  final String status;
-
-  Color get statusColor {
-    switch (status) {
-      case 'accepted':
-        return const Color(0xFF1B8A3F);
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
-  }
-
-  String get statusLabel {
-    switch (status) {
-      case 'accepted':
-        return 'Accepted';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return 'Pending';
-    }
-  }
-}
-
-// ── Request card ──────────────────────────────────────────────────────────────
-
-class _RequestCard extends StatelessWidget {
-  const _RequestCard({required this.request});
-
-  final _RideRequest request;
-
-  static const _green = Color(0xFF1B8A3F);
-
-  String _timeLabel(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $period';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Status badge
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(18),
-                  bottomRight: Radius.circular(14),
-                ),
-                child: ColoredBox(
-                  color: request.statusColor,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
-                    child: Text(
-                      request.statusLabel,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_monthDay(request.rideDate)}  •  ${_timeLabel(request.rideTime)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 10),
-
-                // Route
-                Row(
-                  children: [
-                    Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _green, width: 1.5),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(request.rideFrom,
-                          style: const TextStyle(fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 3.5),
-                  child: Column(
-                    children: List.generate(
-                      3,
-                      (_) => Container(
-                        width: 1.5,
-                        height: 3.5,
-                        margin:
-                            const EdgeInsets.symmetric(vertical: 1),
-                        color: Colors.black26,
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle, color: _green),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(request.rideTo,
-                          style: const TextStyle(fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-
-                if (request.driverName.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(Icons.directions_car_outlined,
-                          size: 14, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Driver: ${request.driverName}',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _monthDay(DateTime d) {
-    const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[d.month]} ${d.day}, ${d.year}';
   }
 }
 
