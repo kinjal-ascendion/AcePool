@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'edit_profile_page.dart';
+import 'license_verification_page.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -162,6 +163,7 @@ final profilePercentage =
             final mobile = data?['mobile'] as String? ?? '';
             final homeAddress = data?['homeAddress'] as String? ?? '';
             final officeAddress = data?['officeAddress'] as String? ?? '';
+            final licenseVerified = data?['licenseStatus'] == 'verified';
 
             final isLoading =
                 snapshot.connectionState == ConnectionState.waiting;
@@ -335,6 +337,56 @@ _placeCard(
       ? officeAddress
       : 'Add Office Address',
 ),
+
+                  const SizedBox(height: 30),
+
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Driver's License",
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  if (!isLoading)
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          licenseVerified
+                              ? Icons.verified_outlined
+                              : Icons.warning_amber_outlined,
+                          color: licenseVerified
+                              ? Colors.green
+                              : Colors.orange,
+                        ),
+                        title: Text(
+                          licenseVerified ? 'Verified' : 'Not verified',
+                        ),
+                        subtitle: Text(
+                          licenseVerified
+                              ? 'You can schedule rides as a driver'
+                              : 'Required to schedule a ride as a driver',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () async {
+                            final updated = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const LicenseVerificationPage(),
+                              ),
+                            );
+
+                            if (updated == true) {
+                              setState(() {});
+                            }
+                          },
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 30),
 

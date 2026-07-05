@@ -21,6 +21,13 @@ class ScheduleRideUseCase {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('User not authenticated');
 
+    final userDoc = await _db.collection('users').doc(uid).get();
+    if (userDoc.data()?['licenseStatus'] != 'verified') {
+      throw Exception(
+        "Please upload a verified driver's license before scheduling a ride.",
+      );
+    }
+
     await _db.collection('rides').add({
       'uid': uid,
       'rideMode': rideMode,

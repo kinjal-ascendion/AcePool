@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:acepool/core/widgets/license_upload_section.dart';
 
 import '../widgets/auth_button.dart';
 import '../widgets/auth_text_field.dart';
@@ -28,6 +33,10 @@ class _SignupPageState extends State<SignupPage> {
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
+  String? _licenseError;
+
+  File? _licenseFrontImage;
+  File? _licenseBackImage;
 
   bool _validate() {
     final password = _passwordController.text;
@@ -52,13 +61,17 @@ class _SignupPageState extends State<SignupPage> {
           : _confirmPasswordController.text != password
           ? 'Passwords do not match'
           : null;
+      _licenseError = _licenseFrontImage == null || _licenseBackImage == null
+          ? "Please upload both sides of your driver's license"
+          : null;
     });
 
     return _fullNameError == null &&
         _employeeIdError == null &&
         _emailError == null &&
         _passwordError == null &&
-        _confirmPasswordError == null;
+        _confirmPasswordError == null &&
+        _licenseError == null;
   }
 
   @override
@@ -89,6 +102,16 @@ class _SignupPageState extends State<SignupPage> {
       // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
+      final storageRef = FirebaseStorage.instance.ref('driver_licenses/$uid');
+      final licenseFrontUrl = await _uploadLicenseImage(
+        storageRef.child('front.jpg'),
+        _licenseFrontImage!,
+      );
+      final licenseBackUrl = await _uploadLicenseImage(
+        storageRef.child('back.jpg'),
+        _licenseBackImage!,
+      );
+
       await FirebaseFirestore.instanceFor(
         app: Firebase.app(),
         databaseId: 'acepool',
@@ -96,6 +119,9 @@ class _SignupPageState extends State<SignupPage> {
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
         'email': email,
+        'licenseFrontUrl': licenseFrontUrl,
+        'licenseBackUrl': licenseBackUrl,
+        'licenseStatus': 'verified',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -140,6 +166,11 @@ class _SignupPageState extends State<SignupPage> {
     _passwordError = null;
     _confirmPasswordError = null;
   });
+
+  Future<String> _uploadLicenseImage(Reference ref, File file) async {
+    await ref.putFile(file);
+    return ref.getDownloadURL();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +270,22 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+
+              LicenseUploadSection(
+                frontImage: _licenseFrontImage,
+                backImage: _licenseBackImage,
+                errorText: _licenseError,
+                onFrontPicked: (file) => setState(() {
+                  _licenseFrontImage = file;
+                  _licenseError = null;
+                }),
+                onBackPicked: (file) => setState(() {
+                  _licenseBackImage = file;
+                  _licenseError = null;
+                }),
+              ),
+              const SizedBox(height: 20),
 
               AuthTextField(
                 label: 'Password',
