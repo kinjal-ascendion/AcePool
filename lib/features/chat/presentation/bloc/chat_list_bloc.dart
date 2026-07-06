@@ -17,7 +17,6 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         super(const ChatListState()) {
     on<ChatListSubscriptionRequested>(_onSubscriptionRequested);
     on<ChatListUpdated>(_onChatListUpdated);
-    on<ChatFilterChanged>(_onFilterChanged);
     on<ChatSearchQueryChanged>(_onSearchQueryChanged);
   }
 
@@ -41,13 +40,6 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
       status: ChatListStatus.success,
       rooms: event.rooms,
     ));
-  }
-
-  void _onFilterChanged(
-    ChatFilterChanged event,
-    Emitter<ChatListState> emit,
-  ) {
-    emit(state.copyWith(filter: event.filter));
   }
 
   void _onSearchQueryChanged(

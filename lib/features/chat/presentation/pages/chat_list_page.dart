@@ -88,51 +88,6 @@ class _ChatListPageState extends State<ChatListPage> {
                   ),
                 ),
                 
-                // Filter Chips
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'All', 
-                        isSelected: state.filter == ChatFilter.all,
-                        onTap: () => context.read<ChatListBloc>().add(const ChatFilterChanged(ChatFilter.all)),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Unread', 
-                        isSelected: state.filter == ChatFilter.unread,
-                        onTap: () => context.read<ChatListBloc>().add(const ChatFilterChanged(ChatFilter.unread)),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.add, size: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Archived
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.archive_outlined, color: Colors.grey, size: 20),
-                      SizedBox(width: 12),
-                      Text(
-                        'Archived',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(indent: 16, endIndent: 16),
-
                 // Chat List
                 Expanded(
                   child: _buildChatList(context, state, uid),
@@ -157,13 +112,8 @@ class _ChatListPageState extends State<ChatListPage> {
       return const Center(child: Text('No active conversations'));
     }
 
-    // Filter by Unread if active
-    var displayedRooms = state.rooms;
-    if (state.filter == ChatFilter.unread) {
-      displayedRooms = state.rooms.where((room) => room.getUnreadCount(uid) > 0).toList();
-    }
-
     // Filter by Search Query
+    var displayedRooms = state.rooms;
     if (state.searchQuery.trim().isNotEmpty) {
       final query = state.searchQuery.trim().toLowerCase();
       displayedRooms = displayedRooms.where((room) {
@@ -181,9 +131,7 @@ class _ChatListPageState extends State<ChatListPage> {
     }
 
     if (displayedRooms.isEmpty) {
-      if (state.filter == ChatFilter.unread) {
-        return const Center(child: Text('No unread messages'));
-      } else if (state.searchQuery.isNotEmpty) {
+      if (state.searchQuery.isNotEmpty) {
         return const Center(child: Text('No results found'));
       }
       return const Center(child: Text('No active conversations'));
@@ -255,35 +203,6 @@ class _ChatListPageState extends State<ChatListPage> {
           },
         );
       },
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE8F5E9) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFF1B8A3F) : Colors.grey,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
     );
   }
 }

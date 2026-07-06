@@ -20,13 +20,6 @@ class ChatListUpdated extends ChatListEvent {
   List<Object?> get props => [rooms];
 }
 
-class ChatFilterChanged extends ChatListEvent {
-  final ChatFilter filter;
-  const ChatFilterChanged(this.filter);
-  @override
-  List<Object?> get props => [filter];
-}
-
 class ChatSearchQueryChanged extends ChatListEvent {
   final String query;
   const ChatSearchQueryChanged(this.query);
