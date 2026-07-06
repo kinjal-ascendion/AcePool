@@ -56,7 +56,7 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
     final myRequestsSnap = await _db
         .collection('ride_requests')
         .where('riderId', isEqualTo: uid)
-        .where('status', isEqualTo: 'pending')
+        .where('status', isEqualTo: 'accepted')
         .get();
     final requestedRideIds = myRequestsSnap.docs
         .map((d) => d.data()['rideId'] as String)
@@ -288,11 +288,14 @@ class _RideResultCardState extends State<_RideResultCard> {
   static const _badgeBg = Color(0xFF5A5A5A);
 
   final _messageController = TextEditingController();
+  late final _pickupController =
+      TextEditingController(text: widget.riderFromAddress);
   bool _submitting = false;
 
   @override
   void dispose() {
     _messageController.dispose();
+    _pickupController.dispose();
     super.dispose();
   }
 
@@ -312,18 +315,22 @@ class _RideResultCardState extends State<_RideResultCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
+      final pickupPoint = _pickupController.text.trim().isNotEmpty
+          ? _pickupController.text.trim()
+          : widget.riderFromAddress;
+
       await widget.db.collection('ride_requests').add({
         'rideId': widget.result.id,
         'riderId': uid,
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
-        'pickupPoint': widget.riderFromAddress,
+        'pickupPoint': pickupPoint,
         'pickupTime': {
           'hour': widget.riderTime.hour,
           'minute': widget.riderTime.minute,
         },
         'message': _messageController.text.trim(),
-        'status': 'pending',
+        'status': 'accepted',
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.result.fromAddress,
         'rideTo': widget.result.toAddress,
@@ -334,6 +341,10 @@ class _RideResultCardState extends State<_RideResultCard> {
         },
         'driverId': widget.result.driverId,
         'driverName': widget.result.driverName,
+      });
+
+      await widget.db.collection('rides').doc(widget.result.id).update({
+        'seatsFilled': FieldValue.increment(1),
       });
 
       if (mounted) widget.onRequested();
@@ -488,6 +499,40 @@ class _RideResultCardState extends State<_RideResultCard> {
             ),
 
             const SizedBox(height: 14),
+
+            // ── Pickup point ──────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on_outlined,
+                      size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _pickupController,
+                      enabled: !requested && !_submitting,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Pickup point (e.g. Building A, Gate 2)',
+                        hintStyle: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade400),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
 
             // ── Message + Request button ─────────────────────────────
             Container(

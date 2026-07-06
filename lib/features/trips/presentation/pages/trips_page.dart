@@ -103,7 +103,7 @@ class _TripsPageState extends State<TripsPage>
       final myRequestsSnap = await _db
           .collection('ride_requests')
           .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'pending')
+          .where('status', isEqualTo: 'accepted')
           .get();
       requestedRideIds = myRequestsSnap.docs
           .map((d) => d.data()['rideId'] as String)
@@ -146,7 +146,8 @@ class _TripsPageState extends State<TripsPage>
         alreadyRequested: requestedRideIds.contains(doc.id),
         matchPercent: _calcMatch(
             userHomeAddress, userOfficeAddress, rideFrom, rideTo),
-        defaultPickupPoint: userHomeAddress,
+        defaultPickupPoint:
+            userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
       ));
     }
 
@@ -474,11 +475,14 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
   static const _badgeBg = Color(0xFF5A5A5A);
 
   final _messageController = TextEditingController();
+  late final _pickupController =
+      TextEditingController(text: widget.ride.defaultPickupPoint);
   bool _submitting = false;
 
   @override
   void dispose() {
     _messageController.dispose();
+    _pickupController.dispose();
     super.dispose();
   }
 
@@ -498,18 +502,22 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
+      final pickupPoint = _pickupController.text.trim().isNotEmpty
+          ? _pickupController.text.trim()
+          : widget.ride.defaultPickupPoint;
+
       await widget.db.collection('ride_requests').add({
         'rideId': widget.ride.id,
         'riderId': uid,
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
-        'pickupPoint': widget.ride.defaultPickupPoint,
+        'pickupPoint': pickupPoint,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
         },
         'message': _messageController.text.trim(),
-        'status': 'pending',
+        'status': 'accepted',
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
         'rideTo': widget.ride.toAddress,
@@ -520,6 +528,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         },
         'driverId': widget.ride.driverId,
         'driverName': widget.ride.driverName,
+      });
+
+      await widget.db.collection('rides').doc(widget.ride.id).update({
+        'seatsFilled': FieldValue.increment(1),
       });
 
       if (mounted) widget.onRequested();
@@ -671,6 +683,40 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
           ),
 
           const SizedBox(height: 14),
+
+          // Pickup point
+          Container(
+            padding: const EdgeInsets.only(left: 16, right: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.location_on_outlined,
+                    size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _pickupController,
+                    enabled: !requested && !_submitting,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Pickup point (e.g. Building A, Gate 2)',
+                      hintStyle: TextStyle(
+                          fontSize: 13, color: Colors.grey.shade400),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
 
           // Message + request button
           Container(
