@@ -4,6 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'edit_profile_page.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:validifydart/validify_dart.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,6 +16,90 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final ImagePicker _imagePicker = ImagePicker();
+
+  bool? _isLicenceValid;
+  bool _isVerifyingLicence = false;
+
+  Future<void> _pickAndVerifyLicence() async {
+  final XFile? pickedImage = await _imagePicker.pickImage(
+    source: ImageSource.gallery,
+  );
+
+  if (pickedImage == null) return;
+
+  setState(() {
+    _isLicenceValid = null;
+    _isVerifyingLicence = true;
+  });
+
+  final TextRecognizer textRecognizer = TextRecognizer(
+    script: TextRecognitionScript.latin,
+  );
+
+  try {
+    final InputImage inputImage =
+        InputImage.fromFilePath(pickedImage.path);
+
+    final RecognizedText recognizedText =
+        await textRecognizer.processImage(inputImage);
+
+    final String fullText = recognizedText.text;
+
+    debugPrint('OCR Text: $fullText');
+
+    final RegExp licenceRegex = RegExp(
+      r'\b[A-Z]{2}\d{2}\s?\d{11}\b',
+    );
+
+    final RegExpMatch? match =
+        licenceRegex.firstMatch(fullText);
+
+    bool isValid = false;
+
+    if (match != null) {
+      final String extractedLicenceNumber =
+          match.group(0)!;
+
+      final String cleanedLicenceNumber =
+          extractedLicenceNumber.replaceAll(' ', '');
+
+      isValid = ValidifyDart.isValidDrivingLicense(
+        cleanedLicenceNumber,
+      );
+
+      debugPrint(
+        'Is Valid Licence: $isValid',
+      );
+    } else {
+      debugPrint('Licence number not found');
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLicenceValid = isValid;
+    });
+  } catch (e) {
+    debugPrint(
+      'Licence verification error: $e',
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLicenceValid = false;
+    });
+  } finally {
+    textRecognizer.close();
+
+    if (mounted) {
+      setState(() {
+        _isVerifyingLicence = false;
+      });
+    }
+  }
+}
 
   double _calculateProfileCompletion(
   Map<String, dynamic>? data,
@@ -303,6 +390,79 @@ final profilePercentage =
                       value: mobile.isNotEmpty ? '+91 $mobile' : '—',
                     ),
                   ],
+
+                  const SizedBox(height: 30),
+
+                                    Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Driving Licence Verification',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _isVerifyingLicence
+                                ? null
+                                : _pickAndVerifyLicence,
+                            icon: const Icon(Icons.upload_file),
+                            label: Text(
+                              _isVerifyingLicence
+                                  ? 'Verifying...'
+                                  : 'Upload Driving Licence',
+                            ),
+                          ),
+
+                          if (_isVerifyingLicence) ...[
+                            const SizedBox(height: 16),
+                            const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ],
+
+                          if (_isLicenceValid != null &&
+                              !_isVerifyingLicence) ...[
+                            const SizedBox(height: 16),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _isLicenceValid!
+                                      ? Icons.verified
+                                      : Icons.cancel,
+                                  color: _isLicenceValid!
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isLicenceValid!
+                                      ? 'Valid Licence'
+                                      : 'Invalid Licence',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: _isLicenceValid!
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
 
                   const SizedBox(height: 30),
 
