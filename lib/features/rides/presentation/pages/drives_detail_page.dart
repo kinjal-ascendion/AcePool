@@ -77,119 +77,101 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     return riders;
   }
 
-  Future<void> _acceptRequest(String requestId) async {
-    final doc = await _db.collection('ride_requests').doc(requestId).get();
-    final data = doc.data();
-    if (data == null) return;
-
-    final riderId = data['riderId'] as String;
-    final driverId = data['driverId'] as String;
-
-    await _db
-        .collection('ride_requests')
-        .doc(requestId)
-        .update({'status': 'accepted'});
-
-    await _db.collection('rides').doc(widget.trip.id).update({
-      'seatsFilled': FieldValue.increment(1),
-    });
-
-    // Add rider and driver to the group chat participants
-    await _db.collection('chats').doc(widget.trip.id).set({
-      'participants': FieldValue.arrayUnion([riderId, driverId]),
-      'type': 'group',
-      'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
-      'rideDate': Timestamp.fromDate(widget.trip.date),
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    setState(_reload);
-  }
-
-  Future<void> _rejectRequest(String requestId) async {
-    await _db
-        .collection('ride_requests')
-        .doc(requestId)
-        .update({'status': 'rejected'});
-    setState(_reload);
-  }
-
   Future<void> _confirmCancelRider(
       BuildContext context, String riderName, String requestId) async {
-    final confirmed = await showDialog<bool>(
+    var isCancelling = false;
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.warning_amber_rounded,
+                      color: Colors.red.shade600, size: 30),
                 ),
-                child: Icon(Icons.warning_amber_rounded,
-                    color: Colors.red.shade600, size: 30),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Cancel this ride?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                riderName.isNotEmpty
-                    ? '$riderName will be removed from this trip and notified of the cancellation. This action cannot be undone.'
-                    : 'This rider will be removed from this trip. This action cannot be undone.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 13.5, color: Colors.grey.shade600, height: 1.4),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
+                const SizedBox(height: 18),
+                const Text(
+                  'Cancel this ride?',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  riderName.isNotEmpty
+                      ? '$riderName will be removed from this trip and notified of the cancellation. This action cannot be undone.'
+                      : 'This rider will be removed from this trip. This action cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13.5, color: Colors.grey.shade600, height: 1.4),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: isCancelling
+                            ? null
+                            : () => Navigator.of(ctx).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: const Text('Keep ride',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
                       ),
-                      child: const Text('Keep ride',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600)),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade600,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isCancelling
+                            ? null
+                            : () async {
+                                setDialogState(() => isCancelling = true);
+                                await _cancelRider(requestId);
+                                if (ctx.mounted) Navigator.of(ctx).pop();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade600,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.red.shade300,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: isCancelling
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Cancel ride',
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600)),
                       ),
-                      child: const Text('Cancel ride',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600)),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -250,7 +232,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DriveTripCard(
-                      trip: widget.trip, 
+                      trip: widget.trip,
                       showViewDetails: false,
                       onChatTap: () async {
                         final riders = await _confirmedFuture;
@@ -267,7 +249,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                         final participantPhotos = {
                           for (var r in riders) if (r.riderPhotoUrl != null) r.riderId: r.riderPhotoUrl!,
-                          if (FirebaseAuth.instance.currentUser?.photoURL != null) 
+                          if (FirebaseAuth.instance.currentUser?.photoURL != null)
                             myId: FirebaseAuth.instance.currentUser!.photoURL!
                         };
 
@@ -470,10 +452,20 @@ class _RiderCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                radius: 22,
-                backgroundImage: rider.riderPhotoUrl != null ? NetworkImage(rider.riderPhotoUrl!) : null,
-                backgroundColor: Colors.grey.shade300,
-                child: rider.riderPhotoUrl == null ? Text(rider.riderName[0].toUpperCase()) : null,
+                radius: 20,
+                backgroundImage: rider.riderPhotoUrl != null
+                    ? NetworkImage(rider.riderPhotoUrl!)
+                    : null,
+                backgroundColor: Colors.grey.shade400,
+                child: rider.riderPhotoUrl == null
+                    ? Text(
+                        rider.riderName.isNotEmpty
+                            ? rider.riderName[0].toUpperCase()
+                            : '?',
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold),
+                      )
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(

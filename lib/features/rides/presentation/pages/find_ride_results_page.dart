@@ -291,6 +291,7 @@ class _RideResultCardState extends State<_RideResultCard> {
   late final _pickupController =
       TextEditingController(text: widget.riderFromAddress);
   bool _submitting = false;
+  bool _justRequested = false;
 
   @override
   void dispose() {
@@ -319,7 +320,10 @@ class _RideResultCardState extends State<_RideResultCard> {
           ? _pickupController.text.trim()
           : widget.riderFromAddress;
 
-      await widget.db.collection('ride_requests').add({
+      final requestRef = widget.db.collection('ride_requests').doc();
+      final rideRef = widget.db.collection('rides').doc(widget.result.id);
+      final batch = widget.db.batch();
+      batch.set(requestRef, {
         'rideId': widget.result.id,
         'riderId': uid,
         'riderName': riderName,
@@ -342,21 +346,30 @@ class _RideResultCardState extends State<_RideResultCard> {
         'driverId': widget.result.driverId,
         'driverName': widget.result.driverName,
       });
+      batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
+      await batch.commit();
 
-      await widget.db.collection('rides').doc(widget.result.id).update({
-        'seatsFilled': FieldValue.increment(1),
-      });
-
-      if (mounted) widget.onRequested();
-    } catch (_) {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() {
+          _justRequested = true;
+          _submitting = false;
+        });
+        widget.onRequested();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not request ride: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final r = widget.result;
-    final requested = r.alreadyRequested;
+    final requested = r.alreadyRequested || _justRequested;
 
     return Container(
       decoration: BoxDecoration(
