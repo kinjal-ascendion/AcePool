@@ -196,6 +196,7 @@ class _TripsPageState extends State<TripsPage>
         final rideDate = (d['rideDate'] as Timestamp?)?.toDate() ?? DateTime.now();
         return _RideRequest(
           id: doc.id,
+          rideId: d['rideId'] as String? ?? '',
           rideFrom: d['rideFrom'] as String? ?? '',
           rideTo: d['rideTo'] as String? ?? '',
           rideDate: rideDate,
@@ -487,6 +488,7 @@ class _TripsPageState extends State<TripsPage>
 class _RideRequest {
   const _RideRequest({
     required this.id,
+    required this.rideId,
     required this.rideFrom,
     required this.rideTo,
     required this.rideDate,
@@ -497,6 +499,7 @@ class _RideRequest {
   });
 
   final String id;
+  final String rideId;
   final String rideFrom;
   final String rideTo;
   final DateTime rideDate;
@@ -670,47 +673,111 @@ class _RequestCard extends StatelessWidget {
                       ),
                       if (request.status == 'accepted' &&
                           request.driverId.isNotEmpty)
-                        GestureDetector(
-                          onTap: () {
-                            final myId = FirebaseAuth.instance.currentUser?.uid;
-                            if (myId == null) return;
-                            final ids = [myId, request.driverId];
-                            ids.sort();
-                            final chatId = ids.join('_');
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                final myId = FirebaseAuth.instance.currentUser?.uid;
+                                if (myId == null) return;
+                                final ids = [myId, request.driverId];
+                                ids.sort();
+                                final chatId = ids.join('_');
 
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ChatPage(
-                                  chatId: chatId,
-                                  title: request.driverName,
-                                  receiverId: request.driverId,
-                                  receiverName: request.driverName,
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatPage(
+                                      chatId: chatId,
+                                      title: request.driverName,
+                                      receiverId: request.driverId,
+                                      receiverName: request.driverName,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.person_outline,
+                                        size: 12, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Chat',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.chat_bubble_outline,
-                                    size: 12, color: Colors.white),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Chat',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () async {
+                                // Fetch the chat document to get group info
+                                final chatDoc = await FirebaseFirestore.instanceFor(
+                                  app: Firebase.app(),
+                                  databaseId: 'acepool',
+                                ).collection('chats').doc(request.rideId).get();
+                                
+                                if (chatDoc.exists) {
+                                  final data = chatDoc.data()!;
+                                  final participantNames = Map<String, String>.from(data['participantNames'] ?? {});
+                                  final participantPhotos = Map<String, String>.from(data['participantPhotos'] ?? {});
+                                  
+                                  final namesList = participantNames.entries
+                                    .map((e) => e.key == FirebaseAuth.instance.currentUser?.uid ? "You" : e.value)
+                                    .toList();
+                                  
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatPage(
+                                        chatId: request.rideId,
+                                        title: data['groupTitle'] ?? 'Group Chat',
+                                        subtitle: namesList.join(', '),
+                                        profileImages: participantPhotos.values.toList(),
+                                        participantNames: participantNames,
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  // If group chat not initialized by driver yet
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Group chat will be available once more riders join.')),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1B8A3F),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                              ],
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.group_outlined,
+                                        size: 12, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Group Chat',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                     ],
                   ),

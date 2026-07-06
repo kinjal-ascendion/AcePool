@@ -326,7 +326,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                     await _db.collection('chats').doc(widget.trip.id).set({
                                       'participants': FieldValue.arrayUnion(participantIds),
                                       'type': 'group',
-                                      'groupTitle': widget.trip.dateLabel,
+                                      'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                                      'rideDate': Timestamp.fromDate(widget.trip.date),
                                       'participantNames': participantNames,
                                       'participantPhotos': participantPhotos,
                                       'lastMessageTime': FieldValue.serverTimestamp(),
@@ -338,13 +339,17 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                         .toList();
 
                                     if (mounted) {
+                                      final participantNamesList = riders.map((r) => r.riderName).toList();
+                                      participantNamesList.add("You");
+
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
                                           builder: (_) => ChatPage(
                                             chatId: widget.trip.id,
-                                            title: widget.trip.dateLabel,
-                                            subtitle: riders.map((r) => r.riderName).join(', '),
+                                            title: "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                                            subtitle: participantNamesList.join(', '),
                                             profileImages: profileImages,
+                                            participantNames: participantNames,
                                           ),
                                         ),
                                       );

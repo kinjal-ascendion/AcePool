@@ -39,7 +39,7 @@ class _MainShellPageState extends State<MainShellPage> {
         children: [
           HomePage(onViewAllTrips: _goToTrips),
           TripsPage(key: ValueKey(_tripsRefreshKey)),
-          const ChatListPage(),
+          ChatListPage(onBack: () => setState(() => _currentIndex = 0)),
           const ProfilePage(),
         ],
       ),

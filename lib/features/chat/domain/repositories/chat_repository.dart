@@ -5,4 +5,6 @@ abstract class ChatRepository {
   Stream<List<ChatRoom>> getChatRooms(String userId);
   Stream<List<ChatMessage>> getMessages(String chatId);
   Future<void> sendMessage(String chatId, ChatMessage message, String senderName, String receiverName);
+  Future<void> markAsRead(String chatId, String userId);
+  Future<void> togglePin(String chatId, String userId, bool pin);
 }

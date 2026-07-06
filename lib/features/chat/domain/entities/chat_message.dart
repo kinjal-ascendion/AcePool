@@ -5,6 +5,7 @@ class ChatMessage {
   final String text;
   final DateTime? timestamp;
   final String? senderName;
+  final int reactionCount;
 
   ChatMessage({
     required this.id,
@@ -13,5 +14,6 @@ class ChatMessage {
     required this.text,
     this.timestamp,
     this.senderName,
+    this.reactionCount = 0,
   });
 }
