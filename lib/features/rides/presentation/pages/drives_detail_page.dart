@@ -21,9 +21,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     databaseId: 'acepool',
   );
 
-  int _activeTab = 0;
-  late Future<List<_RiderInfo>> _requestsFuture;
-  late Future<List<_RiderInfo>> _confirmedFuture;
+  late Future<List<_RiderInfo>> _ridersFuture;
 
   @override
   void initState() {
@@ -32,8 +30,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   }
 
   void _reload() {
-    _requestsFuture = _fetchRiders('pending');
-    _confirmedFuture = _fetchRiders('accepted');
+    _ridersFuture = _fetchRiders('accepted');
   }
 
   Future<List<_RiderInfo>> _fetchRiders(String status) async {
@@ -176,9 +173,6 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         ),
       ),
     );
-    if (confirmed == true) {
-      await _cancelRider(requestId);
-    }
   }
 
   Future<void> _cancelRider(String requestId) async {
@@ -235,7 +229,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       trip: widget.trip,
                       showViewDetails: false,
                       onChatTap: () async {
-                        final riders = await _confirmedFuture;
+                        final riders = await _ridersFuture;
                         final myId = FirebaseAuth.instance.currentUser?.uid;
                         if (myId == null) return;
 
@@ -288,38 +282,23 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       },
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                    Row(
-                      children: [
-                        _TabPill(
-                          label: 'Riders requests',
-                          active: _activeTab == 0,
-                          onTap: () => setState(() => _activeTab = 0),
-                        ),
-                        const SizedBox(width: 8),
-                        _TabPill(
-                          label: 'Riders confirmed',
-                          active: _activeTab == 1,
-                          onTap: () => setState(() => _activeTab = 1),
-                        ),
-                      ],
+                    const Text(
+                      'Riders',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
 
                     const SizedBox(height: 12),
 
-                    if (_activeTab == 0)
-                      FutureBuilder<List<_RiderInfo>>(
-                        future: _requestsFuture,
-                        builder: (context, snapshot) =>
-                            _buildRiderList(context, snapshot, isConfirmed: false),
-                      )
-                    else
-                      FutureBuilder<List<_RiderInfo>>(
-                        future: _confirmedFuture,
-                        builder: (context, snapshot) =>
-                            _buildRiderList(context, snapshot, isConfirmed: true),
-                      ),
+                    FutureBuilder<List<_RiderInfo>>(
+                      future: _ridersFuture,
+                      builder: (context, snapshot) =>
+                          _buildRiderList(context, snapshot),
+                    ),
                   ],
                 ),
               ),
@@ -332,9 +311,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
   Widget _buildRiderList(
     BuildContext context,
-    AsyncSnapshot<List<_RiderInfo>> snapshot, {
-    required bool isConfirmed,
-  }) {
+    AsyncSnapshot<List<_RiderInfo>> snapshot,
+  ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -344,7 +322,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         child: Padding(
           padding: const EdgeInsets.only(top: 40),
           child: Text(
-            isConfirmed ? 'No confirmed riders yet' : 'No pending requests',
+            'No riders joined yet',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
           ),
         ),
@@ -355,42 +333,9 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         padding: const EdgeInsets.only(bottom: 12),
         child: _RiderCard(
           rider: r,
-          isConfirmed: isConfirmed,
-          onAccept: () => _acceptRequest(r.requestId),
-          onReject: () => _rejectRequest(r.requestId),
           onCancel: () => _confirmCancelRider(context, r.riderName, r.requestId),
         ),
       )).toList(),
-    );
-  }
-}
-
-class _TabPill extends StatelessWidget {
-  const _TabPill({required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: active ? Colors.black : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active ? Colors.white : Colors.black54,
-            fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-            fontSize: 13,
-          ),
-        ),
-      ),
     );
   }
 }
@@ -425,16 +370,10 @@ class _RiderInfo {
 class _RiderCard extends StatelessWidget {
   const _RiderCard({
     required this.rider,
-    required this.isConfirmed,
-    required this.onAccept,
-    required this.onReject,
     required this.onCancel,
   });
 
   final _RiderInfo rider;
-  final bool isConfirmed;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
   final VoidCallback onCancel;
 
   @override
@@ -484,27 +423,8 @@ class _RiderCard extends StatelessWidget {
           Text('Pick up point: ${rider.pickupPoint}', style: const TextStyle(fontSize: 13)),
           Text('Time: ${rider.pickupTimeLabel}', style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 14),
-          if (!isConfirmed)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onReject,
-                    child: const Text('Reject ride'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onAccept,
-                    child: const Text('Accept ride'),
-                  ),
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
+          Row(
+            children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
@@ -533,8 +453,8 @@ class _RiderCard extends StatelessWidget {
                     child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
                   ),
                 ),
-              ],
-            ),
+            ],
+          ),
         ],
       ),
     );
