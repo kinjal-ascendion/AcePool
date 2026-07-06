@@ -1,3 +1,4 @@
+import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,7 +21,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     databaseId: 'acepool',
   );
 
-  late Future<List<_RiderInfo>> _confirmedFuture;
+  late Future<List<_RiderInfo>> _ridersFuture;
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   }
 
   void _reload() {
-    _confirmedFuture = _fetchRiders('accepted');
+    _ridersFuture = _fetchRiders('accepted');
   }
 
   Future<List<_RiderInfo>> _fetchRiders(String status) async {
@@ -192,7 +193,6 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // App bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Row(
@@ -212,28 +212,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                     ),
                   ),
                   IconButton(
-                    icon: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.notifications_none),
-                        Positioned(
-                          top: -1,
-                          right: -1,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    onPressed: () => ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(content: Text('Coming soon')),
-                    ),
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () {},
                   ),
                 ],
               ),
@@ -245,52 +225,77 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Trip summary card
-                    DriveTripCard(trip: widget.trip, showViewDetails: false),
+                    DriveTripCard(
+                      trip: widget.trip,
+                      showViewDetails: false,
+                      onChatTap: () async {
+                        final riders = await _ridersFuture;
+                        final myId = FirebaseAuth.instance.currentUser?.uid;
+                        if (myId == null) return;
 
-                    const SizedBox(height: 16),
+                        final participantIds = riders.map((r) => r.riderId).toList();
+                        participantIds.add(myId);
 
-                    // Riders confirmed label + map link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 9),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Text(
-                            'Riders confirmed',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                        final participantNames = {
+                          for (var r in riders) r.riderId: r.riderName,
+                          myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver'
+                        };
+
+                        final participantPhotos = {
+                          for (var r in riders) if (r.riderPhotoUrl != null) r.riderId: r.riderPhotoUrl!,
+                          if (FirebaseAuth.instance.currentUser?.photoURL != null)
+                            myId: FirebaseAuth.instance.currentUser!.photoURL!
+                        };
+
+                        await _db.collection('chats').doc(widget.trip.id).set({
+                          'participants': FieldValue.arrayUnion(participantIds),
+                          'type': 'group',
+                          'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                          'rideDate': Timestamp.fromDate(widget.trip.date),
+                          'participantNames': participantNames,
+                          'participantPhotos': participantPhotos,
+                          'lastMessageTime': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+
+                        final profileImages = riders
+                            .where((r) => r.riderPhotoUrl != null)
+                            .map((r) => r.riderPhotoUrl!)
+                            .toList();
+
+                        if (mounted) {
+                          final namesList = participantNames.entries
+                              .map((e) => e.key == myId ? "You" : e.value)
+                              .toList();
+
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ChatPage(
+                                chatId: widget.trip.id,
+                                title: "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                                subtitle: namesList.join(', '),
+                                profileImages: profileImages,
+                                participantNames: participantNames,
+                              ),
                             ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            const SnackBar(content: Text('Coming soon')),
-                          ),
-                          child: const Text(
-                            'View On Map',
-                            style: TextStyle(
-                              fontSize: 13,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    const Text(
+                      'Riders',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Rider list
                     FutureBuilder<List<_RiderInfo>>(
-                      future: _confirmedFuture,
+                      future: _ridersFuture,
                       builder: (context, snapshot) =>
                           _buildRiderList(context, snapshot),
                     ),
@@ -309,39 +314,28 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     AsyncSnapshot<List<_RiderInfo>> snapshot,
   ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-          child: Padding(
-        padding: EdgeInsets.only(top: 40),
-        child: CircularProgressIndicator(),
-      ));
+      return const Center(child: CircularProgressIndicator());
     }
     final riders = snapshot.data ?? [];
     if (riders.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Center(
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40),
           child: Text(
-            'No confirmed riders yet',
+            'No riders joined yet',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
           ),
         ),
       );
     }
     return Column(
-      children: riders
-          .asMap()
-          .entries
-          .map((entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _RiderCard(
-                  rider: entry.value,
-                  travelTimeLabel: '${20 + entry.key * 20} mins',
-                  onCancel: () =>
-                      _confirmCancelRider(
-                          context, entry.value.riderName, entry.value.requestId),
-                ),
-              ))
-          .toList(),
+      children: riders.map((r) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _RiderCard(
+          rider: r,
+          onCancel: () => _confirmCancelRider(context, r.riderName, r.requestId),
+        ),
+      )).toList(),
     );
   }
 }
@@ -366,11 +360,9 @@ class _RiderInfo {
   final TimeOfDay pickupTime;
 
   String get pickupTimeLabel {
-    final h =
-        pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
+    final h = pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
     final m = pickupTime.minute.toString().padLeft(2, '0');
-    final period =
-        pickupTime.period == DayPeriod.am ? 'AM' : 'PM';
+    final period = pickupTime.period == DayPeriod.am ? 'AM' : 'PM';
     return '$h:$m $period';
   }
 }
@@ -378,12 +370,10 @@ class _RiderInfo {
 class _RiderCard extends StatelessWidget {
   const _RiderCard({
     required this.rider,
-    required this.travelTimeLabel,
     required this.onCancel,
   });
 
   final _RiderInfo rider;
-  final String travelTimeLabel;
   final VoidCallback onCancel;
 
   @override
@@ -421,78 +411,48 @@ class _RiderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      rider.riderName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
+                    Text(rider.riderName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     if (rider.employeeId.isNotEmpty)
-                      Text(
-                        rider.employeeId,
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12),
-                      ),
+                      Text(rider.employeeId, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                   ],
                 ),
               ),
-              Icon(Icons.directions_car_outlined,
-                  size: 14, color: Colors.grey.shade500),
-              const SizedBox(width: 3),
-              Text(
-                travelTimeLabel,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade500),
-              const SizedBox(width: 4),
-              Icon(Icons.location_on_outlined,
-                  size: 16, color: Colors.grey.shade400),
             ],
           ),
-
           const SizedBox(height: 10),
-
-          Text(
-            'Pick up point: ${rider.pickupPoint.isNotEmpty ? rider.pickupPoint : "Not specified"}',
-            style: const TextStyle(fontSize: 13),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Time: ${rider.pickupTimeLabel}',
-            style: const TextStyle(fontSize: 13),
-          ),
-
+          Text('Pick up point: ${rider.pickupPoint}', style: const TextStyle(fontSize: 13)),
+          Text('Time: ${rider.pickupTimeLabel}', style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 14),
-
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                  label: const Text('Chat', style: TextStyle(fontSize: 13)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    side: const BorderSide(color: Colors.black45),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final myId = FirebaseAuth.instance.currentUser?.uid;
+                      if (myId == null) return;
+                      final ids = [myId, rider.riderId];
+                      ids.sort();
+                      final chatId = ids.join('_');
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ChatPage(
+                          chatId: chatId,
+                          title: rider.riderName,
+                          receiverId: rider.riderId,
+                          receiverName: rider.riderName,
+                        ),
+                      ));
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline, size: 14),
+                    label: const Text('Chat'),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onCancel,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onCancel,
+                    child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
                   ),
-                  child: const Text('Cancel ride',
-                      style: TextStyle(color: Colors.red, fontSize: 13)),
                 ),
-              ),
             ],
           ),
         ],

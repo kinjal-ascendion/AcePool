@@ -7,10 +7,12 @@ class DriveTripCard extends StatelessWidget {
     super.key,
     required this.trip,
     this.showViewDetails = true,
+    this.onChatTap,
   });
 
   final UpcomingTrip trip;
   final bool showViewDetails;
+  final VoidCallback? onChatTap;
 
   static const _green = Color(0xFF1B8A3F);
 
@@ -181,8 +183,8 @@ class DriveTripCard extends StatelessWidget {
                 showViewDetails
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             '₹ 600 / seat',
                             style: TextStyle(
                               color: _green,
@@ -190,12 +192,15 @@ class DriveTripCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Text(
-                            'View Details',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                              decoration: TextDecoration.underline,
+                          GestureDetector(
+                            onTap: () {}, // Handled by parent
+                            child: const Text(
+                              'View Details',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
                         ],
@@ -211,33 +216,30 @@ class DriveTripCard extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 // Group chat pill
-                Container(
-                  padding: const EdgeInsets.only(
-                      left: 16, right: 4, top: 4, bottom: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Start a group chat with all riders',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
+                GestureDetector(
+                  onTap: onChatTap,
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                        left: 16, right: 4, top: 4, bottom: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Start a group chat with all riders',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () => ScaffoldMessenger.of(context)
-                            .showSnackBar(
-                          const SnackBar(content: Text('Coming soon')),
-                        ),
-                        child: Container(
+                        const SizedBox(width: 6),
+                        Container(
                           padding: const EdgeInsets.all(8),
                           decoration: const BoxDecoration(
                             color: _green,
@@ -249,8 +251,8 @@ class DriveTripCard extends StatelessWidget {
                             size: 16,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
