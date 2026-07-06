@@ -1,3 +1,4 @@
+import 'package:acepool/core/constants/api_keys.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +7,6 @@ import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
 import '../widgets/signup_text.dart';
 import '../widgets/auth_text_field.dart';
-
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,53 +17,45 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _emailError;
-  String? _passwordError;
 
-  Future<void> login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
+  Future<void> _loginWithMicrosoft() async {
+    final username = _emailController.text.trim();
     setState(() {
-      _emailError = email.isEmpty ? 'Username is required' : null;
-      _passwordError = password.isEmpty
-          ? 'Password is required'
-          : password.length < 6
-              ? 'Password must be at least 6 characters'
-              : null;
+      _emailError = username.isEmpty ? 'Username is required' : null;
     });
+    if (_emailError != null) return;
 
-    if (_emailError != null || _passwordError != null) return;
-
+    setState(() => _isLoading = true);
     try {
-      setState(() => _isLoading = true);
+      final provider = OAuthProvider('microsoft.com')
+        ..setCustomParameters({
+          'tenant': ApiKeys.microsoftTenantId,
+          'login_hint': '$username@ascendion.com',
+        });
 
-      final email = '${_emailController.text.trim()}@ascendion.com';
-      final password = _passwordController.text.trim();
+      final credential =
+          await FirebaseAuth.instance.signInWithProvider(provider);
 
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      if (!mounted) return;
 
-      if (mounted) context.go('/home');
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'invalid-credential':
-          errorMessage = 'Invalid username or password';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Please enter a valid email';
-          break;
-        default:
-          errorMessage = 'Login failed. Please try again.';
+      if (credential.additionalUserInfo?.isNewUser == true) {
+        context.push('/complete-profile', extra: credential);
+      } else {
+        context.go('/home');
       }
+    } on FirebaseAuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(errorMessage)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Sign-in failed. Please try again.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign-in failed: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -83,45 +75,39 @@ class _LoginPageState extends State<LoginPage> {
               const LoginHeader(),
               const SizedBox(height: 40),
               AuthTextField(
-               label: 'Work Email',
-               controller: _emailController,
-               hintText: 'Username',
-               errorText: _emailError,
-               onChanged: (_) => setState(() => _emailError = null),
-               suffixWidget: const Padding(
-                 padding: EdgeInsets.only(right: 16),
-                 child: Text(
-                  '@ascendion.com',
-                   style: TextStyle(
-                     color: Colors.black54,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              AuthTextField(
-               label: 'Password',
-               controller: _passwordController,
-               hintText: 'Minimum 6 characters',
-               obscureText: true,
-               errorText: _passwordError,
-               onChanged: (_) => setState(() => _passwordError = null),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coming soon')),
-                  ),
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                label: 'Work Email',
+                controller: _emailController,
+                hintText: 'Username',
+                errorText: _emailError,
+                onChanged: (_) => setState(() => _emailError = null),
+                suffixWidget: const Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: Text(
+                    '@ascendion.com',
+                    style: TextStyle(color: Colors.black54),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              AuthButton(onPressed: login, isLoading: _isLoading, label: 'Log In'),
+              AuthButton(
+                onPressed: _loginWithMicrosoft,
+                isLoading: _isLoading,
+                label: 'Log In',
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: GestureDetector(
+                  onTap: () => context.push('/login/password'),
+                  child: const Text(
+                    'Log In with password',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
               const SignupText(),
             ],

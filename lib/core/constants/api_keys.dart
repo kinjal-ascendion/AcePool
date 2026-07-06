@@ -14,4 +14,13 @@ class ApiKeys {
   static const String emailJsTemplateId = 'template_swisqbp';
   static const String emailJsPublicKey = 'vRIlgFkMhRAFo3qLw';
   static const String emailJsPrivateKey = 'VAH8_1cp8ZNTB7M5_ck7w';
+
+  // Microsoft/Azure AD (Entra ID) SSO — https://portal.azure.com
+  // 1. Register an app in Ascendion's Azure AD tenant (App registrations > New registration)
+  // 2. Supported account types: single-tenant (this org only)
+  // 3. Add Firebase's Microsoft OAuth redirect URI shown in Firebase Console
+  //    (Authentication > Sign-in method > Microsoft) to the app's Redirect URIs
+  // 4. Copy the Directory (tenant) ID below, and paste the Application (client) ID
+  //    + a generated Client Secret into the Firebase Console Microsoft provider config
+  static const String microsoftTenantId = 'd7758e8f-1df3-489f-86b5-a2254f55f9cc';
 }
