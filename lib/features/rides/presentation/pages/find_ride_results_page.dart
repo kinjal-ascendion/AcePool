@@ -11,19 +11,20 @@ class FindRideResultsPage extends StatefulWidget {
     required this.toAddress,
     required this.date,
     required this.time,
+    required this.vehicleType,
   });
 
   final String fromAddress;
   final String toAddress;
   final DateTime date;
   final TimeOfDay time;
+  final String vehicleType;
 
   @override
   State<FindRideResultsPage> createState() => _FindRideResultsPageState();
 }
 
 class _FindRideResultsPageState extends State<FindRideResultsPage> {
-  static const _green = Color(0xFF1B8A3F);
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
     databaseId: 'acepool',
@@ -55,7 +56,7 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
     final myRequestsSnap = await _db
         .collection('ride_requests')
         .where('riderId', isEqualTo: uid)
-        .where('status', isEqualTo: 'pending')
+        .where('status', isEqualTo: 'accepted')
         .get();
     final requestedRideIds = myRequestsSnap.docs
         .map((d) => d.data()['rideId'] as String)
@@ -65,9 +66,18 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
     for (final doc in snap.docs) {
       final d = doc.data();
       if (d['uid'] == uid) continue;
+      final vehicleType = d['vehicleType'] as String? ?? 'car';
+      if (vehicleType != widget.vehicleType) continue;
       final seatCount = d['seatCount'] as int;
       final seatsFilled = (d['seatsFilled'] as int?) ?? 0;
       if (seatsFilled >= seatCount) continue;
+
+      final rideFrom = d['fromAddress'] as String;
+      final rideTo = d['toAddress'] as String;
+      if (!_addressMatches(rideFrom, widget.fromAddress) ||
+          !_addressMatches(rideTo, widget.toAddress)) {
+        continue;
+      }
 
       String driverName = '';
       String? driverPhotoUrl;
@@ -81,8 +91,6 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
 
       final date = (d['date'] as Timestamp).toDate();
       final timeMap = d['time'] as Map<String, dynamic>;
-      final rideFrom = d['fromAddress'] as String;
-      final rideTo = d['toAddress'] as String;
 
       results.add(_RideResult(
         id: doc.id,
@@ -96,37 +104,16 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
         toAddress: rideTo,
         seatsFilled: seatsFilled,
         seatsTotal: seatCount,
-        vehicleType: d['vehicleType'] as String? ?? 'car',
+        vehicleType: vehicleType,
         alreadyRequested: requestedRideIds.contains(doc.id),
-        matchPercent:
-            _calcMatch(widget.fromAddress, widget.toAddress, rideFrom, rideTo),
       ));
     }
 
-    results.removeWhere((r) => r.matchPercent < 60);
-    results.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
     return results;
   }
 
-  int _calcMatch(
-      String userFrom, String userTo, String rideFrom, String rideTo) {
-    final fromMatch = _similar(userFrom, rideFrom);
-    final toMatch = _similar(userTo, rideTo);
-    if (fromMatch && toMatch) return 100;
-    if (toMatch) return 80;
-    if (fromMatch) return 60;
-    return 40;
-  }
-
-  bool _similar(String a, String b) {
-    final an = a.toLowerCase().trim();
-    final bn = b.toLowerCase().trim();
-    if (an.contains(bn) || bn.contains(an)) return true;
-    return an
-        .split(RegExp(r'\s+'))
-        .where((w) => w.length > 3)
-        .any((w) => bn.contains(w));
-  }
+  bool _addressMatches(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
 
   void _refresh() => setState(() => _resultsFuture = _fetchResults());
 
@@ -254,7 +241,6 @@ class _RideResult {
     required this.seatsTotal,
     required this.vehicleType,
     required this.alreadyRequested,
-    required this.matchPercent,
   });
 
   final String id;
@@ -269,7 +255,6 @@ class _RideResult {
   final int seatsTotal;
   final String vehicleType;
   final bool alreadyRequested;
-  final int matchPercent;
 
   String get timeLabel => DateTimeFormatter.time12h(time);
   String get dateLabel =>
@@ -303,11 +288,14 @@ class _RideResultCardState extends State<_RideResultCard> {
   static const _badgeBg = Color(0xFF5A5A5A);
 
   final _messageController = TextEditingController();
+  late final _pickupController =
+      TextEditingController(text: widget.riderFromAddress);
   bool _submitting = false;
 
   @override
   void dispose() {
     _messageController.dispose();
+    _pickupController.dispose();
     super.dispose();
   }
 
@@ -327,18 +315,22 @@ class _RideResultCardState extends State<_RideResultCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
+      final pickupPoint = _pickupController.text.trim().isNotEmpty
+          ? _pickupController.text.trim()
+          : widget.riderFromAddress;
+
       await widget.db.collection('ride_requests').add({
         'rideId': widget.result.id,
         'riderId': uid,
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
-        'pickupPoint': widget.riderFromAddress,
+        'pickupPoint': pickupPoint,
         'pickupTime': {
           'hour': widget.riderTime.hour,
           'minute': widget.riderTime.minute,
         },
         'message': _messageController.text.trim(),
-        'status': 'pending',
+        'status': 'accepted',
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.result.fromAddress,
         'rideTo': widget.result.toAddress,
@@ -349,6 +341,10 @@ class _RideResultCardState extends State<_RideResultCard> {
         },
         'driverId': widget.result.driverId,
         'driverName': widget.result.driverName,
+      });
+
+      await widget.db.collection('rides').doc(widget.result.id).update({
+        'seatsFilled': FieldValue.increment(1),
       });
 
       if (mounted) widget.onRequested();
@@ -379,7 +375,7 @@ class _RideResultCardState extends State<_RideResultCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Row 1: badge + match % ──────────────────────────────
+            // ── Row 1: badge ─────────────────────────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -405,15 +401,6 @@ class _RideResultCardState extends State<_RideResultCard> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${r.matchPercent}% Match',
-                  style: const TextStyle(
-                    color: _green,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -512,6 +499,40 @@ class _RideResultCardState extends State<_RideResultCard> {
             ),
 
             const SizedBox(height: 14),
+
+            // ── Pickup point ──────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on_outlined,
+                      size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _pickupController,
+                      enabled: !requested && !_submitting,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Pickup point (e.g. Building A, Gate 2)',
+                        hintStyle: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade400),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
 
             // ── Message + Request button ─────────────────────────────
             Container(

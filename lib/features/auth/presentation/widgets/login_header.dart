@@ -13,7 +13,7 @@ class LoginHeader extends StatelessWidget {
         ),
         SizedBox(height: 32),
         Text(
-          "Welcome to Acepool",
+          "Welcome to AcePool",
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w600,

@@ -1,6 +1,6 @@
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
-import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
+import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,7 +16,6 @@ class DrivesDetailPage extends StatefulWidget {
 }
 
 class _DrivesDetailPageState extends State<DrivesDetailPage> {
-  static const _green = Color(0xFF1B8A3F);
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
     databaseId: 'acepool',
@@ -99,7 +98,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     await _db.collection('chats').doc(widget.trip.id).set({
       'participants': FieldValue.arrayUnion([riderId, driverId]),
       'type': 'group',
-      'groupTitle': widget.trip.dateLabel, // Use date as title for the group
+      'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+      'rideDate': Timestamp.fromDate(widget.trip.date),
       'lastMessageTime': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -112,6 +112,91 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         .doc(requestId)
         .update({'status': 'rejected'});
     setState(_reload);
+  }
+
+  Future<void> _confirmCancelRider(
+      BuildContext context, String riderName, String requestId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.warning_amber_rounded,
+                    color: Colors.red.shade600, size: 30),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Cancel this ride?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                riderName.isNotEmpty
+                    ? '$riderName will be removed from this trip and notified of the cancellation. This action cannot be undone.'
+                    : 'This rider will be removed from this trip. This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 13.5, color: Colors.grey.shade600, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text('Keep ride',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text('Cancel ride',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      await _cancelRider(requestId);
+    }
   }
 
   Future<void> _cancelRider(String requestId) async {
@@ -132,7 +217,6 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // App bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Row(
@@ -165,241 +249,65 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Trip summary card
-                    GlassCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              ClipRRect(
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(18),
-                                  bottomRight: Radius.circular(20),
-                                ),
-                                child: ColoredBox(
-                                  color: _green,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.person_outline,
-                                            color: Colors.white, size: 15),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '${widget.trip.seatsFilled}/${widget.trip.seatsTotal} seats filled',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                    DriveTripCard(
+                      trip: widget.trip, 
+                      showViewDetails: false,
+                      onChatTap: () async {
+                        final riders = await _confirmedFuture;
+                        final myId = FirebaseAuth.instance.currentUser?.uid;
+                        if (myId == null) return;
+
+                        final participantIds = riders.map((r) => r.riderId).toList();
+                        participantIds.add(myId);
+
+                        final participantNames = {
+                          for (var r in riders) r.riderId: r.riderName,
+                          myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver'
+                        };
+
+                        final participantPhotos = {
+                          for (var r in riders) if (r.riderPhotoUrl != null) r.riderId: r.riderPhotoUrl!,
+                          if (FirebaseAuth.instance.currentUser?.photoURL != null) 
+                            myId: FirebaseAuth.instance.currentUser!.photoURL!
+                        };
+
+                        await _db.collection('chats').doc(widget.trip.id).set({
+                          'participants': FieldValue.arrayUnion(participantIds),
+                          'type': 'group',
+                          'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                          'rideDate': Timestamp.fromDate(widget.trip.date),
+                          'participantNames': participantNames,
+                          'participantPhotos': participantPhotos,
+                          'lastMessageTime': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+
+                        final profileImages = riders
+                            .where((r) => r.riderPhotoUrl != null)
+                            .map((r) => r.riderPhotoUrl!)
+                            .toList();
+
+                        if (mounted) {
+                          final namesList = participantNames.entries
+                              .map((e) => e.key == myId ? "You" : e.value)
+                              .toList();
+
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ChatPage(
+                                chatId: widget.trip.id,
+                                title: "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
+                                subtitle: namesList.join(', '),
+                                profileImages: profileImages,
+                                participantNames: participantNames,
                               ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(right: 4, top: 4),
-                                child: IconButton(
-                                  icon: const Icon(Icons.more_vert,
-                                      color: Colors.black54),
-                                  onPressed: () {},
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.trip.dateLabel,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  widget.trip.timeLabel,
-                                  style: const TextStyle(
-                                      color: Colors.black54, fontSize: 13),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Route
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color: _green, width: 1.5),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        widget.trip.fromAddress,
-                                        style:
-                                            const TextStyle(fontSize: 14),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 4),
-                                  child: Column(
-                                    children: List.generate(
-                                      3,
-                                      (_) => Container(
-                                        width: 1.5,
-                                        height: 4,
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 1.5),
-                                        color: Colors.black26,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _green,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        widget.trip.toAddress,
-                                        style:
-                                            const TextStyle(fontSize: 14),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Chat bar
-                                GestureDetector(
-                                  onTap: () async {
-                                    final riders = await _confirmedFuture;
-                                    final myId = FirebaseAuth.instance.currentUser?.uid;
-                                    if (myId == null) return;
-
-                                    final participantIds = riders.map((r) => r.riderId).toList();
-                                    participantIds.add(myId);
-
-                                    final participantNames = {
-                                      for (var r in riders) r.riderId: r.riderName,
-                                      myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver'
-                                    };
-
-                                    final participantPhotos = {
-                                      for (var r in riders) if (r.riderPhotoUrl != null) r.riderId: r.riderPhotoUrl!,
-                                      if (FirebaseAuth.instance.currentUser?.photoURL != null) 
-                                        myId: FirebaseAuth.instance.currentUser!.photoURL!
-                                    };
-
-                                    // Ensure all confirmed riders are in the chat document
-                                    await _db.collection('chats').doc(widget.trip.id).set({
-                                      'participants': FieldValue.arrayUnion(participantIds),
-                                      'type': 'group',
-                                      'groupTitle': "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
-                                      'rideDate': Timestamp.fromDate(widget.trip.date),
-                                      'participantNames': participantNames,
-                                      'participantPhotos': participantPhotos,
-                                      'lastMessageTime': FieldValue.serverTimestamp(),
-                                    }, SetOptions(merge: true));
-
-                                    final profileImages = riders
-                                        .where((r) => r.riderPhotoUrl != null)
-                                        .map((r) => r.riderPhotoUrl!)
-                                        .toList();
-
-                                    if (mounted) {
-                                      final participantNamesList = riders.map((r) => r.riderName).toList();
-                                      participantNamesList.add("You");
-
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ChatPage(
-                                            chatId: widget.trip.id,
-                                            title: "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
-                                            subtitle: participantNamesList.join(', '),
-                                            profileImages: profileImages,
-                                            participantNames: participantNames,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.only(
-                                        left: 16, right: 6, top: 6, bottom: 6),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Start your chat with all riders',
-                                            style: TextStyle(
-                                                color: Colors.black38,
-                                                fontSize: 14),
-                                          ),
-                                        ),
-                                        Container(
-                                          width: 38,
-                                          height: 38,
-                                          decoration: const BoxDecoration(
-                                            color: _green,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                              Icons.send_rounded,
-                                              color: Colors.white,
-                                              size: 18),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
                             ),
-                          ),
-                        ],
-                      ),
+                          );
+                        }
+                      },
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Tab toggle
                     Row(
                       children: [
                         _TabPill(
@@ -418,7 +326,6 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 12),
 
-                    // Rider list
                     if (_activeTab == 0)
                       FutureBuilder<List<_RiderInfo>>(
                         future: _requestsFuture,
@@ -447,17 +354,13 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     required bool isConfirmed,
   }) {
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-          child: Padding(
-        padding: EdgeInsets.only(top: 40),
-        child: CircularProgressIndicator(),
-      ));
+      return const Center(child: CircularProgressIndicator());
     }
     final riders = snapshot.data ?? [];
     if (riders.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Center(
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40),
           child: Text(
             isConfirmed ? 'No confirmed riders yet' : 'No pending requests',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
@@ -466,29 +369,22 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       );
     }
     return Column(
-      children: riders
-          .map((r) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _RiderCard(
-                  rider: r,
-                  isConfirmed: isConfirmed,
-                  onAccept: () => _acceptRequest(r.requestId),
-                  onReject: () => _rejectRequest(r.requestId),
-                  onCancel: () => _cancelRider(r.requestId),
-                ),
-              ))
-          .toList(),
+      children: riders.map((r) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _RiderCard(
+          rider: r,
+          isConfirmed: isConfirmed,
+          onAccept: () => _acceptRequest(r.requestId),
+          onReject: () => _rejectRequest(r.requestId),
+          onCancel: () => _confirmCancelRider(context, r.riderName, r.requestId),
+        ),
+      )).toList(),
     );
   }
 }
 
 class _TabPill extends StatelessWidget {
-  const _TabPill({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
+  const _TabPill({required this.label, required this.active, required this.onTap});
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -499,8 +395,7 @@ class _TabPill extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
           color: active ? Colors.black : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(30),
@@ -538,11 +433,9 @@ class _RiderInfo {
   final TimeOfDay pickupTime;
 
   String get pickupTimeLabel {
-    final h =
-        pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
+    final h = pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
     final m = pickupTime.minute.toString().padLeft(2, '0');
-    final period =
-        pickupTime.period == DayPeriod.am ? 'AM' : 'PM';
+    final period = pickupTime.period == DayPeriod.am ? 'AM' : 'PM';
     return '$h:$m $period';
   }
 }
@@ -578,88 +471,41 @@ class _RiderCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundImage: rider.riderPhotoUrl != null
-                    ? NetworkImage(rider.riderPhotoUrl!)
-                    : null,
+                backgroundImage: rider.riderPhotoUrl != null ? NetworkImage(rider.riderPhotoUrl!) : null,
                 backgroundColor: Colors.grey.shade300,
-                child: rider.riderPhotoUrl == null
-                    ? Text(
-                        rider.riderName.isNotEmpty
-                            ? rider.riderName[0].toUpperCase()
-                            : '?',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.bold),
-                      )
-                    : null,
+                child: rider.riderPhotoUrl == null ? Text(rider.riderName[0].toUpperCase()) : null,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      rider.riderName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
+                    Text(rider.riderName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     if (rider.employeeId.isNotEmpty)
-                      Text(
-                        rider.employeeId,
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12),
-                      ),
+                      Text(rider.employeeId, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                   ],
                 ),
               ),
-              Icon(Icons.location_on_outlined,
-                  size: 16, color: Colors.grey.shade400),
             ],
           ),
-
           const SizedBox(height: 10),
-
-          Text(
-            'Pick up point: ${rider.pickupPoint.isNotEmpty ? rider.pickupPoint : "Not specified"}',
-            style: const TextStyle(fontSize: 13),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Time: ${rider.pickupTimeLabel}',
-            style: const TextStyle(fontSize: 13),
-          ),
-
+          Text('Pick up point: ${rider.pickupPoint}', style: const TextStyle(fontSize: 13)),
+          Text('Time: ${rider.pickupTimeLabel}', style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 14),
-
           if (!isConfirmed)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: onReject,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.black45),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Text('Reject ride',
-                        style: TextStyle(
-                            color: Colors.black87, fontSize: 13)),
+                    child: const Text('Reject ride'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: onAccept,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Text('Accept ride',
-                        style: TextStyle(fontSize: 13)),
+                    child: const Text('Accept ride'),
                   ),
                 ),
               ],
@@ -675,41 +521,24 @@ class _RiderCard extends StatelessWidget {
                       final ids = [myId, rider.riderId];
                       ids.sort();
                       final chatId = ids.join('_');
-
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ChatPage(
-                            chatId: chatId,
-                            title: rider.riderName,
-                            receiverId: rider.riderId,
-                            receiverName: rider.riderName,
-                          ),
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ChatPage(
+                          chatId: chatId,
+                          title: rider.riderName,
+                          receiverId: rider.riderId,
+                          receiverName: rider.riderName,
                         ),
-                      );
+                      ));
                     },
                     icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                    label: const Text('Chat',
-                        style: TextStyle(fontSize: 13)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black87,
-                      side: const BorderSide(color: Colors.black45),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
+                    label: const Text('Chat'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Text('Cancel ride',
-                        style:
-                            TextStyle(color: Colors.red, fontSize: 13)),
+                    child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
                   ),
                 ),
               ],

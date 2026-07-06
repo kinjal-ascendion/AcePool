@@ -128,6 +128,7 @@ class _HomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     RideScheduleForm(
+                      rideMode: state.rideMode,
                       vehicleType: state.vehicleType,
                       fromAddress: state.fromAddress,
                       toAddress: state.toAddress,
@@ -163,6 +164,7 @@ class _HomeView extends StatelessWidget {
                               toAddress: state.toAddress!,
                               date: state.selectedDate!,
                               time: state.selectedTime!,
+                              vehicleType: state.vehicleType.name,
                             ),
                           ));
                         } else {
@@ -170,13 +172,15 @@ class _HomeView extends StatelessWidget {
                         }
                       },
                     ),
-                    const SizedBox(height: 28),
-                    UpcomingTripsSection(
-                      trips: state.upcomingTrips,
-                      isLoading: state.status == HomeStatus.loading,
-                      onViewAll: onViewAllTrips,
-                    ),
-                    const SizedBox(height: 16),
+                    if (state.rideMode == RideMode.offer) ...[
+                      const SizedBox(height: 28),
+                      UpcomingTripsSection(
+                        trips: state.upcomingTrips,
+                        isLoading: state.status == HomeStatus.loading,
+                        onViewAll: onViewAllTrips,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                 ),
               ),

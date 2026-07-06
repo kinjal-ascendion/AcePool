@@ -25,8 +25,10 @@ class RideScheduleForm extends StatelessWidget {
     required this.onTimeTap,
     required this.onSeatCountChanged,
     required this.onSchedulePressed,
+    required this.rideMode,
   });
 
+  final RideMode rideMode;
   final VehicleType vehicleType;
   final String? fromAddress;
   final String? toAddress;
@@ -76,6 +78,7 @@ class RideScheduleForm extends StatelessWidget {
           const SizedBox(height: 20),
           ScheduleRideButton(
             onPressed: isFormValid && !isScheduling ? onSchedulePressed : null,
+            label: rideMode == RideMode.find ? 'Find ride' : 'Schedule ride',
             isLoading: isScheduling,
           ),
         ],

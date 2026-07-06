@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:acepool/core/constants/api_keys.dart';
+import 'package:acepool/features/auth/presentation/widgets/auth_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -160,7 +161,7 @@ class _OtpPageState extends State<OtpPage> {
 
       await doc.reference.delete();
 
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/onboarding/travel-preference');
     } catch (e) {
       setState(() => _errorMessage = 'Verification failed. Please try again.');
     } finally {
@@ -271,36 +272,10 @@ class _OtpPageState extends State<OtpPage> {
                 ),
               ],
               const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isVerifying ? null : _verifyOtp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                  child: _isVerifying
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Verify OTP',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
+              AuthButton(
+                onPressed: _verifyOtp,
+                isLoading: _isVerifying,
+                label: 'Verify OTP',
               ),
               const SizedBox(height: 24),
               Center(
@@ -317,8 +292,8 @@ class _OtpPageState extends State<OtpPage> {
                         child: Text(
                           _isResending ? 'Resending...' : 'Resend OTP',
                           style: const TextStyle(
-                            color: _primaryGreen,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
@@ -340,6 +315,7 @@ class _OtpPageState extends State<OtpPage> {
         focusNode: _focusNodes[index],
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
+        textAlignVertical: TextAlignVertical.center,
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(
@@ -351,6 +327,7 @@ class _OtpPageState extends State<OtpPage> {
           counterText: '',
           filled: true,
           fillColor: Colors.white,
+          contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.grey.shade300),

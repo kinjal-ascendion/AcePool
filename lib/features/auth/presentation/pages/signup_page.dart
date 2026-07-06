@@ -2,9 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../widgets/auth_button.dart';
 import '../widgets/auth_text_field.dart';
 
 class SignupPage extends StatefulWidget {
@@ -20,7 +20,6 @@ class _SignupPageState extends State<SignupPage> {
   final _emailUsernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _mobileController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -29,10 +28,8 @@ class _SignupPageState extends State<SignupPage> {
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
-  String? _mobileError;
 
   bool _validate() {
-    final mobile = _mobileController.text.trim();
     final password = _passwordController.text;
 
     setState(() {
@@ -55,19 +52,13 @@ class _SignupPageState extends State<SignupPage> {
           : _confirmPasswordController.text != password
           ? 'Passwords do not match'
           : null;
-      _mobileError = mobile.isEmpty
-          ? 'Mobile number is required'
-          : !RegExp(r'^\d{10}$').hasMatch(mobile)
-          ? 'Enter a valid 10-digit mobile number'
-          : null;
     });
 
     return _fullNameError == null &&
         _employeeIdError == null &&
         _emailError == null &&
         _passwordError == null &&
-        _confirmPasswordError == null &&
-        _mobileError == null;
+        _confirmPasswordError == null;
   }
 
   @override
@@ -77,7 +68,6 @@ class _SignupPageState extends State<SignupPage> {
     _emailUsernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _mobileController.dispose();
     super.dispose();
   }
 
@@ -106,7 +96,6 @@ class _SignupPageState extends State<SignupPage> {
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
         'email': email,
-        'mobile': _mobileController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -150,13 +139,10 @@ class _SignupPageState extends State<SignupPage> {
     _emailError = null;
     _passwordError = null;
     _confirmPasswordError = null;
-    _mobileError = null;
   });
 
   @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF1B8A3F);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
@@ -241,26 +227,15 @@ class _SignupPageState extends State<SignupPage> {
               AuthTextField(
                 label: 'Work Email',
                 controller: _emailUsernameController,
-                hintText: 'username',
+                hintText: 'Username',
                 keyboardType: TextInputType.emailAddress,
                 onChanged: _onFieldChanged,
                 errorText: _emailError,
-                suffixWidget: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
+                suffixWidget: const Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: Text(
                     '@ascendion.com',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(color: Colors.black54),
                   ),
                 ),
               ),
@@ -284,74 +259,13 @@ class _SignupPageState extends State<SignupPage> {
                 onChanged: _onFieldChanged,
                 errorText: _confirmPasswordError,
               ),
-              const SizedBox(height: 16),
-
-              AuthTextField(
-                label: 'Mobile Number',
-                controller: _mobileController,
-                hintText: '10-digit mobile number',
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
-                ],
-                onChanged: _onFieldChanged,
-                errorText: _mobileError,
-                prefixWidget: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 18,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFD6D6D6),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '+91',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 32),
 
               // ── Create Account button ────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    disabledForegroundColor: Colors.grey.shade500,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
+              AuthButton(
+                onPressed: _signup,
+                isLoading: _isLoading,
+                label: 'Create Account',
               ),
               const SizedBox(height: 20),
 
@@ -367,8 +281,8 @@ class _SignupPageState extends State<SignupPage> {
                         TextSpan(
                           text: 'Log in',
                           style: TextStyle(
-                            color: primaryGreen,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),

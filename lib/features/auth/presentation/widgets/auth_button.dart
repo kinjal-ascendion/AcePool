@@ -1,42 +1,51 @@
-import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_theme.dart';
+import 'package:flutter/material.dart';
 
-class ScheduleRideButton extends StatelessWidget {
-  const ScheduleRideButton({
+class AuthButton extends StatelessWidget {
+  const AuthButton({
     super.key,
     required this.onPressed,
-    required this.label,
-    this.isLoading = false,
+    required this.isLoading,
+    this.label = 'Log In',
   });
 
   final VoidCallback? onPressed;
-  final String label;
   final bool isLoading;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.scheduleButtonColor,
           disabledBackgroundColor: Colors.grey.shade300,
+          disabledForegroundColor: Colors.grey.shade500,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          minimumSize: const Size(double.infinity, 48),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: isLoading
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
       ),
     );
