@@ -22,5 +22,6 @@ class ApiKeys {
   //    (Authentication > Sign-in method > Microsoft) to the app's Redirect URIs
   // 4. Copy the Directory (tenant) ID below, and paste the Application (client) ID
   //    + a generated Client Secret into the Firebase Console Microsoft provider config
-  static const String microsoftTenantId = 'd7758e8f-1df3-489f-86b5-a2254f55f9cc';
+  static const String microsoftTenantId =
+      'd7758e8f-1df3-489f-86b5-a2254f55f9cc';
 }
