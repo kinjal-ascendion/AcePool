@@ -420,8 +420,24 @@ class _RiderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text('Pick up point: ${rider.pickupPoint}', style: const TextStyle(fontSize: 13)),
-          Text('Time: ${rider.pickupTimeLabel}', style: const TextStyle(fontSize: 13)),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(fontSize: 13),
+              children: [
+                const TextSpan(text: 'Pick up point: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: rider.pickupPoint),
+              ],
+            ),
+          ),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(fontSize: 13),
+              children: [
+                const TextSpan(text: 'Time: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: rider.pickupTimeLabel),
+              ],
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -442,14 +458,20 @@ class _RiderCard extends StatelessWidget {
                         ),
                       ));
                     },
-                    icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                    label: const Text('Chat'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                    ),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.black87),
+                    label: const Text('Chat', style: TextStyle(color: Colors.black87)),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                    ),
                     child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
                   ),
                 ),

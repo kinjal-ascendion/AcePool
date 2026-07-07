@@ -66,32 +66,27 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = selected ? const Color(0xFF1B8A3F) : Colors.black54;
-    return GestureDetector(
+    final tint = selected
+        ? HomeBottomNavBar._activeColor
+        : HomeBottomNavBar._inactiveColor;
+    return InkWell(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE8F5E9) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: tint,
-              size: 24,
-            ),
-            if (!selected) const SizedBox(height: 4),
-            if (!selected)
-              Text(
-                label,
-                style: TextStyle(
-                  color: tint,
-                  fontSize: 12,
-                ),
+            Icon(icon, color: tint, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: tint,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               ),
+            ),
           ],
         ),
       ),
