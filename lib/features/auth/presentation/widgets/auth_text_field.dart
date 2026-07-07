@@ -33,11 +33,22 @@ class AuthTextField extends StatefulWidget {
 
 class _AuthTextFieldState extends State<AuthTextField> {
   late bool _obscured;
+  final _focusNode = FocusNode();
+  bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
     _obscured = widget.obscureText;
+    _focusNode.addListener(() {
+      setState(() => _isFocused = _focusNode.hasFocus);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -68,8 +79,10 @@ class _AuthTextFieldState extends State<AuthTextField> {
             border: Border.all(
               color: widget.errorText != null
                   ? Colors.red.shade400
-                  : Colors.grey.shade300,
-              width: widget.errorText != null ? 1.2 : 1,
+                  : _isFocused
+                      ? Colors.black
+                      : Colors.grey.shade300,
+              width: widget.errorText != null || _isFocused ? 1.5 : 1,
             ),
           ),
           child: Row(
@@ -78,6 +91,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
               Expanded(
                 child: TextField(
                   controller: widget.controller,
+                  focusNode: _focusNode,
                   obscureText: _obscured,
                   keyboardType: widget.keyboardType,
                   inputFormatters: widget.inputFormatters,

@@ -33,8 +33,6 @@ class _OtpPageState extends State<OtpPage> {
   Timer? _timer;
   String? _errorMessage;
 
-  static const _primaryGreen = Color(0xFF1B8A3F);
-
   FirebaseFirestore get _db => FirebaseFirestore.instanceFor(
         app: Firebase.app(),
         databaseId: 'acepool',
@@ -338,7 +336,7 @@ class _OtpPageState extends State<OtpPage> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _primaryGreen, width: 2),
+            borderSide: const BorderSide(color: Colors.black, width: 2),
           ),
         ),
         onChanged: (value) {

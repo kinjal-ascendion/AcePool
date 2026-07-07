@@ -71,7 +71,21 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         ),
       ));
     }
+
+    if (status == 'accepted') {
+      await _reconcileSeatsFilled(riders.length);
+    }
+
     return riders;
+  }
+
+  Future<void> _reconcileSeatsFilled(int acceptedCount) async {
+    final rideRef = _db.collection('rides').doc(widget.trip.id);
+    final snap = await rideRef.get();
+    final current = (snap.data()?['seatsFilled'] as int?) ?? 0;
+    if (current != acceptedCount) {
+      await rideRef.update({'seatsFilled': acceptedCount});
+    }
   }
 
   Future<void> _confirmCancelRider(
@@ -180,9 +194,16 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         .collection('ride_requests')
         .doc(requestId)
         .update({'status': 'rejected'});
-    await _db.collection('rides').doc(widget.trip.id).update({
-      'seatsFilled': FieldValue.increment(-1),
+
+    final rideRef = _db.collection('rides').doc(widget.trip.id);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(rideRef);
+      final current = (snap.data()?['seatsFilled'] as int?) ?? 0;
+      if (current > 0) {
+        tx.update(rideRef, {'seatsFilled': current - 1});
+      }
     });
+
     setState(_reload);
   }
 
@@ -284,11 +305,20 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    const Text(
-                      'Riders',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Riders confirmed',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
 
@@ -416,6 +446,19 @@ class _RiderCard extends StatelessWidget {
                       Text(rider.employeeId, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                   ],
                 ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.directions_car, size: 15, color: Colors.grey.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    '25mins',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                  Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade500),
+                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
+                ],
               ),
             ],
           ),
