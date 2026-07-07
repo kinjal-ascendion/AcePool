@@ -1,5 +1,6 @@
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -284,12 +285,33 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    const Text(
-                      'Riders',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Riders',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  RideMapPage(trip: widget.trip),
+                            ),
+                          ),
+                          child: const Text(
+                            'View On Map',
+                            style: TextStyle(
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 12),
