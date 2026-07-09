@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/save_commute_location_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
+import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -11,12 +14,18 @@ part 'home_state.dart';
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetUpcomingTripsUseCase _getUpcomingTrips;
   final ScheduleRideUseCase _scheduleRide;
+  final FindMatchingRidesUseCase _findMatchingRides;
+  final SaveCommuteLocationUseCase _saveCommuteLocation;
 
   HomeBloc({
     required GetUpcomingTripsUseCase getUpcomingTrips,
     required ScheduleRideUseCase scheduleRide,
+    required FindMatchingRidesUseCase findMatchingRides,
+    required SaveCommuteLocationUseCase saveCommuteLocation,
   })  : _getUpcomingTrips = getUpcomingTrips,
         _scheduleRide = scheduleRide,
+        _findMatchingRides = findMatchingRides,
+        _saveCommuteLocation = saveCommuteLocation,
         super(const HomeState()) {
     on<HomeStarted>(_onHomeStarted);
     on<RideModeChanged>(_onRideModeChanged);
@@ -28,6 +37,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<TimeSelected>(_onTimeSelected);
     on<SeatCountChanged>(_onSeatCountChanged);
     on<ScheduleRideRequested>(_onScheduleRideRequested);
+    on<FindRidesRequested>(_onFindRidesRequested);
   }
 
   Future<void> _onHomeStarted(HomeStarted event, Emitter<HomeState> emit) async {
@@ -49,11 +59,31 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   void _onFromAddressChanged(FromAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(fromAddress: event.address));
+    emit(state.copyWith(
+      fromAddress: event.address,
+      fromLat: event.lat,
+      fromLng: event.lng,
+    ));
+    _saveCommuteLocation(
+      isHome: true,
+      address: event.address,
+      lat: event.lat,
+      lng: event.lng,
+    );
   }
 
   void _onToAddressChanged(ToAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(toAddress: event.address));
+    emit(state.copyWith(
+      toAddress: event.address,
+      toLat: event.lat,
+      toLng: event.lng,
+    ));
+    _saveCommuteLocation(
+      isHome: false,
+      address: event.address,
+      lat: event.lat,
+      lng: event.lng,
+    );
   }
 
   void _onLocationsSwapped(LocationsSwapped event, Emitter<HomeState> emit) {
@@ -84,6 +114,10 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         vehicleType: state.vehicleType.name,
         fromAddress: state.fromAddress!,
         toAddress: state.toAddress!,
+        fromLat: state.fromLat,
+        fromLng: state.fromLng,
+        toLat: state.toLat,
+        toLng: state.toLng,
         date: state.selectedDate!,
         time: state.selectedTime!,
         seatCount: state.seatCount,
@@ -105,5 +139,36 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       status: HomeStatus.scheduled,
       upcomingTrips: trips,
     ));
+  }
+
+  Future<void> _onFindRidesRequested(
+    FindRidesRequested event,
+    Emitter<HomeState> emit,
+  ) async {
+    if (!state.isFormValid) return;
+    emit(state.copyWith(
+      findStatus: HomeStatus.loading,
+      hasSearchedRides: true,
+    ));
+    try {
+      final results = await _findMatchingRides(
+        fromAddress: state.fromAddress!,
+        toAddress: state.toAddress!,
+        fromLat: state.fromLat,
+        fromLng: state.fromLng,
+        toLat: state.toLat,
+        toLng: state.toLng,
+        date: state.selectedDate!,
+        time: state.selectedTime!,
+        vehicleType: state.vehicleType.name,
+      );
+      emit(state.copyWith(findStatus: HomeStatus.success, findResults: results));
+    } catch (e) {
+      emit(state.copyWith(
+        findStatus: HomeStatus.failure,
+        findResults: const <RideMatch>[],
+        errorMessage: e.toString(),
+      ));
+    }
   }
 }

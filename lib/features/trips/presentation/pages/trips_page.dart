@@ -1,3 +1,5 @@
+import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
@@ -86,10 +88,19 @@ class _TripsPageState extends State<TripsPage>
 
     String userHomeAddress = '';
     String userOfficeAddress = '';
+    double? userHomeLat;
+    double? userHomeLng;
+    double? userOfficeLat;
+    double? userOfficeLng;
     try {
       final userDoc = await _db.collection('users').doc(uid).get();
-      userHomeAddress = userDoc.data()?['homeAddress'] as String? ?? '';
-      userOfficeAddress = userDoc.data()?['officeAddress'] as String? ?? '';
+      final userData = userDoc.data();
+      userHomeAddress = userData?['homeAddress'] as String? ?? '';
+      userOfficeAddress = userData?['officeAddress'] as String? ?? '';
+      userHomeLat = (userData?['homeLat'] as num?)?.toDouble();
+      userHomeLng = (userData?['homeLng'] as num?)?.toDouble();
+      userOfficeLat = (userData?['officeLat'] as num?)?.toDouble();
+      userOfficeLng = (userData?['officeLng'] as num?)?.toDouble();
     } catch (_) {}
 
     final snap = await _db
@@ -129,6 +140,25 @@ class _TripsPageState extends State<TripsPage>
       final timeMap = d['time'] as Map<String, dynamic>;
       final rideFrom = d['fromAddress'] as String;
       final rideTo = d['toAddress'] as String;
+      final rideFromLat = (d['fromLat'] as num?)?.toDouble();
+      final rideFromLng = (d['fromLng'] as num?)?.toDouble();
+      final rideToLat = (d['toLat'] as num?)?.toDouble();
+      final rideToLng = (d['toLng'] as num?)?.toDouble();
+
+      final match = _calcMatch(
+        userHome: userHomeAddress,
+        userOffice: userOfficeAddress,
+        userHomeLat: userHomeLat,
+        userHomeLng: userHomeLng,
+        userOfficeLat: userOfficeLat,
+        userOfficeLng: userOfficeLng,
+        rideFrom: rideFrom,
+        rideTo: rideTo,
+        rideFromLat: rideFromLat,
+        rideFromLng: rideFromLng,
+        rideToLat: rideToLat,
+        rideToLng: rideToLng,
+      );
 
       rides.add(_AvailableRide(
         id: doc.id,
@@ -143,8 +173,8 @@ class _TripsPageState extends State<TripsPage>
         seatsTotal: seatCount,
         vehicleType: d['vehicleType'] as String? ?? 'car',
         alreadyRequested: requestedRideIds.contains(doc.id),
-        matchPercent: _calcMatch(
-            userHomeAddress, userOfficeAddress, rideFrom, rideTo),
+        matchPercent: match.matchPercent,
+        distanceKm: match.distanceKm,
         defaultPickupPoint:
             userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
       ));
@@ -154,25 +184,51 @@ class _TripsPageState extends State<TripsPage>
     return rides;
   }
 
-  int _calcMatch(String userHome, String userOffice, String rideFrom,
-      String rideTo) {
-    final fromMatch = _similar(userHome, rideFrom);
-    final toMatch = _similar(userOffice, rideTo);
-    if (fromMatch && toMatch) return 100;
-    if (toMatch) return 80;
-    if (fromMatch) return 60;
-    return 40;
-  }
+  _MatchResult _calcMatch({
+    required String userHome,
+    required String userOffice,
+    double? userHomeLat,
+    double? userHomeLng,
+    double? userOfficeLat,
+    double? userOfficeLng,
+    required String rideFrom,
+    required String rideTo,
+    double? rideFromLat,
+    double? rideFromLng,
+    double? rideToLat,
+    double? rideToLng,
+  }) {
+    final haveUserCoords = userHomeLat != null &&
+        userHomeLng != null &&
+        userOfficeLat != null &&
+        userOfficeLng != null;
+    final haveRideCoords = rideFromLat != null &&
+        rideFromLng != null &&
+        rideToLat != null &&
+        rideToLng != null;
 
-  bool _similar(String a, String b) {
-    if (a.isEmpty || b.isEmpty) return false;
-    final an = a.toLowerCase().trim();
-    final bn = b.toLowerCase().trim();
-    if (an.contains(bn) || bn.contains(an)) return true;
-    return an
-        .split(RegExp(r'\s+'))
-        .where((w) => w.length > 3)
-        .any((w) => bn.contains(w));
+    if (haveUserCoords && haveRideCoords) {
+      final fromKm =
+          RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng);
+      final toKm =
+          RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng);
+      final worstKm = fromKm > toKm ? fromKm : toKm;
+      return _MatchResult(RideMatcher.matchPercentFromDistance(worstKm), fromKm);
+    }
+
+    final fromMatch = RideMatcher.fuzzyAddressMatches(userHome, rideFrom);
+    final toMatch = RideMatcher.fuzzyAddressMatches(userOffice, rideTo);
+    int percent;
+    if (fromMatch && toMatch) {
+      percent = 100;
+    } else if (toMatch) {
+      percent = 80;
+    } else if (fromMatch) {
+      percent = 60;
+    } else {
+      percent = 40;
+    }
+    return _MatchResult(percent, null);
   }
 
   Widget _buildList(
@@ -195,13 +251,13 @@ class _TripsPageState extends State<TripsPage>
                 Icon(
                   Icons.directions_car_outlined,
                   size: 64,
-                  color: Colors.grey.shade300,
+                  color: AppColors.grey300,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   emptyLabel,
                   style: TextStyle(
-                    color: Colors.grey.shade500,
+                    color: AppColors.grey500,
                     fontSize: 15,
                   ),
                 ),
@@ -227,7 +283,6 @@ class _TripsPageState extends State<TripsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,7 +305,7 @@ class _TripsPageState extends State<TripsPage>
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                  color: AppColors.grey200,
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Row(
@@ -263,7 +318,7 @@ class _TripsPageState extends State<TripsPage>
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
-                            color: active ? Colors.black : Colors.transparent,
+                            color: active ? AppColors.black : AppColors.transparent,
                             borderRadius: BorderRadius.circular(26),
                           ),
                           child: Text(
@@ -274,7 +329,7 @@ class _TripsPageState extends State<TripsPage>
                               fontWeight: active
                                   ? FontWeight.w600
                                   : FontWeight.normal,
-                              color: active ? Colors.white : Colors.black54,
+                              color: active ? AppColors.white : AppColors.black54,
                             ),
                           ),
                         ),
@@ -295,9 +350,9 @@ class _TripsPageState extends State<TripsPage>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: AppColors.grey300),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -313,7 +368,7 @@ class _TripsPageState extends State<TripsPage>
                       Icon(
                         Icons.keyboard_arrow_down,
                         size: 18,
-                        color: Colors.grey.shade600,
+                        color: AppColors.grey600,
                       ),
                     ],
                   ),
@@ -340,7 +395,7 @@ class _TripsPageState extends State<TripsPage>
                             child: Text(
                               'Error: ${snapshot.error}',
                               style: TextStyle(
-                                  color: Colors.red.shade400, fontSize: 13),
+                                  color: AppColors.red400, fontSize: 13),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -354,11 +409,11 @@ class _TripsPageState extends State<TripsPage>
                             children: [
                               Icon(Icons.event_seat_outlined,
                                   size: 64,
-                                  color: Colors.grey.shade300),
+                                  color: AppColors.grey300),
                               const SizedBox(height: 16),
                               Text('No available rides from other users',
                                   style: TextStyle(
-                                      color: Colors.grey.shade500,
+                                      color: AppColors.grey500,
                                       fontSize: 15)),
                             ],
                           ),
@@ -399,6 +454,12 @@ class _TripsPageState extends State<TripsPage>
   }
 }
 
+class _MatchResult {
+  const _MatchResult(this.matchPercent, this.distanceKm);
+
+  final int matchPercent;
+  final double? distanceKm;
+}
 
 class _AvailableRide {
   const _AvailableRide({
@@ -415,6 +476,7 @@ class _AvailableRide {
     required this.alreadyRequested,
     required this.matchPercent,
     required this.defaultPickupPoint,
+    required this.distanceKm,
   });
 
   final String id;
@@ -430,6 +492,10 @@ class _AvailableRide {
   final bool alreadyRequested;
   final int matchPercent;
   final String defaultPickupPoint;
+  final double? distanceKm;
+
+  String? get distanceLabel =>
+      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
 
   String get timeLabel {
     final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
@@ -463,19 +529,14 @@ class _AvailableRideCard extends StatefulWidget {
 }
 
 class _AvailableRideCardState extends State<_AvailableRideCard> {
-  static const _green = Color(0xFF1B8A3F);
-  static const _badgeBg = Color(0xFF5A5A5A);
 
   final _messageController = TextEditingController();
-  late final _pickupController =
-      TextEditingController(text: widget.ride.defaultPickupPoint);
   bool _submitting = false;
   bool _justRequested = false;
 
   @override
   void dispose() {
     _messageController.dispose();
-    _pickupController.dispose();
     super.dispose();
   }
 
@@ -495,9 +556,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
-      final pickupPoint = _pickupController.text.trim().isNotEmpty
-          ? _pickupController.text.trim()
-          : widget.ride.defaultPickupPoint;
+      final pickupPoint = widget.ride.defaultPickupPoint;
 
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
@@ -551,93 +610,137 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     final requested = r.alreadyRequested || _justRequested;
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: AppColors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _badgeBg,
-                  borderRadius: BorderRadius.circular(20),
+          // ── Top banner + match% overlay (pinned to extreme corners) ──
+          SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_outline,
+                              color: AppColors.white, size: 15),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: const TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.person_outline,
-                        color: Colors.white, size: 14),
-                    const SizedBox(width: 5),
                     Text(
-                      '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                      r.dateLabel,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.black87,
+                      ),
+                    ),
+                    const Spacer(),
+                    Transform.translate(
+                      offset: const Offset(0, -2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_walk,
+                              size: 14, color: AppColors.grey600),
+                          const SizedBox(width: 4),
+                          Text(
+                            r.distanceLabel ??
+                                (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.grey600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.chevron_right,
+                              size: 14, color: AppColors.grey400),
+                          const SizedBox(width: 6),
+                          Icon(
+                            r.vehicleType == 'bike'
+                                ? Icons.two_wheeler
+                                : Icons.directions_car,
+                            size: 16,
+                            color: AppColors.grey700,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              const Spacer(),
-              Text(
-                '${r.matchPercent}% Match',
-                style: const TextStyle(
-                  color: _green,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 12),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                r.dateLabel,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const Spacer(),
-              Icon(Icons.directions_walk,
-                  size: 13, color: Colors.grey.shade500),
-              const SizedBox(width: 3),
-              Icon(
-                r.vehicleType == 'bike'
-                    ? Icons.two_wheeler
-                    : Icons.directions_car_outlined,
-                size: 15,
-                color: Colors.grey.shade500,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 3),
+                const SizedBox(height: 2),
 
           Text(
             r.timeLabel,
-            style:
-                TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            style: const TextStyle(color: AppColors.black45, fontSize: 12),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           Row(
             children: [
@@ -645,31 +748,29 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(r.fromAddress,
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13, color: AppColors.black54),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(width: 7),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Column(
-                  children: List.generate(
-                    4,
-                    (_) => Container(
-                      width: 1.5,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 2),
-                      color: Colors.grey.shade400,
-                    ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                3,
+                (i) => Container(
+                  width: 1.5,
+                  height: 3,
+                  margin: EdgeInsets.only(
+                    top: i == 0 ? 0 : 1,
+                    bottom: i == 2 ? 0 : 1,
                   ),
+                  color: AppColors.black26,
                 ),
               ),
-            ],
+            ),
           ),
           Row(
             children: [
@@ -677,53 +778,46 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(r.toAddress,
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13, color: AppColors.black54),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
+          Divider(color: AppColors.grey200, height: 1),
+          const SizedBox(height: 8),
 
-          Container(
-            padding: const EdgeInsets.only(left: 16, right: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.location_on_outlined,
-                    size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _pickupController,
-                    enabled: !requested && !_submitting,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Pickup point (e.g. Building A, Gate 2)',
-                      hintStyle: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade400),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '₹ 600 / seat',
+                style: TextStyle(
+                  color: AppColors.primaryGreen,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
+              ),
+              Text(
+                'View Details',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.black54,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           Container(
             padding: const EdgeInsets.only(
-                left: 16, right: 6, top: 5, bottom: 5),
+                left: 16, right: 4, top: 4, bottom: 4),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: AppColors.grey100,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
@@ -738,7 +832,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                           ? 'Request sent'
                           : 'Share message with driver',
                       hintStyle: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade400),
+                          fontSize: 13, color: AppColors.grey400),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding:
@@ -750,29 +844,28 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                 GestureDetector(
                   onTap: requested || _submitting ? null : _requestRide,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 11),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: requested ? Colors.grey.shade400 : _green,
-                      borderRadius: BorderRadius.circular(30),
+                      color: requested ? AppColors.grey400 : AppColors.primaryGreen,
+                      shape: BoxShape.circle,
                     ),
                     child: _submitting
                         ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                                strokeWidth: 2, color: AppColors.white),
                           )
-                        : Text(
-                            requested ? 'Requested' : 'Request ride',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        : Icon(
+                            requested ? Icons.check : Icons.send_rounded,
+                            color: AppColors.white,
+                            size: 16,
                           ),
                   ),
                 ),
+              ],
+            ),
+          ),
               ],
             ),
           ),
@@ -786,10 +879,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       width: 10,
       height: 10,
       decoration: filled
-          ? const BoxDecoration(shape: BoxShape.circle, color: _green)
+          ? const BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGreen)
           : BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: _green, width: 1.5),
+              border: Border.all(color: AppColors.primaryGreen, width: 1.5),
             ),
     );
   }

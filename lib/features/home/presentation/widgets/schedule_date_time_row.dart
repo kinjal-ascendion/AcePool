@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/utils/date_time_formatter.dart';
 
@@ -28,20 +29,23 @@ class ScheduleDateTimeRow extends StatelessWidget {
           onTap: onDateTap,
           child: Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.black87),
+              const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.black87),
               const SizedBox(width: 12),
               Text(
                 selectedDate != null
                     ? DateTimeFormatter.monthDayYear(selectedDate!)
                     : 'Select date',
                 style: TextStyle(
-                  color: selectedDate != null ? Colors.black87 : Colors.black45,
+                  color: selectedDate != null ? AppColors.black87 : AppColors.black45,
                 ),
               ),
             ],
           ),
         ),
-        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(height: 1, color: AppColors.grey300),
+        ),
         Row(
           children: [
             Expanded(
@@ -49,14 +53,14 @@ class ScheduleDateTimeRow extends StatelessWidget {
                 onTap: onTimeTap,
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time, size: 18, color: Colors.black87),
+                    const Icon(Icons.access_time, size: 18, color: AppColors.black87),
                     const SizedBox(width: 12),
                     Text(
                       selectedTime != null
                           ? DateTimeFormatter.time12h(selectedTime!)
                           : 'Choose time',
                       style: TextStyle(
-                        color: selectedTime != null ? Colors.black87 : Colors.black45,
+                        color: selectedTime != null ? AppColors.black87 : AppColors.black45,
                       ),
                     ),
                   ],
@@ -66,7 +70,7 @@ class ScheduleDateTimeRow extends StatelessWidget {
             Container(
               height: 18,
               width: 1,
-              color: Colors.black12,
+              color: AppColors.grey300,
               margin: const EdgeInsets.symmetric(horizontal: 12),
             ),
             PopupMenuButton<int>(
@@ -78,10 +82,10 @@ class ScheduleDateTimeRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 18, color: Colors.black87),
+                  const Icon(Icons.person_outline, size: 18, color: AppColors.black87),
                   const SizedBox(width: 6),
                   Text('$seatCount', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.black87),
+                  const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.black87),
                 ],
               ),
             ),

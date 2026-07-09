@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_theme.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
@@ -47,7 +48,7 @@ class _RadioOption extends StatelessWidget {
             height: 20,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: selected ? active : Colors.black38, width: 2),
+              border: Border.all(color: selected ? active : AppColors.black38, width: 2),
             ),
             child: selected
                 ? Center(
@@ -60,7 +61,13 @@ class _RadioOption extends StatelessWidget {
                 : null,
           ),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected ? AppColors.black87 : AppColors.grey600,
+            ),
+          ),
         ],
       ),
     );

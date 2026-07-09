@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -93,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                  child: Text(
                   '@ascendion.com',
                    style: TextStyle(
-                     color: Colors.black54,
+                     color: AppColors.black54,
                     ),
                   ),
                 ),
@@ -116,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text(
                     'Forgot Password?',
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
+                    style: TextStyle(fontSize: 14, color: AppColors.black87),
                   ),
                 ),
               ),

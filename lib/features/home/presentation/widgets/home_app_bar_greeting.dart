@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class HomeAppBarGreeting extends StatelessWidget {
@@ -20,11 +21,11 @@ class HomeAppBarGreeting extends StatelessWidget {
           onTap: onAvatarTap,
           child: CircleAvatar(
             radius: 24,
-            backgroundColor: Colors.grey.shade500,
+            backgroundColor: AppColors.grey500,
             child: Text(
               initials,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),

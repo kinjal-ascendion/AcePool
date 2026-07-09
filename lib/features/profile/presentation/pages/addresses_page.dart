@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -81,7 +82,7 @@ class _AddressesPageState extends State<AddressesPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: const Text('Remove', style: TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -114,7 +115,7 @@ class _AddressesPageState extends State<AddressesPage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade500,
+              color: AppColors.grey500,
               letterSpacing: 0.5,
             ),
           ),
@@ -122,14 +123,14 @@ class _AddressesPageState extends State<AddressesPage> {
             onTap: onAdd,
             child: Row(
               children: [
-                Icon(Icons.add, size: 16, color: Colors.grey.shade700),
+                Icon(Icons.add, size: 16, color: AppColors.grey700),
                 const SizedBox(width: 2),
                 Text(
                   'Add',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: AppColors.grey700,
                   ),
                 ),
               ],
@@ -155,9 +156,9 @@ class _AddressesPageState extends State<AddressesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.grey200),
       ),
       child: Column(
         children: [
@@ -170,10 +171,10 @@ class _AddressesPageState extends State<AddressesPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppColors.grey100,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 20, color: Colors.black87),
+                  child: Icon(icon, size: 20, color: AppColors.black87),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -196,14 +197,14 @@ class _AddressesPageState extends State<AddressesPage> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: AppColors.grey100,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'Default',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey.shade700,
+                                  color: AppColors.grey700,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -213,13 +214,13 @@ class _AddressesPageState extends State<AddressesPage> {
                       const SizedBox(height: 4),
                       Text(
                         line1,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        style: TextStyle(color: AppColors.grey600, fontSize: 13),
                       ),
                       if (line2.isNotEmpty)
                         Text(
                           line2,
                           style:
-                              TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                              TextStyle(color: AppColors.grey600, fontSize: 13),
                         ),
                     ],
                   ),
@@ -227,7 +228,7 @@ class _AddressesPageState extends State<AddressesPage> {
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade200),
+          Divider(height: 1, color: AppColors.grey200),
           Row(
             children: [
               Expanded(
@@ -246,7 +247,7 @@ class _AddressesPageState extends State<AddressesPage> {
                   ),
                 ),
               ),
-              Container(width: 1, height: 24, color: Colors.grey.shade200),
+              Container(width: 1, height: 24, color: AppColors.grey200),
               Expanded(
                 child: InkWell(
                   onTap: () => _deleteAddress(docId, category, isDefault),
@@ -255,9 +256,9 @@ class _AddressesPageState extends State<AddressesPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                        Icon(Icons.delete_outline, size: 16, color: AppColors.red),
                         SizedBox(width: 6),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
+                        Text('Delete', style: TextStyle(color: AppColors.red)),
                       ],
                     ),
                   ),
@@ -273,11 +274,10 @@ class _AddressesPageState extends State<AddressesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.grey.shade50,
+        backgroundColor: AppColors.scaffoldBackground,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: AppColors.black,
         title: const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
       body: SafeArea(

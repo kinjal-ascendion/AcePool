@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class LocationSwapRow extends StatelessWidget {
@@ -18,7 +19,6 @@ class LocationSwapRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF1B8A3F);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -32,7 +32,7 @@ class LocationSwapRow extends StatelessWidget {
               height: 11,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: green, width: 1.5),
+                border: Border.all(color: AppColors.primaryGreen, width: 1.5),
               ),
             ),
             ...List.generate(
@@ -41,7 +41,7 @@ class LocationSwapRow extends StatelessWidget {
                 width: 1.5,
                 height: 5,
                 margin: const EdgeInsets.symmetric(vertical: 2),
-                color: Colors.black26,
+                color: AppColors.black26,
               ),
             ),
             Container(
@@ -49,7 +49,7 @@ class LocationSwapRow extends StatelessWidget {
               height: 11,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: green,
+                color: AppColors.primaryGreen,
               ),
             ),
           ],
@@ -68,7 +68,7 @@ class LocationSwapRow extends StatelessWidget {
                     child: Text(
                       fromAddress ?? 'Enter start location',
                       style: TextStyle(
-                        color: fromAddress != null ? Colors.black87 : Colors.black38,
+                        color: fromAddress != null ? AppColors.black87 : AppColors.black38,
                         fontWeight:
                             fromAddress != null ? FontWeight.w500 : FontWeight.normal,
                         fontSize: 15,
@@ -79,7 +79,7 @@ class LocationSwapRow extends StatelessWidget {
                   ),
                 ),
               ),
-              const Divider(height: 1),
+              Divider(height: 1, color: AppColors.grey300),
               InkWell(
                 onTap: onToTap,
                 child: SizedBox(
@@ -89,7 +89,7 @@ class LocationSwapRow extends StatelessWidget {
                     child: Text(
                       toAddress ?? 'Enter office location',
                       style: TextStyle(
-                        color: toAddress != null ? Colors.black87 : Colors.black38,
+                        color: toAddress != null ? AppColors.black87 : AppColors.black38,
                         fontWeight:
                             toAddress != null ? FontWeight.w500 : FontWeight.normal,
                         fontSize: 15,
@@ -108,7 +108,7 @@ class LocationSwapRow extends StatelessWidget {
           onTap: onSwap,
           child: const Padding(
             padding: EdgeInsets.only(left: 8),
-            child: Icon(Icons.swap_vert, color: Colors.black54, size: 22),
+            child: Icon(Icons.swap_vert, color: AppColors.black54, size: 22),
           ),
         ),
       ],

@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -199,7 +200,6 @@ class _OtpPageState extends State<OtpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -212,11 +212,11 @@ class _OtpPageState extends State<OtpPage> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: AppColors.black.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -224,7 +224,7 @@ class _OtpPageState extends State<OtpPage> {
                   ),
                   child: const Icon(
                     Icons.chevron_left,
-                    color: Colors.black87,
+                    color: AppColors.black87,
                     size: 22,
                   ),
                 ),
@@ -243,7 +243,7 @@ class _OtpPageState extends State<OtpPage> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.black87,
                   ),
                 ),
               ),
@@ -252,7 +252,7 @@ class _OtpPageState extends State<OtpPage> {
                 child: Text(
                   'Enter the 6-digit OTP sent to\n${widget.email}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Colors.black45),
+                  style: const TextStyle(fontSize: 14, color: AppColors.black45),
                 ),
               ),
               const SizedBox(height: 40),
@@ -265,7 +265,7 @@ class _OtpPageState extends State<OtpPage> {
                 Center(
                   child: Text(
                     _errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                    style: const TextStyle(color: AppColors.red, fontSize: 13),
                   ),
                 ),
               ],
@@ -281,7 +281,7 @@ class _OtpPageState extends State<OtpPage> {
                     ? Text(
                         'Resend OTP in ${_resendTimer}s',
                         style: const TextStyle(
-                          color: Colors.black45,
+                          color: AppColors.black45,
                           fontSize: 14,
                         ),
                       )
@@ -290,7 +290,7 @@ class _OtpPageState extends State<OtpPage> {
                         child: Text(
                           _isResending ? 'Resending...' : 'Resend OTP',
                           style: const TextStyle(
-                            color: Colors.black87,
+                            color: AppColors.black87,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -319,24 +319,24 @@ class _OtpPageState extends State<OtpPage> {
         style: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: AppColors.black87,
         ),
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppColors.white,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(color: AppColors.grey300),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(color: AppColors.grey300),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.black, width: 2),
+            borderSide: const BorderSide(color: AppColors.black, width: 2),
           ),
         ),
         onChanged: (value) {

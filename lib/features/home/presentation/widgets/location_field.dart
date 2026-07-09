@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class LocationField extends StatelessWidget {
@@ -39,7 +40,7 @@ class LocationField extends StatelessWidget {
           child: Text(
             address ?? placeholder,
             style: TextStyle(
-              color: hasAddress ? Colors.black87 : Colors.black45,
+              color: hasAddress ? AppColors.black87 : AppColors.black45,
               fontWeight: hasAddress ? FontWeight.w600 : FontWeight.normal,
             ),
             maxLines: 1,

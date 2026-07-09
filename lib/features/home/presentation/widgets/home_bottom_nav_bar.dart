@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class HomeBottomNavBar extends StatelessWidget {
@@ -6,8 +7,8 @@ class HomeBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  static const Color _activeColor = Color(0xFF2E8B57);
-  static const Color _inactiveColor = Colors.black54;
+  static const Color _activeColor = AppColors.bottomNavActive;
+  static const Color _inactiveColor = AppColors.black54;
 
   static const _items = [
     (icon: Icons.home_outlined, label: 'Home'),
@@ -24,11 +25,11 @@ class HomeBottomNavBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: AppColors.black.withValues(alpha: 0.1),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
