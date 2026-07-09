@@ -76,10 +76,37 @@ class FindMatchingRidesUseCase {
             RideMatcher.distanceKm(fromLat, fromLng, rideFromLat, rideFromLng);
         final toDistanceKm =
             RideMatcher.distanceKm(toLat, toLng, rideToLat, rideToLng);
-        isMatch = fromDistanceKm <= RideMatcher.maxMatchDistanceKm &&
+        final endpointsMatch = fromDistanceKm <= RideMatcher.maxMatchDistanceKm &&
             toDistanceKm <= RideMatcher.maxMatchDistanceKm;
-        final worstKm = fromDistanceKm > toDistanceKm ? fromDistanceKm : toDistanceKm;
-        matchPercent = RideMatcher.matchPercentFromDistance(worstKm);
+
+        // Also accept the rider's pickup/drop being somewhere in between the
+        // driver's start and end (an "on the way" match), even when they're
+        // nowhere near the driver's own endpoints.
+        final fromDeviationKm = RideMatcher.routeDeviationKm(
+            rideFromLat, rideFromLng, fromLat, fromLng, rideToLat, rideToLng);
+        final toDeviationKm = RideMatcher.routeDeviationKm(
+            rideFromLat, rideFromLng, toLat, toLng, rideToLat, rideToLng);
+        final fromProgress = RideMatcher.routeProgress(
+            rideFromLat, rideFromLng, fromLat, fromLng, rideToLat, rideToLng);
+        final toProgress = RideMatcher.routeProgress(
+            rideFromLat, rideFromLng, toLat, toLng, rideToLat, rideToLng);
+        final onRoute = fromDeviationKm <= RideMatcher.maxRouteDeviationKm &&
+            toDeviationKm <= RideMatcher.maxRouteDeviationKm &&
+            fromProgress <= toProgress;
+
+        isMatch = endpointsMatch || onRoute;
+
+        if (endpointsMatch) {
+          final worstKm = fromDistanceKm > toDistanceKm ? fromDistanceKm : toDistanceKm;
+          matchPercent = RideMatcher.matchPercentFromDistance(worstKm);
+        } else {
+          final worstDeviationKm =
+              fromDeviationKm > toDeviationKm ? fromDeviationKm : toDeviationKm;
+          matchPercent = RideMatcher.matchPercentFromDistance(
+            worstDeviationKm,
+            scaleKm: RideMatcher.maxRouteDeviationKm,
+          );
+        }
       } else {
         isMatch = RideMatcher.fuzzyAddressMatches(rideFrom, fromAddress) &&
             RideMatcher.fuzzyAddressMatches(rideTo, toAddress);

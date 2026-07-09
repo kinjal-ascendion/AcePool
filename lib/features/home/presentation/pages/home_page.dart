@@ -120,6 +120,7 @@ class _HomeView extends StatelessWidget {
 
           return Scaffold(
             body: SafeArea(
+              bottom: false,
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(

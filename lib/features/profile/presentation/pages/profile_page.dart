@@ -68,6 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: FutureBuilder<Map<String, dynamic>?>(
           future: _fetchUserData(),
           builder: (context, snapshot) {
