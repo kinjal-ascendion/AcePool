@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ScheduleRideUseCase {
   final FirebaseFirestore _db;
@@ -14,6 +15,8 @@ class ScheduleRideUseCase {
     required String vehicleType,
     required String fromAddress,
     required String toAddress,
+    LatLng? fromLatLng,
+    LatLng? toLatLng,
     required DateTime date,
     required TimeOfDay time,
     required int seatCount,
@@ -27,6 +30,14 @@ class ScheduleRideUseCase {
       'vehicleType': vehicleType,
       'fromAddress': fromAddress,
       'toAddress': toAddress,
+      'fromLatLng': fromLatLng != null ? {
+        'latitude': fromLatLng.latitude,
+        'longitude': fromLatLng.longitude,
+      } : null,
+      'toLatLng': toLatLng != null ? {
+        'latitude': toLatLng.latitude,
+        'longitude': toLatLng.longitude,
+      } : null,
       'date': Timestamp.fromDate(date),
       'time': {'hour': time.hour, 'minute': time.minute},
       'seatCount': seatCount,

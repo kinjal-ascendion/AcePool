@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -49,11 +50,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   void _onFromAddressChanged(FromAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(fromAddress: event.address));
+    emit(state.copyWith(fromAddress: event.address, fromLatLng: event.latLng));
   }
 
   void _onToAddressChanged(ToAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(toAddress: event.address));
+    emit(state.copyWith(toAddress: event.address, toLatLng: event.latLng));
   }
 
   void _onLocationsSwapped(LocationsSwapped event, Emitter<HomeState> emit) {
@@ -84,6 +85,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         vehicleType: state.vehicleType.name,
         fromAddress: state.fromAddress!,
         toAddress: state.toAddress!,
+        fromLatLng: state.fromLatLng,
+        toLatLng: state.toLatLng,
         date: state.selectedDate!,
         time: state.selectedTime!,
         seatCount: state.seatCount,

@@ -1,8 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+
+class LocationResult {
+  final String address;
+  final LatLng latLng;
+
+  const LocationResult({required this.address, required this.latLng});
+}
 
 class LocationSearchPage extends StatefulWidget {
   const LocationSearchPage({super.key, required this.title, this.initialValue});
@@ -87,6 +94,10 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
             mainText: mainText,
             secondaryText: parts.join(', '),
             fullText: r['display_name'] as String,
+            latLng: LatLng(
+              double.parse(r['lat'] as String),
+              double.parse(r['lon'] as String),
+            ),
           );
         }).toList();
         setState(() => _predictions = predictions);
@@ -100,8 +111,11 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     }
   }
 
-  void _select(String address) {
-    Navigator.of(context).pop(address);
+  void _select(_PlacePrediction prediction) {
+    Navigator.of(context).pop(LocationResult(
+      address: prediction.fullText,
+      latLng: prediction.latLng,
+    ));
   }
 
   @override
@@ -210,7 +224,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                           overflow: TextOverflow.ellipsis,
                         )
                       : null,
-                  onTap: () => _select(p.fullText),
+                  onTap: () => _select(p),
                 );
               },
             ),
@@ -222,10 +236,12 @@ class _PlacePrediction {
   final String mainText;
   final String secondaryText;
   final String fullText;
+  final LatLng latLng;
 
   const _PlacePrediction({
     required this.mainText,
     required this.secondaryText,
     required this.fullText,
+    required this.latLng,
   });
 }

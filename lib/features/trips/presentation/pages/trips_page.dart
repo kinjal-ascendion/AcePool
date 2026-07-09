@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
   const TripsPage({super.key});
@@ -65,6 +66,19 @@ class _TripsPageState extends State<TripsPage>
       final data = doc.data();
       final date = (data['date'] as Timestamp).toDate();
       final timeMap = data['time'] as Map<String, dynamic>;
+      
+      LatLng? fromLatLng;
+      if (data['fromLatLng'] != null) {
+        final map = data['fromLatLng'] as Map<String, dynamic>;
+        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
+      LatLng? toLatLng;
+      if (data['toLatLng'] != null) {
+        final map = data['toLatLng'] as Map<String, dynamic>;
+        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
       return UpcomingTrip(
         id: doc.id,
         date: DateTime(date.year, date.month, date.day),
@@ -74,6 +88,8 @@ class _TripsPageState extends State<TripsPage>
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
+        fromLatLng: fromLatLng,
+        toLatLng: toLatLng,
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );
@@ -133,6 +149,18 @@ class _TripsPageState extends State<TripsPage>
       final rideFrom = d['fromAddress'] as String;
       final rideTo = d['toAddress'] as String;
 
+      LatLng? fromLatLng;
+      if (d['fromLatLng'] != null) {
+        final map = d['fromLatLng'] as Map<String, dynamic>;
+        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
+      LatLng? toLatLng;
+      if (d['toLatLng'] != null) {
+        final map = d['toLatLng'] as Map<String, dynamic>;
+        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
       rides.add(_AvailableRide(
         id: doc.id,
         driverId: d['uid'] as String,
@@ -142,6 +170,8 @@ class _TripsPageState extends State<TripsPage>
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
         fromAddress: rideFrom,
         toAddress: rideTo,
+        fromLatLng: fromLatLng,
+        toLatLng: toLatLng,
         seatsFilled: seatsFilled,
         seatsTotal: seatCount,
         vehicleType: d['vehicleType'] as String? ?? 'car',
@@ -795,6 +825,8 @@ class _AvailableRide {
     required this.time,
     required this.fromAddress,
     required this.toAddress,
+    this.fromLatLng,
+    this.toLatLng,
     required this.seatsFilled,
     required this.seatsTotal,
     required this.vehicleType,
@@ -810,6 +842,8 @@ class _AvailableRide {
   final TimeOfDay time;
   final String fromAddress;
   final String toAddress;
+  final LatLng? fromLatLng;
+  final LatLng? toLatLng;
   final int seatsFilled;
   final int seatsTotal;
   final String vehicleType;
@@ -885,6 +919,9 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
           ? _pickupController.text.trim()
           : widget.ride.defaultPickupPoint;
 
+      // Use ride's fromLatLng as pickup coordinate if user didn't change pickup point text
+      LatLng? pickupLatLng = widget.ride.fromLatLng;
+
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
       final batch = widget.db.batch();
@@ -894,6 +931,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
         'pickupPoint': pickupPoint,
+        'pickupLatLng': pickupLatLng != null ? {
+          'latitude': pickupLatLng.latitude,
+          'longitude': pickupLatLng.longitude,
+        } : null,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
@@ -903,6 +944,14 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
         'rideTo': widget.ride.toAddress,
+        'rideFromLatLng': widget.ride.fromLatLng != null ? {
+          'latitude': widget.ride.fromLatLng!.latitude,
+          'longitude': widget.ride.fromLatLng!.longitude,
+        } : null,
+        'rideToLatLng': widget.ride.toLatLng != null ? {
+          'latitude': widget.ride.toLatLng!.latitude,
+          'longitude': widget.ride.toLatLng!.longitude,
+        } : null,
         'rideDate': Timestamp.fromDate(widget.ride.date),
         'rideTime': {
           'hour': widget.ride.time.hour,

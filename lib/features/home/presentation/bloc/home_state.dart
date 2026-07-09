@@ -14,6 +14,8 @@ class HomeState extends Equatable {
   final VehicleType vehicleType;
   final String? fromAddress;
   final String? toAddress;
+  final LatLng? fromLatLng;
+  final LatLng? toLatLng;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
@@ -26,6 +28,8 @@ class HomeState extends Equatable {
     this.vehicleType = VehicleType.car,
     this.fromAddress,
     this.toAddress,
+    this.fromLatLng,
+    this.toLatLng,
     this.selectedDate,
     this.selectedTime,
     this.seatCount = 1,
@@ -47,6 +51,8 @@ class HomeState extends Equatable {
     VehicleType? vehicleType,
     Object? fromAddress = _unset,
     Object? toAddress = _unset,
+    Object? fromLatLng = _unset,
+    Object? toLatLng = _unset,
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     int? seatCount,
@@ -59,6 +65,8 @@ class HomeState extends Equatable {
       vehicleType: vehicleType ?? this.vehicleType,
       fromAddress: fromAddress == _unset ? this.fromAddress : fromAddress as String?,
       toAddress: toAddress == _unset ? this.toAddress : toAddress as String?,
+      fromLatLng: fromLatLng == _unset ? this.fromLatLng : fromLatLng as LatLng?,
+      toLatLng: toLatLng == _unset ? this.toLatLng : toLatLng as LatLng?,
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
       seatCount: seatCount ?? this.seatCount,
@@ -74,6 +82,8 @@ class HomeState extends Equatable {
       vehicleType: vehicleType,
       fromAddress: toAddress,
       toAddress: fromAddress,
+      fromLatLng: toLatLng,
+      toLatLng: fromLatLng,
       selectedDate: selectedDate,
       selectedTime: selectedTime,
       seatCount: seatCount,
@@ -98,6 +108,8 @@ class HomeState extends Equatable {
     vehicleType,
     fromAddress,
     toAddress,
+    fromLatLng,
+    toLatLng,
     selectedDate,
     selectedTime,
     seatCount,

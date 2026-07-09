@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GetUpcomingTripsUseCase {
   final FirebaseFirestore _db;
@@ -34,6 +35,19 @@ class GetUpcomingTripsUseCase {
       final data = doc.data();
       final date = (data['date'] as Timestamp).toDate();
       final timeMap = data['time'] as Map<String, dynamic>;
+
+      LatLng? fromLatLng;
+      if (data['fromLatLng'] != null) {
+        final map = data['fromLatLng'] as Map<String, dynamic>;
+        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
+      LatLng? toLatLng;
+      if (data['toLatLng'] != null) {
+        final map = data['toLatLng'] as Map<String, dynamic>;
+        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
+      }
+
       return UpcomingTrip(
         id: doc.id,
         date: DateTime(date.year, date.month, date.day),
@@ -43,6 +57,8 @@ class GetUpcomingTripsUseCase {
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
+        fromLatLng: fromLatLng,
+        toLatLng: toLatLng,
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );

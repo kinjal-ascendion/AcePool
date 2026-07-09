@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DrivesDetailPage extends StatefulWidget {
   const DrivesDetailPage({super.key, required this.trip});
@@ -59,18 +60,31 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
       final pickupTimeMap =
           d['pickupTime'] as Map<String, dynamic>? ?? {'hour': 0, 'minute': 0};
-      riders.add(_RiderInfo(
-        requestId: doc.id,
-        riderId: d['riderId'] as String? ?? '',
-        riderName: d['riderName'] as String? ?? '',
-        riderPhotoUrl: d['riderPhotoUrl'] as String?,
-        employeeId: employeeId,
-        pickupPoint: d['pickupPoint'] as String? ?? '',
-        pickupTime: TimeOfDay(
-          hour: pickupTimeMap['hour'] as int,
-          minute: pickupTimeMap['minute'] as int,
-        ),
-      ));
+      
+      LatLng? position;
+      if (d['pickupLatLng'] != null) {
+        final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
+        position = LatLng(latLngMap['latitude'] as double, latLngMap['longitude'] as double);
+      } else if (widget.trip.fromLatLng != null) {
+        // Fallback to trip source if specific pickup latlng is missing
+        position = widget.trip.fromLatLng;
+      }
+
+      if (position != null) {
+        riders.add(_RiderInfo(
+          requestId: doc.id,
+          riderId: d['riderId'] as String? ?? '',
+          riderName: d['riderName'] as String? ?? '',
+          riderPhotoUrl: d['riderPhotoUrl'] as String?,
+          employeeId: employeeId,
+          pickupPoint: d['pickupPoint'] as String? ?? '',
+          position: position,
+          pickupTime: TimeOfDay(
+            hour: pickupTimeMap['hour'] as int,
+            minute: pickupTimeMap['minute'] as int,
+          ),
+        ));
+      }
     }
     return riders;
   }
@@ -296,13 +310,53 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  RideMapPage(trip: widget.trip),
-                            ),
-                          ),
+                          onTap: () async {
+                            final riders = await _ridersFuture;
+                            final List<PickupPoint> points = riders.asMap().entries
+                                .map((entry) {
+                                  final int idx = entry.key;
+                                  final _RiderInfo r = entry.value;
+                                  
+                                  // Formatting time to 9:30 style as per Figma
+                                  final h = r.pickupTime.hourOfPeriod == 0 ? 12 : r.pickupTime.hourOfPeriod;
+                                  final m = r.pickupTime.minute.toString().padLeft(2, '0');
+                                  
+                                  return PickupPoint(
+                                      location: r.pickupPoint.split(',')[0],
+                                      sub: 'Pick Up Location ${idx + 1}',
+                                      time: '$h:$m',
+                                      position: r.position,
+                                      isPinned: idx == 0,
+                                      isFirst: idx == 0,
+                                      iconColor: idx == 0 ? const Color(0xFF00A19A) : Colors.grey,
+                                    );
+                                })
+                                .toList();
+
+                            LatLng destPos = widget.trip.toLatLng ?? const LatLng(12.9352, 77.6245);
+
+                            // Add a default destination point if points exist or just use trip toAddress
+                            points.add(PickupPoint(
+                              location: widget.trip.toAddress.split(',')[0],
+                              sub: 'Destination',
+                              time: '10:30',
+                              position: destPos,
+                              isLast: true,
+                              iconColor: Colors.red.shade400,
+                            ));
+
+                            if (mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RideMapPage(
+                                    trip: widget.trip,
+                                    pickupPoints: points,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                           child: const Text(
                             'View On Map',
                             style: TextStyle(
@@ -370,6 +424,7 @@ class _RiderInfo {
     this.riderPhotoUrl,
     required this.employeeId,
     required this.pickupPoint,
+    required this.position,
     required this.pickupTime,
   });
 
@@ -379,6 +434,7 @@ class _RiderInfo {
   final String? riderPhotoUrl;
   final String employeeId;
   final String pickupPoint;
+  final LatLng position;
   final TimeOfDay pickupTime;
 
   String get pickupTimeLabel {

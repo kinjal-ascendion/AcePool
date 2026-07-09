@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.onViewAllTrips});
 
@@ -60,9 +61,9 @@ class _HomeView extends StatelessWidget {
     BuildContext context, {
     required String title,
     required String? current,
-    required void Function(String) onConfirm,
+    required void Function(LocationResult) onConfirm,
   }) async {
-    final result = await Navigator.of(context).push<String>(
+    final result = await Navigator.of(context).push<LocationResult>(
       MaterialPageRoute(
         builder: (_) => LocationSearchPage(
           title: title,
@@ -70,7 +71,7 @@ class _HomeView extends StatelessWidget {
         ),
       ),
     );
-    if (result != null && result.isNotEmpty) {
+    if (result != null) {
       onConfirm(result);
     }
   }
@@ -143,13 +144,13 @@ class _HomeView extends StatelessWidget {
                         context,
                         title: 'Start location',
                         current: state.fromAddress,
-                        onConfirm: (v) => bloc.add(FromAddressChanged(v)),
+                        onConfirm: (res) => bloc.add(FromAddressChanged(res.address, latLng: res.latLng)),
                       ),
                       onToTap: () => _pickLocation(
                         context,
                         title: 'Office location',
                         current: state.toAddress,
-                        onConfirm: (v) => bloc.add(ToAddressChanged(v)),
+                        onConfirm: (res) => bloc.add(ToAddressChanged(res.address, latLng: res.latLng)),
                       ),
                       onSwap: () => bloc.add(const LocationsSwapped()),
                       onDateTap: () => _pickDate(context),
