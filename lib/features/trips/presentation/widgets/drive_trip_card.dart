@@ -23,57 +23,40 @@ class DriveTripCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: seats-filled badge + match %
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(18),
-                  bottomRight: Radius.circular(20),
+          // Top row: seats-filled badge
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(18),
+              bottomRight: Radius.circular(20),
+            ),
+            child: ColoredBox(
+              color: _green,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-                child: ColoredBox(
-                  color: _green,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      color: Colors.white,
+                      size: 15,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.person_outline,
-                          color: Colors.white,
-                          size: 15,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 6),
+                    Text(
+                      '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(right: 16, top: 10),
-                child: Text(
-                  '100% Match',
-                  style: TextStyle(
-                    color: _green,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
 
           // Card content
@@ -82,30 +65,13 @@ class DriveTripCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      trip.dateLabel,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.directions_walk,
-                        size: 13, color: Colors.grey.shade400),
-                    const SizedBox(width: 3),
-                    Text(
-                      '500 m',
-                      style: TextStyle(fontSize: 11, color: Colors.black54),
-                    ),
-                    Icon(Icons.chevron_right,
-                        size: 16, color: Colors.grey.shade400),
-                    Icon(Icons.directions_car_outlined,
-                        size: 15, color: Colors.grey.shade400),
-                  ],
+                Text(
+                  trip.dateLabel,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(

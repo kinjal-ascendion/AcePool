@@ -60,7 +60,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
       final pickupTimeMap =
           d['pickupTime'] as Map<String, dynamic>? ?? {'hour': 0, 'minute': 0};
-      
+
       LatLng? position;
       if (d['pickupLatLng'] != null) {
         final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
@@ -86,7 +86,21 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         ));
       }
     }
+
+    if (status == 'accepted') {
+      await _reconcileSeatsFilled(riders.length);
+    }
+
     return riders;
+  }
+
+  Future<void> _reconcileSeatsFilled(int acceptedCount) async {
+    final rideRef = _db.collection('rides').doc(widget.trip.id);
+    final snap = await rideRef.get();
+    final current = (snap.data()?['seatsFilled'] as int?) ?? 0;
+    if (current != acceptedCount) {
+      await rideRef.update({'seatsFilled': acceptedCount});
+    }
   }
 
   Future<void> _confirmCancelRider(
@@ -195,9 +209,16 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         .collection('ride_requests')
         .doc(requestId)
         .update({'status': 'rejected'});
-    await _db.collection('rides').doc(widget.trip.id).update({
-      'seatsFilled': FieldValue.increment(-1),
+
+    final rideRef = _db.collection('rides').doc(widget.trip.id);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(rideRef);
+      final current = (snap.data()?['seatsFilled'] as int?) ?? 0;
+      if (current > 0) {
+        tx.update(rideRef, {'seatsFilled': current - 1});
+      }
     });
+
     setState(_reload);
   }
 
@@ -299,14 +320,19 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Riders',
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                          'Riders confirmed',
                           style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         GestureDetector(
@@ -316,11 +342,11 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 .map((entry) {
                                   final int idx = entry.key;
                                   final _RiderInfo r = entry.value;
-                                  
+
                                   // Formatting time to 9:30 style as per Figma
                                   final h = r.pickupTime.hourOfPeriod == 0 ? 12 : r.pickupTime.hourOfPeriod;
                                   final m = r.pickupTime.minute.toString().padLeft(2, '0');
-                                  
+
                                   return PickupPoint(
                                       location: r.pickupPoint.split(',')[0],
                                       sub: 'Pick Up Location ${idx + 1}',
@@ -495,11 +521,40 @@ class _RiderCard extends StatelessWidget {
                   ],
                 ),
               ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.directions_car, size: 15, color: Colors.grey.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    '25mins',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                  Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade500),
+                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          Text('Pick up point: ${rider.pickupPoint}', style: const TextStyle(fontSize: 13)),
-          Text('Time: ${rider.pickupTimeLabel}', style: const TextStyle(fontSize: 13)),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(fontSize: 13),
+              children: [
+                const TextSpan(text: 'Pick up point: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: rider.pickupPoint),
+              ],
+            ),
+          ),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(fontSize: 13),
+              children: [
+                const TextSpan(text: 'Time: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: rider.pickupTimeLabel),
+              ],
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -520,14 +575,20 @@ class _RiderCard extends StatelessWidget {
                         ),
                       ));
                     },
-                    icon: const Icon(Icons.chat_bubble_outline, size: 14),
-                    label: const Text('Chat'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                    ),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.black87),
+                    label: const Text('Chat', style: TextStyle(color: Colors.black87)),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                    ),
                     child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
                   ),
                 ),
