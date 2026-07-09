@@ -62,7 +62,7 @@ class LocationSwapRow extends StatelessWidget {
               InkWell(
                 onTap: onFromTap,
                 child: SizedBox(
-                  height: 40,
+                  height: 32,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -83,7 +83,7 @@ class LocationSwapRow extends StatelessWidget {
               InkWell(
                 onTap: onToTap,
                 child: SizedBox(
-                  height: 40,
+                  height: 32,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
