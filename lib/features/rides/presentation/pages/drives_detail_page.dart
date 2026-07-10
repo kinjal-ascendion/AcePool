@@ -1,11 +1,13 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DrivesDetailPage extends StatefulWidget {
   const DrivesDetailPage({super.key, required this.trip});
@@ -59,6 +61,18 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
       final pickupTimeMap =
           d['pickupTime'] as Map<String, dynamic>? ?? {'hour': 0, 'minute': 0};
+
+      LatLng? position;
+      if (d['pickupLatLng'] != null) {
+        final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
+        position = LatLng(
+          (latLngMap['latitude'] as num).toDouble(),
+          (latLngMap['longitude'] as num).toDouble(),
+        );
+      } else if (widget.trip.fromLat != null && widget.trip.fromLng != null) {
+        position = LatLng(widget.trip.fromLat!, widget.trip.fromLng!);
+      }
+
       riders.add(_RiderInfo(
         requestId: doc.id,
         riderId: d['riderId'] as String? ?? '',
@@ -66,9 +80,10 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         riderPhotoUrl: d['riderPhotoUrl'] as String?,
         employeeId: employeeId,
         pickupPoint: d['pickupPoint'] as String? ?? '',
+        position: position ?? LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
         pickupTime: TimeOfDay(
-          hour: pickupTimeMap['hour'] as int,
-          minute: pickupTimeMap['minute'] as int,
+          hour: (pickupTimeMap['hour'] as num).toInt(),
+          minute: (pickupTimeMap['minute'] as num).toInt(),
         ),
       ));
     }
@@ -208,6 +223,55 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     setState(_reload);
   }
 
+  void _openMap(List<_RiderInfo> riders) {
+    final List<PickupPoint> points = [];
+    
+    // Add driver's dynamic start point
+    points.add(PickupPoint(
+      location: widget.trip.fromAddress.split(',')[0],
+      sub: 'Start Point',
+      time: widget.trip.timeLabel,
+      position: LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
+      isFirst: true,
+      isPinned: true,
+      iconColor: const Color(0xFF00A19A),
+    ));
+
+    // Add riders as dynamic pickup points
+    for (var r in riders) {
+        points.add(PickupPoint(
+            location: r.pickupPoint.split(',')[0],
+            sub: 'Rider Pickup',
+            time: r.pickupTimeLabel,
+            position: r.position,
+            isPinned: true,
+            iconColor: Colors.grey,
+        ));
+    }
+
+    // Add dynamic trip destination
+    points.add(PickupPoint(
+      location: widget.trip.toAddress.split(',')[0],
+      sub: 'Destination',
+      time: '10:30',
+      position: LatLng(widget.trip.toLat ?? 0, widget.trip.toLng ?? 0),
+      isLast: true,
+      iconColor: Colors.red.shade400,
+    ));
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RideMapPage(
+            trip: widget.trip,
+            pickupPoints: points,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -232,10 +296,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () {},
-                  ),
+                  const SizedBox(width: 48), // Spacer for centering title
                 ],
               ),
             ),
@@ -305,29 +366,73 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.black,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Riders confirmed',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
                     FutureBuilder<List<_RiderInfo>>(
                       future: _ridersFuture,
-                      builder: (context, snapshot) =>
-                          _buildRiderList(context, snapshot),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 20),
+                              child: Text(
+                                'Error loading riders: ${snapshot.error}',
+                                style: TextStyle(color: AppColors.red600, fontSize: 13),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        final riders = snapshot.data ?? [];
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.black,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'Riders confirmed',
+                                    style: TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _openMap(riders),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                  ),
+                                  child: const Text(
+                                    'View On Map',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.black,
+                                      decoration: TextDecoration.underline,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildRiderListFromData(context, riders),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -339,14 +444,10 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     );
   }
 
-  Widget _buildRiderList(
+  Widget _buildRiderListFromData(
     BuildContext context,
-    AsyncSnapshot<List<_RiderInfo>> snapshot,
+    List<_RiderInfo> riders,
   ) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final riders = snapshot.data ?? [];
     if (riders.isEmpty) {
       return Center(
         child: Padding(
@@ -378,6 +479,7 @@ class _RiderInfo {
     this.riderPhotoUrl,
     required this.employeeId,
     required this.pickupPoint,
+    required this.position,
     required this.pickupTime,
   });
 
@@ -387,6 +489,7 @@ class _RiderInfo {
   final String? riderPhotoUrl;
   final String employeeId;
   final String pickupPoint;
+  final LatLng position;
   final TimeOfDay pickupTime;
 
   String get pickupTimeLabel {

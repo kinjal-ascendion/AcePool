@@ -8,6 +8,10 @@ class UpcomingTrip extends Equatable {
   final TimeOfDay time;
   final String fromAddress;
   final String toAddress;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final int seatsFilled;
   final int seatsTotal;
 
@@ -17,6 +21,10 @@ class UpcomingTrip extends Equatable {
     required this.time,
     required this.fromAddress,
     required this.toAddress,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
     required this.seatsFilled,
     required this.seatsTotal,
   });
@@ -33,6 +41,10 @@ class UpcomingTrip extends Equatable {
     time,
     fromAddress,
     toAddress,
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
     seatsFilled,
     seatsTotal,
   ];

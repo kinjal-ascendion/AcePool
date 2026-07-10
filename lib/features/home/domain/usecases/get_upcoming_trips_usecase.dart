@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GetUpcomingTripsUseCase {
   final FirebaseFirestore _db;
@@ -34,6 +35,15 @@ class GetUpcomingTripsUseCase {
       final data = doc.data();
       final date = (data['date'] as Timestamp).toDate();
       final timeMap = data['time'] as Map<String, dynamic>;
+
+      final fromLat = (data['fromLat'] as num?)?.toDouble();
+      final fromLng = (data['fromLng'] as num?)?.toDouble();
+      final toLat = (data['toLat'] as num?)?.toDouble();
+      final toLng = (data['toLng'] as num?)?.toDouble();
+
+      final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
+      final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
+
       return UpcomingTrip(
         id: doc.id,
         date: DateTime(date.year, date.month, date.day),
@@ -43,6 +53,10 @@ class GetUpcomingTripsUseCase {
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
+        fromLat: fromLat ?? (fromLatLngMap?['latitude'] as num?)?.toDouble(),
+        fromLng: fromLng ?? (fromLatLngMap?['longitude'] as num?)?.toDouble(),
+        toLat: toLat ?? (toLatLngMap?['latitude'] as num?)?.toDouble(),
+        toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );

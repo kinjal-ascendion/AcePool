@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  google_maps_flutter: ^2.10.0
 
   # State management (MVI pattern)
   flutter_bloc: ^9.0.0
@@ -29,6 +30,9 @@ dependencies:
   image_picker: ^1.1.2
   google_mlkit_text_recognition: ^0.15.0
   validifydart: ^0.3.0
+
+  # Functional programming
+  dartz: ^0.10.1
 
 dev_dependencies:
   flutter_test:

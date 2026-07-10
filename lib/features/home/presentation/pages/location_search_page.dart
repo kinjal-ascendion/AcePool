@@ -4,7 +4,15 @@ import 'dart:convert';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+
+class LocationResult {
+  final String address;
+  final LatLng latLng;
+
+  const LocationResult({required this.address, required this.latLng});
+}
 
 class LocationSearchPage extends StatefulWidget {
   const LocationSearchPage({super.key, required this.title, this.initialValue});

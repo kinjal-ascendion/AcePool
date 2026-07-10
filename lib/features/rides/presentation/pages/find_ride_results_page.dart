@@ -155,6 +155,8 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
                     itemBuilder: (_, i) => RideResultCard(
                       result: results[i],
                       riderFromAddress: widget.fromAddress,
+                      riderFromLat: widget.fromLat,
+                      riderFromLng: widget.fromLng,
                       riderTime: widget.time,
                       db: _db,
                       onRequested: _refresh,
