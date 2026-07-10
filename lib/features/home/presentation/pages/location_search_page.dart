@@ -53,7 +53,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
       });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 400), () => _search(query));
+    _debounce = Timer(const Duration(seconds: 1), () => _search(query));
   }
 
   Future<void> _search(String query) async {
@@ -151,19 +151,26 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                 color: AppColors.grey600,
                 size: 20,
               ),
-              suffixIcon: _controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        color: AppColors.black38,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        _controller.clear();
-                        setState(() => _predictions = []);
-                      },
-                    )
-                  : null,
+              // Scoped to just this icon (via the controller's own
+              // ValueListenable) so typing never triggers a full-page
+              // rebuild, which was interrupting the text field's focus.
+              suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _controller,
+                builder: (context, value, _) {
+                  if (value.text.isEmpty) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: const Icon(
+                      Icons.clear,
+                      color: AppColors.black38,
+                      size: 18,
+                    ),
+                    onPressed: () {
+                      _controller.clear();
+                      setState(() => _predictions = []);
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -200,7 +207,11 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                 ),
               ),
             )
-          : _isLoading
+          // Only take over the whole body with a spinner on the very first
+          // search — once results exist, keep them on screen (the AppBar's
+          // thin progress bar already signals a refresh) instead of wiping
+          // the list on every keystroke.
+          : _isLoading && _predictions.isEmpty
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.black),
             )
