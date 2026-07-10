@@ -7,11 +7,19 @@ import 'package:acepool/features/auth/presentation/pages/login_page.dart';
 import 'package:acepool/features/auth/presentation/pages/signup_page.dart';
 import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
 import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
+import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
 
 class AppRouter {
   AppRouter._();
 
-  static final _authRoutes = {'/login', '/signup', '/splash', '/otp'};
+  static final _authRoutes = {
+    '/login',
+    '/signup',
+    '/splash',
+    '/otp',
+    '/onboarding/travel-preference',
+    '/onboarding/vehicle-preference',
+  };
 
   static final router = GoRouter(
     initialLocation: '/splash',
@@ -36,12 +44,16 @@ class AppRouter {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) => LoginPage(
+          onboardingSelection: state.extra as OnboardingSelection?,
+        ),
       ),
       GoRoute(
         path: '/signup',
         name: 'signup',
-        builder: (context, state) => const SignupPage(),
+        builder: (context, state) => SignupPage(
+          onboardingSelection: state.extra as OnboardingSelection?,
+        ),
       ),
       GoRoute(
         path: '/otp',

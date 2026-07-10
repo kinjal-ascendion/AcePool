@@ -30,6 +30,7 @@ dependencies:
   image_picker: ^1.1.2
   google_mlkit_text_recognition: ^0.15.0
   validifydart: ^0.3.0
+  shared_preferences: ^2.3.3
 
   # Functional programming
   dartz: ^0.10.1

@@ -1,14 +1,17 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class SignupText extends StatelessWidget {
-  const SignupText({super.key});
+  const SignupText({super.key, this.onboardingSelection});
+
+  final OnboardingSelection? onboardingSelection;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/signup'),
+      onTap: () => context.push('/signup', extra: onboardingSelection),
       child: Center(
         child: RichText(
           text: const TextSpan(

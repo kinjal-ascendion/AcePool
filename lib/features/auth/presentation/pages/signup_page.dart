@@ -1,15 +1,25 @@
+import 'dart:io';
+
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/license_scanner.dart';
+import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
+import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
+import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../widgets/auth_button.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/license_upload_box.dart';
 
 class SignupPage extends StatefulWidget {
-  const SignupPage({super.key});
+  const SignupPage({super.key, this.onboardingSelection});
+
+  final OnboardingSelection? onboardingSelection;
 
   @override
   State<SignupPage> createState() => _SignupPageState();
@@ -22,6 +32,8 @@ class _SignupPageState extends State<SignupPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  final _imagePicker = ImagePicker();
+
   bool _isLoading = false;
 
   String? _fullNameError;
@@ -29,6 +41,22 @@ class _SignupPageState extends State<SignupPage> {
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
+
+  File? _frontLicenseImage;
+  File? _backLicenseImage;
+  bool _isVerifyingFrontLicense = false;
+  bool _isVerifyingBackLicense = false;
+  bool? _frontLicenseValid;
+  bool? _backLicenseValid;
+  String? _licenseNumber;
+
+  bool get _showLicenseSection {
+    final selection = widget.onboardingSelection;
+    if (selection == null) return false;
+    if (selection.travelPreference == TravelPreference.ride) return false;
+    if (selection.vehicleType == VehiclePreference.bike) return false;
+    return true;
+  }
 
   bool _validate() {
     final password = _passwordController.text;
@@ -72,6 +100,48 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
+  Future<void> _pickLicenseImage(bool isFront) async {
+    final source = await LicenseScanner.chooseImageSource(context);
+    if (source == null) return;
+
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      if (isFront) {
+        _frontLicenseImage = File(picked.path);
+        _isVerifyingFrontLicense = true;
+        _frontLicenseValid = null;
+      } else {
+        _backLicenseImage = File(picked.path);
+        _isVerifyingBackLicense = true;
+        _backLicenseValid = null;
+      }
+    });
+
+    final result = await LicenseScanner.extractLicenseNumber(picked.path);
+
+    if (!mounted) return;
+    setState(() {
+      // true = number found, false = OCR genuinely failed, null = no match
+      // found on this side (normal - keep it neutral, not an error).
+      final status = result.ocrFailed
+          ? false
+          : (result.licenseNumber != null ? true : null);
+      if (isFront) {
+        _isVerifyingFrontLicense = false;
+        _frontLicenseValid = status;
+      } else {
+        _isVerifyingBackLicense = false;
+        _backLicenseValid = status;
+      }
+      if (result.licenseNumber != null) _licenseNumber = result.licenseNumber;
+    });
+  }
+
   Future<void> _signup() async {
     if (!_validate()) return;
 
@@ -90,15 +160,32 @@ class _SignupPageState extends State<SignupPage> {
       // Update display name so home screen shows the correct name immediately
       await credential.user!.updateDisplayName(fullName);
 
-      await FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: 'acepool',
-      ).collection('users').doc(uid).set({
+      final userData = <String, dynamic>{
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      final onboardingSelection = widget.onboardingSelection;
+      if (onboardingSelection != null) {
+        userData['travelPreference'] = onboardingSelection.travelPreference.name;
+        userData['vehicleType'] = onboardingSelection.vehicleType.name;
+      }
+
+      if (_showLicenseSection &&
+          (_frontLicenseImage != null || _backLicenseImage != null)) {
+        userData['licenceVerified'] =
+            (_frontLicenseValid ?? false) || (_backLicenseValid ?? false);
+        if (_licenseNumber != null) {
+          userData['licenceNumber'] = _licenseNumber;
+        }
+      }
+
+      await FirebaseFirestore.instanceFor(
+        app: Firebase.app(),
+        databaseId: 'acepool',
+      ).collection('users').doc(uid).set(userData);
 
       if (mounted) {
         context.go('/otp', extra: {'email': email, 'uid': uid});
@@ -240,6 +327,71 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              if (_showLicenseSection) ...[
+                const Text(
+                  "DRIVER'S LICENSE",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    color: AppColors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Upload license image (Front & Back)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'A valid license is required before scheduling a ride. '
+                  'Upload both sides to continue.',
+                  style: TextStyle(fontSize: 12, color: AppColors.black45),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: LicenseUploadBox(
+                        label: 'Front',
+                        imageFile: _frontLicenseImage,
+                        isVerifying: _isVerifyingFrontLicense,
+                        isValid: _frontLicenseValid,
+                        onTap: () => _pickLicenseImage(true),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: LicenseUploadBox(
+                        label: 'Back',
+                        imageFile: _backLicenseImage,
+                        isVerifying: _isVerifyingBackLicense,
+                        isValid: _backLicenseValid,
+                        onTap: () => _pickLicenseImage(false),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Required before you can schedule a ride',
+                        style: TextStyle(fontSize: 12, color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               AuthTextField(
                 label: 'Password',

@@ -13,36 +13,35 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.onViewAllTrips});
+  const HomePage({super.key, this.onViewAllTrips, this.onOpenProfile});
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<HomeBloc>()..add(const HomeStarted()),
-      child: _HomeView(onViewAllTrips: onViewAllTrips),
+      child: _HomeView(
+        onViewAllTrips: onViewAllTrips,
+        onOpenProfile: onOpenProfile,
+      ),
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView({this.onViewAllTrips});
+  const _HomeView({this.onViewAllTrips, this.onOpenProfile});
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onOpenProfile;
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
     databaseId: 'acepool',
   );
-
-  Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (context.mounted) context.go('/login');
-  }
 
   Future<void> _pickDate(BuildContext context) async {
     final picked = await showDatePicker(
@@ -130,7 +129,7 @@ class _HomeView extends StatelessWidget {
                     HomeAppBarGreeting(
                       initials: initials,
                       name: displayName,
-                      onAvatarTap: () => _logout(context),
+                      onAvatarTap: onOpenProfile,
                     ),
                     const SizedBox(height: 20),
                     Center(

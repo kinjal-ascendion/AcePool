@@ -160,7 +160,7 @@ class _OtpPageState extends State<OtpPage> {
 
       await doc.reference.delete();
 
-      if (mounted) context.go('/onboarding/travel-preference');
+      if (mounted) context.go('/home');
     } catch (e) {
       setState(() => _errorMessage = 'Verification failed. Please try again.');
     } finally {

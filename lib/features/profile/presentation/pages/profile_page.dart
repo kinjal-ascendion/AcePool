@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'account_settings_page.dart';
 import 'addresses_page.dart';
 import 'vehicle_info_page.dart';
@@ -25,6 +26,11 @@ class _ProfilePageState extends State<ProfilePage> {
     if (uid == null) return null;
     final doc = await _db.collection('users').doc(uid).get();
     return doc.data();
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) context.go('/login');
   }
 
   Widget _settingsRow({
@@ -75,9 +81,8 @@ class _ProfilePageState extends State<ProfilePage> {
             final data = snapshot.data;
             final fullName = data?['fullName'] as String? ?? '';
             final employeeId = data?['employeeId'] as String? ?? '';
-            final mobile = data?['mobile'] as String? ?? '';
-            final role = data?['role'] as String? ?? '';
             final licenceVerified = data?['licenceVerified'] as bool?;
+            final licenceNumber = data?['licenceNumber'] as String?;
 
             final initials = fullName.trim().isNotEmpty
                 ? fullName
@@ -107,9 +112,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           builder: (_) => AccountSettingsPage(
                             fullName: fullName,
                             employeeId: employeeId,
-                            mobile: mobile,
-                            role: role,
                             licenceVerified: licenceVerified,
+                            licenceNumber: licenceNumber,
                           ),
                         ),
                       ).then((_) => setState(() {})),
@@ -117,7 +121,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 32,
-                            backgroundColor: AppColors.orange400,
+                            backgroundColor: AppColors.black87,
                             child: Text(
                               initials,
                               style: const TextStyle(
@@ -183,9 +187,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       builder: (_) => AccountSettingsPage(
                         fullName: fullName,
                         employeeId: employeeId,
-                        mobile: mobile,
-                        role: role,
                         licenceVerified: licenceVerified,
+                        licenceNumber: licenceNumber,
                       ),
                     ),
                   ).then((_) => setState(() {})),
@@ -225,6 +228,27 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 const SizedBox(height: 20),
+                InkWell(
+                  onTap: () => _logout(context),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: AppColors.red, size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Log out',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text(
                   'T&C apply',
                   style: TextStyle(color: AppColors.grey500, fontSize: 12),

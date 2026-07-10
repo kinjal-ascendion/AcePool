@@ -23,6 +23,10 @@ class _MainShellPageState extends State<MainShellPage> {
     });
   }
 
+  void _goToProfile() {
+    setState(() => _currentIndex = 3);
+  }
+
   void _onTap(int index) {
     if (index == 1) {
       _goToTrips();
@@ -38,7 +42,7 @@ class _MainShellPageState extends State<MainShellPage> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          HomePage(onViewAllTrips: _goToTrips),
+          HomePage(onViewAllTrips: _goToTrips, onOpenProfile: _goToProfile),
           TripsPage(key: ValueKey(_tripsRefreshKey)),
           ChatListPage(onBack: () => setState(() => _currentIndex = 0)),
           const ProfilePage(),

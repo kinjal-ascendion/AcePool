@@ -16,7 +16,7 @@ class TravelPreferencePage extends StatefulWidget {
 }
 
 class _TravelPreferencePageState extends State<TravelPreferencePage> {
-  TravelPreference _selected = TravelPreference.drive;
+  TravelPreference _selected = TravelPreference.ride;
 
   void _onNext() {
     context.go('/onboarding/vehicle-preference', extra: _selected);
@@ -32,35 +32,46 @@ class _TravelPreferencePageState extends State<TravelPreferencePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const OnboardingProgressBar(currentStep: 0),
-              const SizedBox(height: 40),
-              const Text(
-                'Are you going to',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black87,
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Are you going to',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      OnboardingOptionTile(
+                        label: 'Find Ride',
+                        selected: _selected == TravelPreference.ride,
+                        onTap: () =>
+                            setState(() => _selected = TravelPreference.ride),
+                      ),
+                      const SizedBox(height: 12),
+                      OnboardingOptionTile(
+                        label: 'Offer Ride',
+                        selected: _selected == TravelPreference.drive,
+                        onTap: () =>
+                            setState(() => _selected = TravelPreference.drive),
+                      ),
+                      const SizedBox(height: 12),
+                      OnboardingOptionTile(
+                        label: 'Both',
+                        selected: _selected == TravelPreference.both,
+                        onTap: () =>
+                            setState(() => _selected = TravelPreference.both),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 28),
-              OnboardingOptionTile(
-                label: 'Drive',
-                selected: _selected == TravelPreference.drive,
-                onTap: () => setState(() => _selected = TravelPreference.drive),
-              ),
-              const SizedBox(height: 12),
-              OnboardingOptionTile(
-                label: 'Ride',
-                selected: _selected == TravelPreference.ride,
-                onTap: () => setState(() => _selected = TravelPreference.ride),
-              ),
-              const SizedBox(height: 12),
-              OnboardingOptionTile(
-                label: 'Both',
-                selected: _selected == TravelPreference.both,
-                onTap: () => setState(() => _selected = TravelPreference.both),
-              ),
-              const Spacer(),
               OnboardingNextButton(onPressed: _onNext),
             ],
           ),

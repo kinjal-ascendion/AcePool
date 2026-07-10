@@ -21,7 +21,7 @@ class HomeAppBarGreeting extends StatelessWidget {
           onTap: onAvatarTap,
           child: CircleAvatar(
             radius: 24,
-            backgroundColor: AppColors.grey500,
+            backgroundColor: AppColors.black87,
             child: Text(
               initials,
               style: const TextStyle(

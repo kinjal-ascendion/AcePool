@@ -1,26 +1,26 @@
+import 'dart:io';
+
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/license_scanner.dart';
+import 'package:acepool/features/auth/presentation/widgets/license_upload_box.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:validifydart/validify_dart.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   final String fullName;
   final String employeeId;
-  final String mobile;
-  final String role;
   final bool? licenceVerified;
+  final String? licenceNumber;
 
   const AccountSettingsPage({
     super.key,
     required this.fullName,
     required this.employeeId,
-    required this.mobile,
-    required this.role,
     required this.licenceVerified,
+    this.licenceNumber,
   });
 
   @override
@@ -28,15 +28,19 @@ class AccountSettingsPage extends StatefulWidget {
 }
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
-  late final TextEditingController _nameController;
+  late final TextEditingController _fullNameController;
   late final TextEditingController _employeeIdController;
-  late final TextEditingController _mobileController;
   late final TextEditingController _emailController;
-  late final TextEditingController _roleController;
 
-  final ImagePicker _imagePicker = ImagePicker();
-  bool? _isLicenceValid;
-  bool _isVerifyingLicence = false;
+  final _imagePicker = ImagePicker();
+
+  File? _frontLicenseImage;
+  File? _backLicenseImage;
+  bool _isVerifyingFrontLicense = false;
+  bool _isVerifyingBackLicense = false;
+  bool? _frontLicenseValid;
+  bool? _backLicenseValid;
+  String? _licenseNumber;
 
   bool _isSaving = false;
 
@@ -45,15 +49,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     databaseId: 'acepool',
   );
 
+  bool get _isLicenseVerified =>
+      widget.licenceVerified == true ||
+      _frontLicenseValid == true ||
+      _backLicenseValid == true;
+
   @override
   void initState() {
     super.initState();
 
-    _nameController = TextEditingController(text: widget.fullName);
+    _fullNameController = TextEditingController(text: widget.fullName);
     _employeeIdController = TextEditingController(text: widget.employeeId);
-    _mobileController = TextEditingController(text: widget.mobile);
-    _roleController = TextEditingController(text: widget.role);
-    _isLicenceValid = widget.licenceVerified;
+    _licenseNumber = widget.licenceNumber;
 
     _emailController = TextEditingController(
       text: FirebaseAuth.instance.currentUser?.email ?? '',
@@ -62,91 +69,77 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _fullNameController.dispose();
     _employeeIdController.dispose();
-    _mobileController.dispose();
     _emailController.dispose();
-    _roleController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickAndVerifyLicence() async {
-    final XFile? pickedImage = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-    );
+  Future<void> _pickLicenseImage(bool isFront) async {
+    final source = await LicenseScanner.chooseImageSource(context);
+    if (source == null) return;
 
-    if (pickedImage == null) return;
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
 
     setState(() {
-      _isLicenceValid = null;
-      _isVerifyingLicence = true;
+      if (isFront) {
+        _frontLicenseImage = File(picked.path);
+        _isVerifyingFrontLicense = true;
+        _frontLicenseValid = null;
+      } else {
+        _backLicenseImage = File(picked.path);
+        _isVerifyingBackLicense = true;
+        _backLicenseValid = null;
+      }
     });
 
-    final TextRecognizer textRecognizer = TextRecognizer(
-      script: TextRecognitionScript.latin,
-    );
+    final result = await LicenseScanner.extractLicenseNumber(picked.path);
 
-    try {
-      final InputImage inputImage = InputImage.fromFilePath(pickedImage.path);
-
-      final RecognizedText recognizedText =
-          await textRecognizer.processImage(inputImage);
-
-      final String fullText = recognizedText.text;
-
-      final RegExp licenceRegex = RegExp(r'\b[A-Z]{2}\d{2}\s?\d{11}\b');
-      final RegExpMatch? match = licenceRegex.firstMatch(fullText);
-
-      bool isValid = false;
-
-      if (match != null) {
-        final String extractedLicenceNumber = match.group(0)!;
-        final String cleanedLicenceNumber =
-            extractedLicenceNumber.replaceAll(' ', '');
-
-        isValid = ValidifyDart.isValidDrivingLicense(cleanedLicenceNumber);
+    if (!mounted) return;
+    setState(() {
+      final status = result.ocrFailed
+          ? false
+          : (result.licenseNumber != null ? true : null);
+      if (isFront) {
+        _isVerifyingFrontLicense = false;
+        _frontLicenseValid = status;
+      } else {
+        _isVerifyingBackLicense = false;
+        _backLicenseValid = status;
       }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLicenceValid = isValid;
-      });
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await _db
-            .collection('users')
-            .doc(uid)
-            .update({'licenceVerified': isValid});
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLicenceValid = false;
-      });
-    } finally {
-      textRecognizer.close();
-      if (mounted) {
-        setState(() {
-          _isVerifyingLicence = false;
-        });
-      }
-    }
+      if (result.licenseNumber != null) _licenseNumber = result.licenseNumber;
+    });
   }
 
   Future<void> _saveProfile() async {
     try {
       setState(() => _isSaving = true);
 
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final user = FirebaseAuth.instance.currentUser!;
+      final newFullName = _fullNameController.text.trim();
 
-      await _db.collection('users').doc(uid).update({
-        'fullName': _nameController.text.trim(),
-        'employeeId': _employeeIdController.text.trim(),
-        'mobile': _mobileController.text.trim(),
-        'role': _roleController.text.trim(),
-      });
+      final data = <String, dynamic>{
+        'fullName': newFullName,
+        'email': _emailController.text.trim(),
+      };
+
+      if (_frontLicenseValid == true || _backLicenseValid == true) {
+        data['licenceVerified'] = true;
+        if (_licenseNumber != null) data['licenceNumber'] = _licenseNumber;
+      }
+
+      await _db.collection('users').doc(user.uid).update(data);
+
+      // Home reads FirebaseAuth's displayName, not Firestore's fullName -
+      // keep them in sync so the change shows up there too.
+      if (newFullName != user.displayName) {
+        await user.updateDisplayName(newFullName);
+        await user.reload();
+      }
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -162,187 +155,328 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     }
   }
 
-  Widget _buildField({
-    required String label,
-    required IconData icon,
-    required TextEditingController controller,
-    bool enabled = true,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return _ProfileField(
-      label: label,
-      icon: icon,
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final initials = widget.fullName.trim().isNotEmpty
+        ? widget.fullName
+              .trim()
+              .split(' ')
+              .where((w) => w.isNotEmpty)
+              .take(2)
+              .map((w) => w[0].toUpperCase())
+              .join()
+        : '?';
+
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Row(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
                 children: [
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      color: AppColors.blue50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.black87),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Account settings',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black87,
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  const Text(
-                    "Account Settings",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _saveProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue100,
-                      foregroundColor: AppColors.blue,
-                      elevation: 0,
-                      shape: const StadiumBorder(),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: AppColors.black87,
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Coming soon')),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey400,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  size: 14,
+                                  color: AppColors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text("Save"),
+                    const SizedBox(height: 8),
+                    const Center(
+                      child: Text(
+                        'Change your profile picture',
+                        style: TextStyle(fontSize: 13, color: AppColors.black45),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _SettingsField(
+                      label: 'Full Name',
+                      controller: _fullNameController,
+                      enabled: true,
+                    ),
+                    const SizedBox(height: 16),
+                    _SettingsField(
+                      label: 'Asc ID',
+                      controller: _employeeIdController,
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+                    _SettingsField(
+                      label: 'Email',
+                      controller: _emailController,
+                      enabled: true,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Note : Email Id can be edited only once',
+                      style: TextStyle(fontSize: 12, color: AppColors.black45),
+                    ),
+                    const SizedBox(height: 20),
+                    Divider(color: AppColors.grey200, height: 1),
+                    const SizedBox(height: 20),
+                    _buildLicenseSection(),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: AppColors.grey300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: AppColors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                color: AppColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
-              _buildField(
-                label: "Full Name",
-                icon: Icons.person,
-                controller: _nameController,
-              ),
-              const SizedBox(height: 20),
-              _buildField(
-                label: "Mobile Number",
-                icon: Icons.phone,
-                controller: _mobileController,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 20),
-              _buildField(
-                label: "Email ID",
-                icon: Icons.email,
-                controller: _emailController,
-                enabled: false,
-              ),
-              const SizedBox(height: 20),
-              _buildField(
-                label: "Employee ID",
-                icon: Icons.badge,
-                controller: _employeeIdController,
-              ),
-              const SizedBox(height: 20),
-              _buildField(
-                label: "Role",
-                icon: Icons.work_outline,
-                controller: _roleController,
-              ),
-              const SizedBox(height: 30),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Driving Licence',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed:
-                            _isVerifyingLicence ? null : _pickAndVerifyLicence,
-                        icon: const Icon(Icons.upload_file),
-                        label: Text(
-                          _isVerifyingLicence
-                              ? 'Verifying...'
-                              : 'Upload Driving Licence',
-                        ),
-                      ),
-                      if (_isVerifyingLicence) ...[
-                        const SizedBox(height: 16),
-                        const Center(child: CircularProgressIndicator()),
-                      ],
-                      if (_isLicenceValid != null && !_isVerifyingLicence) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _isLicenceValid!
-                                  ? Icons.verified
-                                  : Icons.cancel,
-                              color:
-                                  _isLicenceValid! ? AppColors.green : AppColors.red,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isLicenceValid! ? 'Valid Licence' : 'Invalid Licence',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: _isLicenceValid!
-                                    ? AppColors.green
-                                    : AppColors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildLicenseSection() {
+    if (_isLicenseVerified) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.verified, color: AppColors.green),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Driver's License verified",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.black87,
+                  ),
+                ),
+                if (_licenseNumber != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    _licenseNumber!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.black45,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: const TextSpan(
+            text: "DRIVER'S LICENSE",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: AppColors.black87,
+            ),
+            children: [
+              TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        RichText(
+          text: const TextSpan(
+            text: 'Upload license image (Front & Back)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.black87,
+            ),
+            children: [
+              TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'A valid license is required before scheduling a ride. '
+          'Upload both sides to continue.',
+          style: TextStyle(fontSize: 12, color: AppColors.black45),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: LicenseUploadBox(
+                label: 'Front',
+                imageFile: _frontLicenseImage,
+                isVerifying: _isVerifyingFrontLicense,
+                isValid: _frontLicenseValid,
+                onTap: () => _pickLicenseImage(true),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: LicenseUploadBox(
+                label: 'Back',
+                imageFile: _backLicenseImage,
+                isVerifying: _isVerifyingBackLicense,
+                isValid: _backLicenseValid,
+                onTap: () => _pickLicenseImage(false),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Row(
+          children: [
+            Icon(Icons.info_outline, size: 14, color: Colors.orange),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Required before you can schedule a ride',
+                style: TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-class _ProfileField extends StatefulWidget {
-  const _ProfileField({
+class _SettingsField extends StatefulWidget {
+  const _SettingsField({
     required this.label,
-    required this.icon,
     required this.controller,
     required this.enabled,
-    required this.keyboardType,
   });
 
   final String label;
-  final IconData icon;
   final TextEditingController controller;
   final bool enabled;
-  final TextInputType keyboardType;
 
   @override
-  State<_ProfileField> createState() => _ProfileFieldState();
+  State<_SettingsField> createState() => _SettingsFieldState();
 }
 
-class _ProfileFieldState extends State<_ProfileField> {
+class _SettingsFieldState extends State<_SettingsField> {
   final _focusNode = FocusNode();
   bool _isFocused = false;
 
@@ -367,41 +501,44 @@ class _ProfileFieldState extends State<_ProfileField> {
       children: [
         Text(
           widget.label,
-          style: TextStyle(color: AppColors.grey600, fontSize: 14),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.black87,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(18),
+            color: widget.enabled ? AppColors.white : AppColors.grey100,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _isFocused ? AppColors.black : AppColors.grey200,
+              color: _isFocused ? AppColors.black : AppColors.grey300,
               width: _isFocused ? 1.5 : 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(widget.icon, color: AppColors.lightBlue),
-              const SizedBox(width: 12),
               Expanded(
                 child: TextField(
                   controller: widget.controller,
                   focusNode: _focusNode,
                   enabled: widget.enabled,
-                  keyboardType: widget.keyboardType,
-                  decoration: const InputDecoration(border: InputBorder.none),
+                  style: TextStyle(
+                    color: widget.enabled
+                        ? AppColors.black87
+                        : AppColors.black45,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
               ),
               if (widget.enabled)
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.edit, size: 18, color: AppColors.blue),
-                ),
+                const Icon(Icons.edit, size: 16, color: AppColors.black45),
             ],
           ),
         ),

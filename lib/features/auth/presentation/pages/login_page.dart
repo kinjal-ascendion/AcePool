@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
+
 import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
 import '../widgets/signup_text.dart';
@@ -10,7 +12,9 @@ import '../widgets/auth_text_field.dart';
 
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.onboardingSelection});
+
+  final OnboardingSelection? onboardingSelection;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -124,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 24),
               AuthButton(onPressed: login, isLoading: _isLoading, label: 'Log In'),
               const SizedBox(height: 12),
-              const SignupText(),
+              SignupText(onboardingSelection: widget.onboardingSelection),
             ],
           ),
         ),

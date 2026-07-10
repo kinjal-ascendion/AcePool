@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/onboarding/data/onboarding_prefs.dart';
 import 'package:acepool/features/splash/presentation/bloc/splash_bloc.dart';
 import 'package:acepool/features/splash/presentation/widgets/loading_dots.dart';
 import 'package:acepool/features/splash/presentation/widgets/splash_logo.dart';
@@ -88,10 +89,20 @@ class _SplashViewState extends State<_SplashView>
   @override
   Widget build(BuildContext context) {
     return BlocListener<SplashBloc, SplashState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state is SplashComplete) {
           final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-          context.go(isLoggedIn ? '/home' : '/login');
+          if (isLoggedIn) {
+            await OnboardingPrefs.markOnboardingCompleted();
+            if (context.mounted) context.go('/home');
+          } else {
+            final seenOnboarding = await OnboardingPrefs.hasCompletedOnboarding();
+            if (context.mounted) {
+              context.go(
+                seenOnboarding ? '/login' : '/onboarding/travel-preference',
+              );
+            }
+          }
         } else if (state is SplashError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
