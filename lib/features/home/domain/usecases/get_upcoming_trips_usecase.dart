@@ -36,17 +36,13 @@ class GetUpcomingTripsUseCase {
       final date = (data['date'] as Timestamp).toDate();
       final timeMap = data['time'] as Map<String, dynamic>;
 
-      LatLng? fromLatLng;
-      if (data['fromLatLng'] != null) {
-        final map = data['fromLatLng'] as Map<String, dynamic>;
-        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
+      final fromLat = (data['fromLat'] as num?)?.toDouble();
+      final fromLng = (data['fromLng'] as num?)?.toDouble();
+      final toLat = (data['toLat'] as num?)?.toDouble();
+      final toLng = (data['toLng'] as num?)?.toDouble();
 
-      LatLng? toLatLng;
-      if (data['toLatLng'] != null) {
-        final map = data['toLatLng'] as Map<String, dynamic>;
-        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
+      final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
+      final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
 
       return UpcomingTrip(
         id: doc.id,
@@ -57,8 +53,10 @@ class GetUpcomingTripsUseCase {
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
-        fromLatLng: fromLatLng,
-        toLatLng: toLatLng,
+        fromLat: fromLat ?? (fromLatLngMap?['latitude'] as num?)?.toDouble(),
+        fromLng: fromLng ?? (fromLatLngMap?['longitude'] as num?)?.toDouble(),
+        toLat: toLat ?? (toLatLngMap?['latitude'] as num?)?.toDouble(),
+        toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );

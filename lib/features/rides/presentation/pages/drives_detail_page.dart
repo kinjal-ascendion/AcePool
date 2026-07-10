@@ -65,27 +65,27 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       LatLng? position;
       if (d['pickupLatLng'] != null) {
         final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
-        position = LatLng(latLngMap['latitude'] as double, latLngMap['longitude'] as double);
-      } else if (widget.trip.fromLatLng != null) {
-        // Fallback to trip source if specific pickup latlng is missing
-        position = widget.trip.fromLatLng;
+        position = LatLng(
+          (latLngMap['latitude'] as num).toDouble(),
+          (latLngMap['longitude'] as num).toDouble(),
+        );
+      } else if (widget.trip.fromLat != null && widget.trip.fromLng != null) {
+        position = LatLng(widget.trip.fromLat!, widget.trip.fromLng!);
       }
 
-      if (position != null) {
-        riders.add(_RiderInfo(
-          requestId: doc.id,
-          riderId: d['riderId'] as String? ?? '',
-          riderName: d['riderName'] as String? ?? '',
-          riderPhotoUrl: d['riderPhotoUrl'] as String?,
-          employeeId: employeeId,
-          pickupPoint: d['pickupPoint'] as String? ?? '',
-          position: position,
-          pickupTime: TimeOfDay(
-            hour: pickupTimeMap['hour'] as int,
-            minute: pickupTimeMap['minute'] as int,
-          ),
-        ));
-      }
+      riders.add(_RiderInfo(
+        requestId: doc.id,
+        riderId: d['riderId'] as String? ?? '',
+        riderName: d['riderName'] as String? ?? '',
+        riderPhotoUrl: d['riderPhotoUrl'] as String?,
+        employeeId: employeeId,
+        pickupPoint: d['pickupPoint'] as String? ?? '',
+        position: position ?? LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
+        pickupTime: TimeOfDay(
+          hour: (pickupTimeMap['hour'] as num).toInt(),
+          minute: (pickupTimeMap['minute'] as num).toInt(),
+        ),
+      ));
     }
 
     if (status == 'accepted') {
@@ -223,6 +223,55 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     setState(_reload);
   }
 
+  void _openMap(List<_RiderInfo> riders) {
+    final List<PickupPoint> points = [];
+    
+    // Add driver's dynamic start point
+    points.add(PickupPoint(
+      location: widget.trip.fromAddress.split(',')[0],
+      sub: 'Start Point',
+      time: widget.trip.timeLabel,
+      position: LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
+      isFirst: true,
+      isPinned: true,
+      iconColor: const Color(0xFF00A19A),
+    ));
+
+    // Add riders as dynamic pickup points
+    for (var r in riders) {
+        points.add(PickupPoint(
+            location: r.pickupPoint.split(',')[0],
+            sub: 'Rider Pickup',
+            time: r.pickupTimeLabel,
+            position: r.position,
+            isPinned: true,
+            iconColor: Colors.grey,
+        ));
+    }
+
+    // Add dynamic trip destination
+    points.add(PickupPoint(
+      location: widget.trip.toAddress.split(',')[0],
+      sub: 'Destination',
+      time: '10:30',
+      position: LatLng(widget.trip.toLat ?? 0, widget.trip.toLng ?? 0),
+      isLast: true,
+      iconColor: Colors.red.shade400,
+    ));
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RideMapPage(
+            trip: widget.trip,
+            pickupPoints: points,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,10 +296,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () {},
-                  ),
+                  const SizedBox(width: 48), // Spacer for centering title
                 ],
               ),
             ),
@@ -320,90 +366,73 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 
                     const SizedBox(height: 24),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.black,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Riders confirmed',
-                            style: TextStyle(
-                              color: AppColors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () async {
-                            final riders = await _ridersFuture;
-                            final List<PickupPoint> points = riders.asMap().entries
-                                .map((entry) {
-                                  final int idx = entry.key;
-                                  final _RiderInfo r = entry.value;
-
-                                  // Formatting time to 9:30 style as per Figma
-                                  final h = r.pickupTime.hourOfPeriod == 0 ? 12 : r.pickupTime.hourOfPeriod;
-                                  final m = r.pickupTime.minute.toString().padLeft(2, '0');
-
-                                  return PickupPoint(
-                                      location: r.pickupPoint.split(',')[0],
-                                      sub: 'Pick Up Location ${idx + 1}',
-                                      time: '$h:$m',
-                                      position: r.position,
-                                      isPinned: idx == 0,
-                                      isFirst: idx == 0,
-                                      iconColor: idx == 0 ? const Color(0xFF00A19A) : Colors.grey,
-                                    );
-                                })
-                                .toList();
-
-                            LatLng destPos = widget.trip.toLatLng ?? const LatLng(12.9352, 77.6245);
-
-                            // Add a default destination point if points exist or just use trip toAddress
-                            points.add(PickupPoint(
-                              location: widget.trip.toAddress.split(',')[0],
-                              sub: 'Destination',
-                              time: '10:30',
-                              position: destPos,
-                              isLast: true,
-                              iconColor: Colors.red.shade400,
-                            ));
-
-                            if (mounted) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RideMapPage(
-                                    trip: widget.trip,
-                                    pickupPoints: points,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text(
-                            'View On Map',
-                            style: TextStyle(
-                              fontSize: 13,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
                     FutureBuilder<List<_RiderInfo>>(
                       future: _ridersFuture,
-                      builder: (context, snapshot) =>
-                          _buildRiderList(context, snapshot),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 20),
+                              child: Text(
+                                'Error loading riders: ${snapshot.error}',
+                                style: TextStyle(color: AppColors.red600, fontSize: 13),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        final riders = snapshot.data ?? [];
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.black,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'Riders confirmed',
+                                    style: TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _openMap(riders),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    minimumSize: Size.zero,
+                                  ),
+                                  child: const Text(
+                                    'View On Map',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.black,
+                                      decoration: TextDecoration.underline,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildRiderListFromData(context, riders),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -415,14 +444,10 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
     );
   }
 
-  Widget _buildRiderList(
+  Widget _buildRiderListFromData(
     BuildContext context,
-    AsyncSnapshot<List<_RiderInfo>> snapshot,
+    List<_RiderInfo> riders,
   ) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final riders = snapshot.data ?? [];
     if (riders.isEmpty) {
       return Center(
         child: Padding(

@@ -9,6 +9,8 @@ class RideResultCard extends StatefulWidget {
     super.key,
     required this.result,
     required this.riderFromAddress,
+    this.riderFromLat,
+    this.riderFromLng,
     required this.riderTime,
     required this.db,
     required this.onRequested,
@@ -16,6 +18,8 @@ class RideResultCard extends StatefulWidget {
 
   final RideMatch result;
   final String riderFromAddress;
+  final double? riderFromLat;
+  final double? riderFromLng;
   final TimeOfDay riderTime;
   final FirebaseFirestore db;
   final VoidCallback onRequested;
@@ -61,6 +65,12 @@ class _RideResultCardState extends State<RideResultCard> {
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
         'pickupPoint': pickupPoint,
+        'pickupLatLng': (widget.riderFromLat != null && widget.riderFromLng != null)
+            ? {
+                'latitude': widget.riderFromLat,
+                'longitude': widget.riderFromLng,
+              }
+            : null,
         'pickupTime': {
           'hour': widget.riderTime.hour,
           'minute': widget.riderTime.minute,

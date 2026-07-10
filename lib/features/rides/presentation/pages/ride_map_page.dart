@@ -56,42 +56,44 @@ class _RideMapPageState extends State<RideMapPage> {
   @override
   void initState() {
     super.initState();
-    _pickupPoints = widget.pickupPoints ??
-        [
+    if (widget.pickupPoints != null) {
+      _pickupPoints = widget.pickupPoints!;
+    } else {
+      _pickupPoints = [
+        PickupPoint(
+          location: widget.trip.fromAddress.split(',').first,
+          sub: 'Pick Up Location 1',
+          time: widget.trip.timeLabel,
+          position: LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
+          isPinned: true,
+          isFirst: true,
+          iconColor: const Color(0xFF00A19A),
+        ),
+        if (widget.trip.toLat != null && widget.trip.toLng != null)
           PickupPoint(
-            location: 'Singasandra',
-            sub: 'Pick Up Location 1',
-            time: '9:30',
-            position: const LatLng(12.8797, 77.6534),
-            isPinned: true,
-            isFirst: true,
-            iconColor: const Color(0xFF00A19A),
-          ),
-          PickupPoint(
-            location: 'Bommanahalli',
-            sub: 'Pick Up Location 2',
-            time: '9:45',
-            position: const LatLng(12.9039, 77.6433),
-            isPinned: false,
-            iconColor: Colors.grey,
-          ),
-          PickupPoint(
-            location: 'Madiwala',
-            sub: 'Pick Up Location 3',
-            time: '10:00',
-            position: const LatLng(12.9226, 77.6174),
-            isPinned: false,
-            iconColor: Colors.grey,
-          ),
-          PickupPoint(
-            location: 'Muneshwara Temple',
+            location: widget.trip.toAddress.split(',').first,
             sub: 'Destination',
             time: '10:30',
-            position: const LatLng(12.9352, 77.6245),
+            position: LatLng(widget.trip.toLat!, widget.trip.toLng!),
             isLast: true,
             iconColor: Colors.red.shade400,
           ),
-        ];
+      ];
+      
+      // If we only have one point (e.g. toLat is null), add a default destination
+      if (_pickupPoints.length < 2) {
+         _pickupPoints.add(
+          PickupPoint(
+            location: widget.trip.toAddress.split(',').first,
+            sub: 'Destination',
+            time: '10:30',
+            position: const LatLng(0, 0),
+            isLast: true,
+            iconColor: Colors.red.shade400,
+          ),
+        );
+      }
+    }
     
     _loadCustomIcons().then((_) => _updateMapElements());
   }
@@ -114,9 +116,11 @@ class _RideMapPageState extends State<RideMapPage> {
   }
 
   Future<void> _fetchRoute() async {
-    if (_pickupPoints.length < 2) return;
+    final validPoints = _pickupPoints.where((p) => p.position.latitude != 0 || p.position.longitude != 0).toList();
+    if (validPoints.length < 2) return;
 
-    final coordinates = _pickupPoints
+    final displayedPoints = _isSwapped ? validPoints.reversed.toList() : validPoints;
+    final coordinates = displayedPoints
         .map((p) => '${p.position.longitude},${p.position.latitude}')
         .join(';');
 
@@ -126,29 +130,31 @@ class _RideMapPageState extends State<RideMapPage> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final geometry = data['routes'][0]['geometry']['coordinates'] as List;
-        final routePoints = geometry
-            .map((coord) => LatLng(coord[1] as double, coord[0] as double))
-            .toList();
+        if (data['code'] == 'Ok' && data['routes'] != null && data['routes'].isNotEmpty) {
+          final geometry = data['routes'][0]['geometry']['coordinates'] as List;
+          final routePoints = geometry
+              .map((coord) => LatLng((coord[1] as num).toDouble(), (coord[0] as num).toDouble()))
+              .toList();
 
-        // Add start and end points manually to close the gap to markers
-        // caused by OSRM snapping to the nearest road
-        if (routePoints.isNotEmpty) {
-          routePoints.insert(0, _pickupPoints.first.position);
-          routePoints.add(_pickupPoints.last.position);
+          // Add start and end points manually to close the gap to markers
+          // caused by OSRM snapping to the nearest road
+          if (routePoints.isNotEmpty) {
+            routePoints.insert(0, displayedPoints.first.position);
+            routePoints.add(displayedPoints.last.position);
+          }
+
+          setState(() {
+            _polylines.clear();
+            _polylines.add(
+              Polyline(
+                polylineId: const PolylineId('route'),
+                points: routePoints,
+                color: const Color(0xFF00A19A),
+                width: 6,
+              ),
+            );
+          });
         }
-
-        setState(() {
-          _polylines.clear();
-          _polylines.add(
-            Polyline(
-              polylineId: const PolylineId('route'),
-              points: routePoints,
-              color: const Color(0xFF00A19A),
-              width: 6,
-            ),
-          );
-        });
       }
     } catch (e) {
       debugPrint('Error fetching route: $e');
@@ -159,18 +165,22 @@ class _RideMapPageState extends State<RideMapPage> {
     _polylines.clear();
     _markers.clear();
 
+    final displayedPoints = _isSwapped ? _pickupPoints.reversed.toList() : _pickupPoints;
+
     // Initial straight line polyline while route is fetching
     _polylines.add(
       Polyline(
         polylineId: const PolylineId('route'),
-        points: _pickupPoints.map((p) => p.position).toList(),
+        points: displayedPoints.map((p) => p.position).toList(),
         color: const Color(0xFF00A19A),
         width: 5,
       ),
     );
 
-    for (int i = 0; i < _pickupPoints.length; i++) {
-      final p = _pickupPoints[i];
+    for (int i = 0; i < displayedPoints.length; i++) {
+      final p = displayedPoints[i];
+      if (p.position.latitude == 0 && p.position.longitude == 0) continue;
+
       BitmapDescriptor icon = BitmapDescriptor.defaultMarker;
       
       if (p.isFirst) {
@@ -199,12 +209,19 @@ class _RideMapPageState extends State<RideMapPage> {
     if (_pickupPoints.isEmpty) return;
 
     double? minLat, maxLat, minLng, maxLng;
+    int pointsUsed = 0;
     for (final p in _pickupPoints) {
+      // Ignore invalid coordinates (0,0) to prevent zooming out to the whole world
+      if (p.position.latitude == 0 && p.position.longitude == 0) continue;
+      
+      pointsUsed++;
       if (minLat == null || p.position.latitude < minLat) minLat = p.position.latitude;
       if (maxLat == null || p.position.latitude > maxLat) maxLat = p.position.latitude;
       if (minLng == null || p.position.longitude < minLng) minLng = p.position.longitude;
       if (maxLng == null || p.position.longitude > maxLng) maxLng = p.position.longitude;
     }
+
+    if (pointsUsed == 0) return;
 
     _controller.animateCamera(
       CameraUpdate.newLatLngBounds(
@@ -226,7 +243,9 @@ class _RideMapPageState extends State<RideMapPage> {
           Positioned.fill(
             child: GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: _source,
+                target: (widget.trip.fromLat != null && widget.trip.fromLng != null && widget.trip.fromLat != 0)
+                    ? LatLng(widget.trip.fromLat!, widget.trip.fromLng!)
+                    : (_pickupPoints.isNotEmpty && _pickupPoints.first.position.latitude != 0 ? _pickupPoints.first.position : const LatLng(17.3850, 78.4867)),
                 zoom: 13,
               ),
               onMapCreated: (controller) {
@@ -342,6 +361,7 @@ class _RideMapPageState extends State<RideMapPage> {
                         onTap: () {
                           setState(() {
                             _isSwapped = !_isSwapped;
+                            _updateMapElements();
                           });
                         },
                         child: Image.asset(

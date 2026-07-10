@@ -64,7 +64,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       fromAddress: event.address,
       fromLat: event.lat,
       fromLng: event.lng,
-        fromLatLng: event.latLng
     ));
     // Only persist as the rider's commute location when picked while
     // actually looking for a ride — picking a location while offering a
@@ -84,7 +83,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       toAddress: event.address,
       toLat: event.lat,
       toLng: event.lng,
-        toLatLng: event.latLng
     ));
     if (state.rideMode == RideMode.find) {
       _saveCommuteLocation(
@@ -128,8 +126,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         fromLng: state.fromLng,
         toLat: state.toLat,
         toLng: state.toLng,
-        fromLatLng: state.fromLatLng,
-        toLatLng: state.toLatLng,
         date: state.selectedDate!,
         time: state.selectedTime!,
         seatCount: state.seatCount,

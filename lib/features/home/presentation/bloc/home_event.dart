@@ -32,22 +32,19 @@ class FromAddressChanged extends HomeEvent {
   final double? lat;
   final double? lng;
   const FromAddressChanged(this.address, {this.lat, this.lng});
-  final LatLng? latLng;
-  const FromAddressChanged(this.address, {this.latLng});
 
   @override
-  List<Object?> get props => [address, lat, lng,latLng];
+  List<Object?> get props => [address, lat, lng];
 }
 
 class ToAddressChanged extends HomeEvent {
   final String address;
   final double? lat;
   final double? lng;
-  final LatLng? latLng;
-  const ToAddressChanged(this.address, {this.lat, this.lng},{this.latLng});
+  const ToAddressChanged(this.address, {this.lat, this.lng});
 
   @override
-  List<Object?> get props => [address, lat, lng,latLng];
+  List<Object?> get props => [address, lat, lng];
 }
 
 class LocationsSwapped extends HomeEvent {

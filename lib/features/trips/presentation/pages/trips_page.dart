@@ -69,17 +69,13 @@ class _TripsPageState extends State<TripsPage>
       final date = (data['date'] as Timestamp).toDate();
       final timeMap = data['time'] as Map<String, dynamic>;
       
-      LatLng? fromLatLng;
-      if (data['fromLatLng'] != null) {
-        final map = data['fromLatLng'] as Map<String, dynamic>;
-        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
+      final fromLat = (data['fromLat'] as num?)?.toDouble();
+      final fromLng = (data['fromLng'] as num?)?.toDouble();
+      final toLat = (data['toLat'] as num?)?.toDouble();
+      final toLng = (data['toLng'] as num?)?.toDouble();
 
-      LatLng? toLatLng;
-      if (data['toLatLng'] != null) {
-        final map = data['toLatLng'] as Map<String, dynamic>;
-        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
+      final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
+      final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
 
       return UpcomingTrip(
         id: doc.id,
@@ -90,8 +86,10 @@ class _TripsPageState extends State<TripsPage>
         ),
         fromAddress: data['fromAddress'] as String,
         toAddress: data['toAddress'] as String,
-        fromLatLng: fromLatLng,
-        toLatLng: toLatLng,
+        fromLat: fromLat ?? (fromLatLngMap?['latitude'] as num?)?.toDouble(),
+        fromLng: fromLng ?? (fromLatLngMap?['longitude'] as num?)?.toDouble(),
+        toLat: toLat ?? (toLatLngMap?['latitude'] as num?)?.toDouble(),
+        toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
       );
@@ -163,10 +161,14 @@ class _TripsPageState extends State<TripsPage>
       final timeMap = d['time'] as Map<String, dynamic>;
       final rideFrom = d['fromAddress'] as String;
       final rideTo = d['toAddress'] as String;
-      final rideFromLat = (d['fromLat'] as num?)?.toDouble();
-      final rideFromLng = (d['fromLng'] as num?)?.toDouble();
-      final rideToLat = (d['toLat'] as num?)?.toDouble();
-      final rideToLng = (d['toLng'] as num?)?.toDouble();
+      final rideFromLat = (d['fromLat'] as num?)?.toDouble() ?? 
+          (d['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
+      final rideFromLng = (d['fromLng'] as num?)?.toDouble() ?? 
+          (d['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
+      final rideToLat = (d['toLat'] as num?)?.toDouble() ?? 
+          (d['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
+      final rideToLng = (d['toLng'] as num?)?.toDouble() ?? 
+          (d['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
       final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
 
       // Only worth a live Google Directions call when the user's commute
@@ -220,18 +222,6 @@ class _TripsPageState extends State<TripsPage>
         liveDetourKm: liveDetourKm,
       );
 
-      LatLng? fromLatLng;
-      if (d['fromLatLng'] != null) {
-        final map = d['fromLatLng'] as Map<String, dynamic>;
-        fromLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
-
-      LatLng? toLatLng;
-      if (d['toLatLng'] != null) {
-        final map = d['toLatLng'] as Map<String, dynamic>;
-        toLatLng = LatLng(map['latitude'] as double, map['longitude'] as double);
-      }
-
       rides.add(_AvailableRide(
         id: doc.id,
         driverId: d['uid'] as String,
@@ -241,8 +231,10 @@ class _TripsPageState extends State<TripsPage>
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
         fromAddress: rideFrom,
         toAddress: rideTo,
-        fromLatLng: fromLatLng,
-        toLatLng: toLatLng,
+        fromLat: rideFromLat,
+        fromLng: rideFromLng,
+        toLat: rideToLat,
+        toLng: rideToLng,
         seatsFilled: seatsFilled,
         seatsTotal: seatCount,
         vehicleType: d['vehicleType'] as String? ?? 'car',
@@ -495,8 +487,10 @@ class _AvailableRide {
     required this.time,
     required this.fromAddress,
     required this.toAddress,
-    this.fromLatLng,
-    this.toLatLng,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
     required this.seatsFilled,
     required this.seatsTotal,
     required this.vehicleType,
@@ -513,8 +507,10 @@ class _AvailableRide {
   final TimeOfDay time;
   final String fromAddress;
   final String toAddress;
-  final LatLng? fromLatLng;
-  final LatLng? toLatLng;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final int seatsFilled;
   final int seatsTotal;
   final String vehicleType;
@@ -587,8 +583,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
 
       final pickupPoint = widget.ride.defaultPickupPoint;
 
-      // Use ride's fromLatLng as pickup coordinate if user didn't change pickup point text
-      LatLng? pickupLatLng = widget.ride.fromLatLng;
+      // Use ride's coordinates as pickup coordinate if user didn't change pickup point text
+      LatLng? pickupLatLng = (widget.ride.fromLat != null && widget.ride.fromLng != null)
+          ? LatLng(widget.ride.fromLat!, widget.ride.fromLng!)
+          : null;
 
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
@@ -612,13 +610,13 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
         'rideTo': widget.ride.toAddress,
-        'rideFromLatLng': widget.ride.fromLatLng != null ? {
-          'latitude': widget.ride.fromLatLng!.latitude,
-          'longitude': widget.ride.fromLatLng!.longitude,
+        'rideFromLatLng': (widget.ride.fromLat != null && widget.ride.fromLng != null) ? {
+          'latitude': widget.ride.fromLat!,
+          'longitude': widget.ride.fromLng!,
         } : null,
-        'rideToLatLng': widget.ride.toLatLng != null ? {
-          'latitude': widget.ride.toLatLng!.latitude,
-          'longitude': widget.ride.toLatLng!.longitude,
+        'rideToLatLng': (widget.ride.toLat != null && widget.ride.toLng != null) ? {
+          'latitude': widget.ride.toLat!,
+          'longitude': widget.ride.toLng!,
         } : null,
         'rideDate': Timestamp.fromDate(widget.ride.date),
         'rideTime': {
