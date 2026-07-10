@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,7 +25,6 @@ class _TravelPreferencePageState extends State<TravelPreferencePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -39,7 +39,7 @@ class _TravelPreferencePageState extends State<TravelPreferencePage> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.black87,
                 ),
               ),
               const SizedBox(height: 28),

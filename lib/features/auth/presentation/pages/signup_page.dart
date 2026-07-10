@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -144,7 +145,6 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -158,11 +158,11 @@ class _SignupPageState extends State<SignupPage> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: AppColors.black.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -170,7 +170,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   child: const Icon(
                     Icons.chevron_left,
-                    color: Colors.black87,
+                    color: AppColors.black87,
                     size: 22,
                   ),
                 ),
@@ -191,7 +191,7 @@ class _SignupPageState extends State<SignupPage> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.black87,
                   ),
                 ),
               ),
@@ -199,7 +199,7 @@ class _SignupPageState extends State<SignupPage> {
               const Center(
                 child: Text(
                   'Only Ascendion employees can sign up',
-                  style: TextStyle(fontSize: 14, color: Colors.black45),
+                  style: TextStyle(fontSize: 14, color: AppColors.black45),
                 ),
               ),
               const SizedBox(height: 28),
@@ -235,7 +235,7 @@ class _SignupPageState extends State<SignupPage> {
                   padding: EdgeInsets.only(right: 16),
                   child: Text(
                     '@ascendion.com',
-                    style: TextStyle(color: Colors.black54),
+                    style: TextStyle(color: AppColors.black54),
                   ),
                 ),
               ),
@@ -276,12 +276,12 @@ class _SignupPageState extends State<SignupPage> {
                   child: RichText(
                     text: const TextSpan(
                       text: 'Already have an account? ',
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                      style: TextStyle(color: AppColors.black54, fontSize: 14),
                       children: [
                         TextSpan(
                           text: 'Log in',
                           style: TextStyle(
-                            color: Colors.black87,
+                            color: AppColors.black87,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),

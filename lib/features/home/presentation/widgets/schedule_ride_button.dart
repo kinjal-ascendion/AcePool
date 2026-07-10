@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_theme.dart';
 
@@ -17,22 +18,22 @@ class ScheduleRideButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
+      height: 52,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.scheduleButtonColor,
-          disabledBackgroundColor: Colors.grey.shade300,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          disabledBackgroundColor: AppColors.grey300,
+          foregroundColor: AppColors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
         child: isLoading
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
               )
             : Text(
                 label,

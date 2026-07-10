@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -64,7 +65,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
-            color: Colors.black87,
+            color: AppColors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -74,14 +75,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
             right: showEye || widget.suffixWidget != null ? 4 : 0,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: widget.errorText != null
-                  ? Colors.red.shade400
+                  ? AppColors.red400
                   : _isFocused
-                      ? Colors.black
-                      : Colors.grey.shade300,
+                      ? AppColors.black
+                      : AppColors.grey300,
               width: widget.errorText != null || _isFocused ? 1.5 : 1,
             ),
           ),
@@ -99,7 +100,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   decoration: InputDecoration(
                     hintText: widget.hintText,
                     hintStyle: const TextStyle(
-                      color: Color(0xFFAAAAAA),
+                      color: AppColors.placeholderGrey,
                       fontSize: 14,
                     ),
                     border: InputBorder.none,
@@ -108,7 +109,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                       vertical: 12,
                     ),
                   ),
-                  style: const TextStyle(color: Colors.black87, fontSize: 14),
+                  style: const TextStyle(color: AppColors.black87, fontSize: 14),
                 ),
               ),
               if (showEye)
@@ -118,7 +119,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Icon(
                       _obscured ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.black38,
+                      color: AppColors.black38,
                       size: 20,
                     ),
                   ),
@@ -133,7 +134,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               widget.errorText!,
-              style: TextStyle(color: Colors.red.shade600, fontSize: 12),
+              style: TextStyle(color: AppColors.red600, fontSize: 12),
             ),
           ),
       ],

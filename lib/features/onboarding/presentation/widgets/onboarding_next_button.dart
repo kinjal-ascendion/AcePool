@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class OnboardingNextButton extends StatelessWidget {
@@ -17,10 +18,10 @@ class OnboardingNextButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black87,
-          disabledBackgroundColor: Colors.grey.shade300,
-          disabledForegroundColor: Colors.grey.shade500,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.black87,
+          disabledBackgroundColor: AppColors.grey300,
+          disabledForegroundColor: AppColors.grey500,
+          foregroundColor: AppColors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: const StadiumBorder(),
           elevation: 0,
@@ -31,7 +32,7 @@ class OnboardingNextButton extends StatelessWidget {
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: AppColors.white,
                 ),
               )
             : const Row(

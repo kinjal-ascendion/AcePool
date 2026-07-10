@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -51,12 +52,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    style: TextStyle(color: AppColors.grey600, fontSize: 13),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            Icon(Icons.chevron_right, color: AppColors.grey400),
           ],
         ),
       ),
@@ -66,8 +67,8 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
+        bottom: false,
         child: FutureBuilder<Map<String, dynamic>?>(
           future: _fetchUserData(),
           builder: (context, snapshot) {
@@ -116,13 +117,13 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 32,
-                            backgroundColor: Colors.orange.shade400,
+                            backgroundColor: AppColors.orange400,
                             child: Text(
                               initials,
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: AppColors.white,
                               ),
                             ),
                           ),
@@ -132,14 +133,14 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade400,
+                                color: AppColors.grey400,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(color: AppColors.white, width: 2),
                               ),
                               child: const Icon(
                                 Icons.camera_alt,
                                 size: 12,
-                                color: Colors.white,
+                                color: AppColors.white,
                               ),
                             ),
                           ),
@@ -162,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           Text(
                             employeeId.isNotEmpty ? employeeId : '—',
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: AppColors.grey600,
                               fontSize: 14,
                             ),
                           ),
@@ -172,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
                 const SizedBox(height: 28),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Account settings',
                   subtitle: 'Name, Contact, Asc id, License, Role',
@@ -189,7 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ).then((_) => setState(() {})),
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Vehicle info',
                   subtitle: 'Add/ Edit vehicle details',
@@ -198,17 +199,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     MaterialPageRoute(builder: (_) => const VehicleInfoPage()),
                   ),
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Route matching',
                   subtitle: 'Routes & Radius settings',
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Pricing',
                   subtitle: 'Set the fare price',
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Addresses',
                   subtitle: 'Home, Office address',
@@ -217,16 +218,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     MaterialPageRoute(builder: (_) => const AddressesPage()),
                   ),
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Ride statistics',
                   subtitle: 'Ratings, Reviews & more',
                 ),
-                Divider(color: Colors.grey.shade200, height: 1),
+                Divider(color: AppColors.grey200, height: 1),
                 const SizedBox(height: 20),
                 Text(
                   'T&C apply',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                  style: TextStyle(color: AppColors.grey500, fontSize: 12),
                 ),
                 const SizedBox(height: 20),
               ],

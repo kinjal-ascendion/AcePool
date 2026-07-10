@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
@@ -110,7 +111,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -123,11 +124,11 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: AppColors.red50,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.warning_amber_rounded,
-                      color: Colors.red.shade600, size: 30),
+                      color: AppColors.red600, size: 30),
                 ),
                 const SizedBox(height: 18),
                 const Text(
@@ -141,7 +142,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       : 'This rider will be removed from this trip. This action cannot be undone.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 13.5, color: Colors.grey.shade600, height: 1.4),
+                      fontSize: 13.5, color: AppColors.grey600, height: 1.4),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -152,8 +153,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                             ? null
                             : () => Navigator.of(ctx).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                          side: BorderSide(color: Colors.grey.shade300),
+                          foregroundColor: AppColors.black87,
+                          side: BorderSide(color: AppColors.grey300),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
@@ -174,9 +175,9 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 if (ctx.mounted) Navigator.of(ctx).pop();
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade600,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.red.shade300,
+                          backgroundColor: AppColors.red600,
+                          foregroundColor: AppColors.white,
+                          disabledBackgroundColor: AppColors.red300,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
@@ -187,7 +188,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
+                                    strokeWidth: 2, color: AppColors.white),
                               )
                             : const Text('Cancel ride',
                                 style: TextStyle(
@@ -225,7 +226,6 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Column(
           children: [
@@ -327,13 +327,13 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.black,
+                            color: AppColors.black,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
                             'Riders confirmed',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -429,7 +429,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
           padding: const EdgeInsets.only(top: 40),
           child: Text(
             'No riders joined yet',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            style: TextStyle(color: AppColors.grey500, fontSize: 14),
           ),
         ),
       );
@@ -489,9 +489,9 @@ class _RiderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.grey200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,7 +503,7 @@ class _RiderCard extends StatelessWidget {
                 backgroundImage: rider.riderPhotoUrl != null
                     ? NetworkImage(rider.riderPhotoUrl!)
                     : null,
-                backgroundColor: Colors.grey.shade400,
+                backgroundColor: AppColors.grey400,
                 child: rider.riderPhotoUrl == null
                     ? Text(
                         rider.riderName.isNotEmpty
@@ -521,21 +521,21 @@ class _RiderCard extends StatelessWidget {
                   children: [
                     Text(rider.riderName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     if (rider.employeeId.isNotEmpty)
-                      Text(rider.employeeId, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      Text(rider.employeeId, style: TextStyle(color: AppColors.grey600, fontSize: 12)),
                   ],
                 ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.directions_car, size: 15, color: Colors.grey.shade700),
+                  Icon(Icons.directions_car, size: 15, color: AppColors.grey700),
                   const SizedBox(width: 4),
                   Text(
                     '25mins',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 12, color: AppColors.grey700),
                   ),
-                  Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade500),
-                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.chevron_right, size: 16, color: AppColors.grey500),
+                  Icon(Icons.location_on_outlined, size: 16, color: AppColors.grey600),
                 ],
               ),
             ],
@@ -580,10 +580,10 @@ class _RiderCard extends StatelessWidget {
                       ));
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black87,
+                      foregroundColor: AppColors.black87,
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.black87),
-                    label: const Text('Chat', style: TextStyle(color: Colors.black87)),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.black87),
+                    label: const Text('Chat', style: TextStyle(color: AppColors.black87)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -591,9 +591,9 @@ class _RiderCard extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: onCancel,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
+                      side: const BorderSide(color: AppColors.red),
                     ),
-                    child: const Text('Cancel ride', style: TextStyle(color: Colors.red)),
+                    child: const Text('Cancel ride', style: TextStyle(color: AppColors.red)),
                   ),
                 ),
             ],

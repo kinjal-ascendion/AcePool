@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -46,7 +47,6 @@ class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -61,7 +61,7 @@ class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.black87,
                 ),
               ),
               const SizedBox(height: 28),
@@ -85,7 +85,7 @@ class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
               const SizedBox(height: 10),
               const Text(
                 'Note: Helmet is mandatory if you choose a 2-wheeler',
-                style: TextStyle(fontSize: 12, color: Colors.black45),
+                style: TextStyle(fontSize: 12, color: AppColors.black45),
               ),
               const Spacer(),
               OnboardingNextButton(onPressed: _onNext, isLoading: _isSaving),

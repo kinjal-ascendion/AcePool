@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class OnboardingOptionTile extends StatelessWidget {
@@ -21,14 +22,14 @@ class OnboardingOptionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Colors.black87 : Colors.white,
+          color: selected ? AppColors.black87 : AppColors.white,
           borderRadius: BorderRadius.circular(14),
-          border: selected ? null : Border.all(color: Colors.grey.shade300),
+          border: selected ? null : Border.all(color: AppColors.grey300),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
+            color: selected ? AppColors.white : AppColors.black87,
             fontWeight: FontWeight.w600,
             fontSize: 15,
           ),

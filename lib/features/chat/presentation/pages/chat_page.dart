@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/bloc/chat_bloc.dart';
@@ -76,13 +77,12 @@ class _ChatPageState extends State<ChatPage> {
     return BlocProvider(
       create: (context) => sl<ChatBloc>()..add(ChatMessagesSubscriptionRequested(widget.chatId)),
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.scaffoldBackground,
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            icon: const Icon(Icons.arrow_back, color: AppColors.black),
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Column(
@@ -90,12 +90,12 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               Text(
                 widget.title,
-                style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.bold),
               ),
               if (widget.subtitle != null)
                 Text(
                   widget.subtitle!,
-                  style: const TextStyle(color: Colors.black54, fontSize: 11),
+                  style: const TextStyle(color: AppColors.black54, fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -114,12 +114,12 @@ class _ChatPageState extends State<ChatPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppColors.grey100,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'Today',
-                    style: TextStyle(color: Colors.black54, fontSize: 12),
+                    style: TextStyle(color: AppColors.black54, fontSize: 12),
                   ),
                 ),
               ),
@@ -176,10 +176,10 @@ class _ChatPageState extends State<ChatPage> {
                 right: 0,
                 child: CircleAvatar(
                   radius: 14,
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor: AppColors.grey300,
                   child: Text(
                     '+${count - 3}',
-                    style: const TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 10, color: AppColors.black54, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -202,13 +202,13 @@ class _ChatPageState extends State<ChatPage> {
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: AppColors.white, width: 2),
                     ),
                     child: CircleAvatar(
                       radius: 13,
                       backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
                       backgroundColor: _getAvatarColor(index),
-                      child: photoUrl == null ? Text(initial, style: const TextStyle(fontSize: 12, color: Colors.white)) : null,
+                      child: photoUrl == null ? Text(initial, style: const TextStyle(fontSize: 12, color: AppColors.white)) : null,
                     ),
                   ),
                 );
@@ -221,13 +221,13 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Color _getAvatarColor(int index) {
-    const colors = [Colors.purple, Colors.orange, Colors.blue, Colors.green];
+    const colors = [AppColors.purple, AppColors.orange, AppColors.blue, AppColors.green];
     return colors[index % colors.length];
   }
 
   Widget _buildBottomPanel(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: AppColors.white,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -237,11 +237,11 @@ class _ChatPageState extends State<ChatPage> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppColors.grey200),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
+                  BoxShadow(color: AppColors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
                 ]
               ),
               child: Column(
@@ -252,11 +252,11 @@ class _ChatPageState extends State<ChatPage> {
                     children: [
                       const Text(
                         'SUGGESTED REPLIES',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.black54),
                       ),
                       GestureDetector(
                         onTap: () => setState(() => _showSuggestions = false),
-                        child: const Icon(Icons.close, size: 16, color: Colors.black54),
+                        child: const Icon(Icons.close, size: 16, color: AppColors.black54),
                       ),
                     ],
                   ),
@@ -273,13 +273,13 @@ class _ChatPageState extends State<ChatPage> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [Colors.grey.shade600, Colors.grey.shade800],
+                              colors: [AppColors.grey600, AppColors.grey800],
                             ),
                             borderRadius: BorderRadius.circular(25),
                           ),
                           child: Text(
                             reply,
-                            style: const TextStyle(fontSize: 13, color: Colors.white),
+                            style: const TextStyle(fontSize: 13, color: AppColors.white),
                           ),
                         ),
                       )).toList(),
@@ -296,7 +296,7 @@ class _ChatPageState extends State<ChatPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppColors.grey100,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -311,12 +311,12 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
                   ),
-                  const Icon(Icons.mic_none_rounded, color: Colors.grey, size: 22),
+                  const Icon(Icons.mic_none_rounded, color: AppColors.grey, size: 22),
                   const SizedBox(width: 12),
                   Builder(
                     builder: (ctx) => GestureDetector(
                       onTap: () => _sendTextMessage(_messageController.text, ctx),
-                      child: const Icon(Icons.send_rounded, color: Color(0xFF1B8A3F), size: 22),
+                      child: const Icon(Icons.send_rounded, color: AppColors.primaryGreen, size: 22),
                     ),
                   ),
                 ],
@@ -355,8 +355,8 @@ class _MessageBubble extends StatelessWidget {
           if (!isMe)
             const CircleAvatar(
               radius: 16,
-              backgroundColor: Colors.grey,
-              child: Icon(Icons.person, color: Colors.white, size: 16),
+              backgroundColor: AppColors.grey,
+              child: Icon(Icons.person, color: AppColors.white, size: 16),
             ),
           const SizedBox(width: 8),
           Flexible(
@@ -369,19 +369,19 @@ class _MessageBubble extends StatelessWidget {
                     children: [
                       Text(
                         senderName ?? 'User',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.grey),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _formatTime(time),
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: const TextStyle(fontSize: 11, color: AppColors.grey),
                       ),
                     ],
                   ),
                 if (isMe)
                   Text(
                     _formatTime(time),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: AppColors.grey),
                   ),
                 const SizedBox(height: 4),
                 Stack(
@@ -390,13 +390,13 @@ class _MessageBubble extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isMe ? const Color(0xFFE8F5E9) : Colors.white,
+                        color: isMe ? AppColors.chatBubbleMe : AppColors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: isMe ? null : Border.all(color: Colors.grey.shade200),
+                        border: isMe ? null : Border.all(color: AppColors.grey200),
                       ),
                       child: Text(
                         text,
-                        style: const TextStyle(color: Colors.black87, fontSize: 14),
+                        style: const TextStyle(color: AppColors.black87, fontSize: 14),
                       ),
                     ),
                     if (reactionCount > 0)
@@ -407,21 +407,21 @@ class _MessageBubble extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade100),
+                            border: Border.all(color: AppColors.grey100),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
+                              BoxShadow(color: AppColors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
                             ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.thumb_up, size: 12, color: Color(0xFF1B8A3F)),
+                              const Icon(Icons.thumb_up, size: 12, color: AppColors.primaryGreen),
                               const SizedBox(width: 4),
                               Text(
                                 '$reactionCount',
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF1B8A3F), fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 10, color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),

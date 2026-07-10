@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/bloc/chat_list_bloc.dart';
@@ -31,18 +32,17 @@ class _ChatListPageState extends State<ChatListPage> {
     return BlocProvider(
       create: (context) => sl<ChatListBloc>()..add(ChatListSubscriptionRequested(uid)),
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.scaffoldBackground,
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            icon: const Icon(Icons.arrow_back, color: AppColors.black),
             onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
           ),
           title: const Text(
             'Chats',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 24),
+            style: TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 24),
           ),
           actions: [
             Padding(
@@ -52,11 +52,11 @@ class _ChatListPageState extends State<ChatListPage> {
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppColors.grey300),
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.add, color: Colors.black, size: 20),
+                  icon: const Icon(Icons.add, color: AppColors.black, size: 20),
                   onPressed: () {},
                 ),
               ),
@@ -72,7 +72,7 @@ class _ChatListPageState extends State<ChatListPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: AppColors.grey100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
@@ -80,7 +80,7 @@ class _ChatListPageState extends State<ChatListPage> {
                       onChanged: (query) => context.read<ChatListBloc>().add(ChatSearchQueryChanged(query)),
                       decoration: const InputDecoration(
                         hintText: 'Search Chat',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
+                        prefixIcon: Icon(Icons.search, color: AppColors.grey),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -242,10 +242,10 @@ class _ChatListItem extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: Colors.grey.shade200,
+                  backgroundColor: AppColors.grey200,
                   child: isGroup 
-                    ? Image.asset('assets/images/group.png', width: 30, height: 30, color: Colors.grey)
-                    : const Icon(Icons.person, color: Colors.grey, size: 30),
+                    ? Image.asset('assets/images/group.png', width: 30, height: 30, color: AppColors.grey)
+                    : const Icon(Icons.person, color: AppColors.grey, size: 30),
                 ),
                 Positioned(
                   right: 0,
@@ -253,7 +253,7 @@ class _ChatListItem extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.white,
                       shape: BoxShape.circle,
                     ),
                     child: Image.asset('assets/images/timer.png', width: 14, height: 14),
@@ -276,7 +276,7 @@ class _ChatListItem extends StatelessWidget {
                   Text(
                     room.lastMessage.isEmpty ? 'No messages yet' : room.lastMessage,
                     style: TextStyle(
-                      color: unreadCount > 0 ? const Color(0xFF1B8A3F) : Colors.grey.shade600, 
+                      color: unreadCount > 0 ? AppColors.primaryGreen : AppColors.grey600,
                       fontSize: 14,
                       fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                     ),
@@ -292,7 +292,7 @@ class _ChatListItem extends StatelessWidget {
                 Text(
                   _formatDate(room.lastMessageTime),
                   style: TextStyle(
-                    color: unreadCount > 0 ? const Color(0xFF1B8A3F) : Colors.grey.shade500,
+                    color: unreadCount > 0 ? AppColors.primaryGreen : AppColors.grey500,
                     fontSize: 12, 
                     fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -301,19 +301,19 @@ class _ChatListItem extends StatelessWidget {
                 Row(
                   children: [
                     if (isPinned)
-                      const Icon(Icons.push_pin, size: 14, color: Colors.grey),
+                      const Icon(Icons.push_pin, size: 14, color: AppColors.grey),
                     if (isPinned && unreadCount > 0)
                       const SizedBox(width: 4),
                     if (unreadCount > 0)
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: const BoxDecoration(
-                          color: Color(0xFF1B8A3F),
+                          color: AppColors.primaryGreen,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '$unreadCount',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: AppColors.white, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                       ),
                   ],

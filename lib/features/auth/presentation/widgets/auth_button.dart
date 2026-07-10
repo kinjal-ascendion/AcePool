@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -21,9 +22,9 @@ class AuthButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.scheduleButtonColor,
-          disabledBackgroundColor: Colors.grey.shade300,
-          disabledForegroundColor: Colors.grey.shade500,
-          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.grey300,
+          disabledForegroundColor: AppColors.grey500,
+          foregroundColor: AppColors.white,
           minimumSize: const Size(double.infinity, 48),
           padding: const EdgeInsets.symmetric(vertical: 12),
           elevation: 0,
@@ -37,7 +38,7 @@ class AuthButton extends StatelessWidget {
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: AppColors.white,
                 ),
               )
             : Text(

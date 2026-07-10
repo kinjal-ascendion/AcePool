@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -180,7 +181,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -192,7 +192,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     height: 50,
                     width: 50,
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: AppColors.blue50,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -209,8 +209,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _saveProfile,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade100,
-                      foregroundColor: Colors.blue,
+                      backgroundColor: AppColors.blue100,
+                      foregroundColor: AppColors.blue,
                       elevation: 0,
                       shape: const StadiumBorder(),
                     ),
@@ -295,7 +295,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                                   ? Icons.verified
                                   : Icons.cancel,
                               color:
-                                  _isLicenceValid! ? Colors.green : Colors.red,
+                                  _isLicenceValid! ? AppColors.green : AppColors.red,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -304,8 +304,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: _isLicenceValid!
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? AppColors.green
+                                    : AppColors.red,
                               ),
                             ),
                           ],
@@ -367,22 +367,22 @@ class _ProfileFieldState extends State<_ProfileField> {
       children: [
         Text(
           widget.label,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          style: TextStyle(color: AppColors.grey600, fontSize: 14),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: _isFocused ? Colors.black : Colors.grey.shade200,
+              color: _isFocused ? AppColors.black : AppColors.grey200,
               width: _isFocused ? 1.5 : 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(widget.icon, color: Colors.lightBlue),
+              Icon(widget.icon, color: AppColors.lightBlue),
               const SizedBox(width: 12),
               Expanded(
                 child: TextField(
@@ -397,10 +397,10 @@ class _ProfileFieldState extends State<_ProfileField> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: AppColors.blue50,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                  child: const Icon(Icons.edit, size: 18, color: AppColors.blue),
                 ),
             ],
           ),

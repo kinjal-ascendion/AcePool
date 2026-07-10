@@ -14,13 +14,18 @@ class HomeState extends Equatable {
   final VehicleType vehicleType;
   final String? fromAddress;
   final String? toAddress;
-  final LatLng? fromLatLng;
-  final LatLng? toLatLng;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
   final List<UpcomingTrip> upcomingTrips;
   final String? errorMessage;
+  final HomeStatus findStatus;
+  final List<RideMatch> findResults;
+  final bool hasSearchedRides;
 
   const HomeState({
     this.status = HomeStatus.initial,
@@ -28,13 +33,18 @@ class HomeState extends Equatable {
     this.vehicleType = VehicleType.car,
     this.fromAddress,
     this.toAddress,
-    this.fromLatLng,
-    this.toLatLng,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
     this.selectedDate,
     this.selectedTime,
     this.seatCount = 1,
     this.upcomingTrips = const [],
     this.errorMessage,
+    this.findStatus = HomeStatus.initial,
+    this.findResults = const [],
+    this.hasSearchedRides = false,
   });
 
   bool get isFormValid =>
@@ -51,13 +61,18 @@ class HomeState extends Equatable {
     VehicleType? vehicleType,
     Object? fromAddress = _unset,
     Object? toAddress = _unset,
-    Object? fromLatLng = _unset,
-    Object? toLatLng = _unset,
+    Object? fromLat = _unset,
+    Object? fromLng = _unset,
+    Object? toLat = _unset,
+    Object? toLng = _unset,
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     int? seatCount,
     List<UpcomingTrip>? upcomingTrips,
     Object? errorMessage = _unset,
+    HomeStatus? findStatus,
+    List<RideMatch>? findResults,
+    bool? hasSearchedRides,
   }) {
     return HomeState(
       status: status ?? this.status,
@@ -65,13 +80,18 @@ class HomeState extends Equatable {
       vehicleType: vehicleType ?? this.vehicleType,
       fromAddress: fromAddress == _unset ? this.fromAddress : fromAddress as String?,
       toAddress: toAddress == _unset ? this.toAddress : toAddress as String?,
-      fromLatLng: fromLatLng == _unset ? this.fromLatLng : fromLatLng as LatLng?,
-      toLatLng: toLatLng == _unset ? this.toLatLng : toLatLng as LatLng?,
+      fromLat: fromLat == _unset ? this.fromLat : fromLat as double?,
+      fromLng: fromLng == _unset ? this.fromLng : fromLng as double?,
+      toLat: toLat == _unset ? this.toLat : toLat as double?,
+      toLng: toLng == _unset ? this.toLng : toLng as double?,
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
       seatCount: seatCount ?? this.seatCount,
       upcomingTrips: upcomingTrips ?? this.upcomingTrips,
       errorMessage: errorMessage == _unset ? this.errorMessage : errorMessage as String?,
+      findStatus: findStatus ?? this.findStatus,
+      findResults: findResults ?? this.findResults,
+      hasSearchedRides: hasSearchedRides ?? this.hasSearchedRides,
     );
   }
 
@@ -82,13 +102,18 @@ class HomeState extends Equatable {
       vehicleType: vehicleType,
       fromAddress: toAddress,
       toAddress: fromAddress,
-      fromLatLng: toLatLng,
-      toLatLng: fromLatLng,
+      fromLat: toLat,
+      fromLng: toLng,
+      toLat: fromLat,
+      toLng: fromLng,
       selectedDate: selectedDate,
       selectedTime: selectedTime,
       seatCount: seatCount,
       upcomingTrips: upcomingTrips,
       errorMessage: errorMessage,
+      findStatus: findStatus,
+      findResults: findResults,
+      hasSearchedRides: hasSearchedRides,
     );
   }
 
@@ -108,12 +133,17 @@ class HomeState extends Equatable {
     vehicleType,
     fromAddress,
     toAddress,
-    fromLatLng,
-    toLatLng,
+    fromLat,
+    fromLng,
+    toLat,
+    toLng,
     selectedDate,
     selectedTime,
     seatCount,
     upcomingTrips,
     errorMessage,
+    findStatus,
+    findResults,
+    hasSearchedRides,
   ];
 }

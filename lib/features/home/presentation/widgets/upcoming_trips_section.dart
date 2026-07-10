@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
@@ -56,7 +57,7 @@ class UpcomingTripsSection extends StatelessWidget {
               child: Text(
                 'No upcoming trips.\nSchedule a ride to get started!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black45),
+                style: TextStyle(color: AppColors.black45),
               ),
             ),
           )

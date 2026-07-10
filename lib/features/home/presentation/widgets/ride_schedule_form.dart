@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
@@ -63,9 +64,9 @@ class RideScheduleForm extends StatelessWidget {
             onFromTap: onFromTap,
             onToTap: onToTap,
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Divider(height: 1, color: AppColors.grey300),
           ),
           ScheduleDateTimeRow(
             selectedDate: selectedDate,

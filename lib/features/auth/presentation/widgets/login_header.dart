@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class LoginHeader extends StatelessWidget {
@@ -22,7 +23,7 @@ class LoginHeader extends StatelessWidget {
         SizedBox(height: 8),
         Text(
           "Sign in with your Ascendion account",
-          style: TextStyle(fontSize: 14, color: Colors.black45),
+          style: TextStyle(fontSize: 14, color: AppColors.black45),
         ),
       ],
     );

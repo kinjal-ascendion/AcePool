@@ -9,8 +9,10 @@ import 'package:get_it/get_it.dart';
 import 'package:acepool/features/splash/domain/usecases/initialize_app_usecase.dart';
 import 'package:acepool/features/splash/presentation/bloc/splash_bloc.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/save_commute_location_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 
 final sl = GetIt.instance;
 
@@ -19,6 +21,8 @@ void initDependencies() {
   sl.registerLazySingleton<InitializeAppUseCase>(() => InitializeAppUseCase());
   sl.registerLazySingleton<GetUpcomingTripsUseCase>(() => GetUpcomingTripsUseCase());
   sl.registerLazySingleton<ScheduleRideUseCase>(() => ScheduleRideUseCase());
+  sl.registerLazySingleton<FindMatchingRidesUseCase>(() => FindMatchingRidesUseCase());
+  sl.registerLazySingleton<SaveCommuteLocationUseCase>(() => SaveCommuteLocationUseCase());
 
   // Chat Use cases
   sl.registerLazySingleton<GetMessagesUseCase>(() => GetMessagesUseCase(sl()));
@@ -33,7 +37,12 @@ void initDependencies() {
     () => SplashBloc(initializeApp: sl()),
   );
   sl.registerFactory<HomeBloc>(
-    () => HomeBloc(getUpcomingTrips: sl(), scheduleRide: sl()),
+    () => HomeBloc(
+      getUpcomingTrips: sl(),
+      scheduleRide: sl(),
+      findMatchingRides: sl(),
+      saveCommuteLocation: sl(),
+    ),
   );
   sl.registerFactory<ChatBloc>(
     () => ChatBloc(getMessages: sl(), sendMessage: sl()),

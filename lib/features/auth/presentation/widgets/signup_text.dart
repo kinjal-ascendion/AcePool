@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,12 +13,12 @@ class SignupText extends StatelessWidget {
         child: RichText(
           text: const TextSpan(
             text: "Don't have an account? ",
-            style: TextStyle(color: Colors.black54, fontSize: 14),
+            style: TextStyle(color: AppColors.black54, fontSize: 14),
             children: [
               TextSpan(
                 text: 'Sign Up',
                 style: TextStyle(
-                  color: Colors.black87,
+                  color: AppColors.black87,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),

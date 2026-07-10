@@ -29,20 +29,25 @@ class VehicleTypeChanged extends HomeEvent {
 
 class FromAddressChanged extends HomeEvent {
   final String address;
+  final double? lat;
+  final double? lng;
+  const FromAddressChanged(this.address, {this.lat, this.lng});
   final LatLng? latLng;
   const FromAddressChanged(this.address, {this.latLng});
 
   @override
-  List<Object?> get props => [address, latLng];
+  List<Object?> get props => [address, lat, lng,latLng];
 }
 
 class ToAddressChanged extends HomeEvent {
   final String address;
+  final double? lat;
+  final double? lng;
   final LatLng? latLng;
-  const ToAddressChanged(this.address, {this.latLng});
+  const ToAddressChanged(this.address, {this.lat, this.lng},{this.latLng});
 
   @override
-  List<Object?> get props => [address, latLng];
+  List<Object?> get props => [address, lat, lng,latLng];
 }
 
 class LocationsSwapped extends HomeEvent {
@@ -75,4 +80,8 @@ class SeatCountChanged extends HomeEvent {
 
 class ScheduleRideRequested extends HomeEvent {
   const ScheduleRideRequested();
+}
+
+class FindRidesRequested extends HomeEvent {
+  const FindRidesRequested();
 }

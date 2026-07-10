@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class HomeBottomNavBar extends StatelessWidget {
@@ -6,8 +9,8 @@ class HomeBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  static const Color _activeColor = Color(0xFF2E8B57);
-  static const Color _inactiveColor = Colors.black54;
+  static const Color _activeColor = AppColors.bottomNavActive;
+  static const Color _inactiveColor = AppColors.black54;
 
   static const _items = [
     (icon: Icons.home_outlined, label: 'Home'),
@@ -20,31 +23,43 @@ class HomeBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + bottomInset),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(40),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: AppColors.black.withValues(alpha: 0.10),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (var i = 0; i < _items.length; i++)
-              _NavItem(
-                icon: _items[i].icon,
-                label: _items[i].label,
-                selected: i == currentIndex,
-                onTap: () => onTap(i),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(40),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                color: AppColors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(40),
+                border: Border.all(color: AppColors.toggleBackground, width: 1),
               ),
-          ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    _NavItem(
+                      icon: _items[i].icon,
+                      label: _items[i].label,
+                      selected: i == currentIndex,
+                      onTap: () => onTap(i),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

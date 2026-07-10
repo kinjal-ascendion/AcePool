@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -61,7 +62,7 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: const Text('Remove', style: TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -87,12 +88,12 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppColors.grey100,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        style: TextStyle(fontSize: 12, color: AppColors.grey700),
       ),
     );
   }
@@ -111,9 +112,9 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppColors.grey200),
         ),
         child: Row(
           children: [
@@ -121,12 +122,12 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: AppColors.green50,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 isFourWheeler ? Icons.directions_car : Icons.two_wheeler,
-                color: Colors.green.shade700,
+                color: AppColors.green700,
               ),
             ),
             const SizedBox(width: 14),
@@ -144,7 +145,7 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
                   const SizedBox(height: 2),
                   Text(
                     number,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    style: TextStyle(color: AppColors.grey600, fontSize: 13),
                   ),
                 ],
               ),
@@ -161,11 +162,10 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.grey.shade50,
+        backgroundColor: AppColors.scaffoldBackground,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: AppColors.black,
         title: const Text(
           'Vehicle info',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -202,17 +202,17 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: AppColors.grey300),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add, color: Colors.grey.shade700),
+                        Icon(Icons.add, color: AppColors.grey700),
                         const SizedBox(width: 8),
                         Text(
                           'Add vehicle',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: AppColors.grey700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -289,7 +289,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
       text,
       style: TextStyle(
         fontSize: 13,
-        color: Colors.grey.shade600,
+        color: AppColors.grey600,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -299,20 +299,20 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: AppColors.grey50,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: AppColors.grey300),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: AppColors.grey300),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.black, width: 2),
+        borderSide: const BorderSide(color: AppColors.black, width: 2),
       ),
     );
   }
@@ -321,7 +321,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: EdgeInsets.only(
@@ -429,8 +429,8 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        side: BorderSide(color: Colors.grey.shade300),
+                        foregroundColor: AppColors.black87,
+                        side: BorderSide(color: AppColors.grey300),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -445,7 +445,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                       onPressed: _confirm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.scheduleButtonColor,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -484,16 +484,16 @@ class _TypeOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppTheme.scheduleButtonColor : Colors.white,
+          color: selected ? AppTheme.scheduleButtonColor : AppColors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: selected ? AppTheme.scheduleButtonColor : Colors.grey.shade300,
+            color: selected ? AppTheme.scheduleButtonColor : AppColors.grey300,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
+            color: selected ? AppColors.white : AppColors.black87,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -523,7 +523,7 @@ class _RadioChoice extends StatelessWidget {
           Icon(
             selected ? Icons.radio_button_checked : Icons.radio_button_off,
             size: 20,
-            color: selected ? AppTheme.scheduleButtonColor : Colors.grey.shade400,
+            color: selected ? AppTheme.scheduleButtonColor : AppColors.grey400,
           ),
           const SizedBox(width: 8),
           Text(label, style: const TextStyle(fontSize: 14)),

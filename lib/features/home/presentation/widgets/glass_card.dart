@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class GlassCard extends StatelessWidget {
@@ -18,11 +19,11 @@ class GlassCard extends StatelessWidget {
       padding: padding,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
+            color: AppColors.black.withValues(alpha: 0.07),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
