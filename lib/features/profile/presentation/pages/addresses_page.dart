@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -28,21 +29,23 @@ class _AddressesPageState extends State<AddressesPage> {
   }
 
   Future<void> _addAddress(String category, String label) async {
-    final result = await Navigator.push<String>(
+    final result = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
         builder: (_) => LocationSearchPage(title: 'Search $label Location'),
       ),
     );
 
-    if (result == null || result.isEmpty) return;
+    if (result == null || result.address.trim().isEmpty) return;
 
     final ref = _addressesRef();
     final existing = await ref.where('category', isEqualTo: category).get();
 
     await ref.add({
       'category': category,
-      'address': result,
+      'address': result.address,
+      'lat': result.lat,
+      'lng': result.lng,
       'isDefault': existing.docs.isEmpty,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -52,7 +55,7 @@ class _AddressesPageState extends State<AddressesPage> {
 
   Future<void> _editAddress(
       String docId, String label, String currentAddress) async {
-    final result = await Navigator.push<String>(
+    final result = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
         builder: (_) => LocationSearchPage(
@@ -62,9 +65,13 @@ class _AddressesPageState extends State<AddressesPage> {
       ),
     );
 
-    if (result == null || result.isEmpty) return;
+    if (result == null || result.address.trim().isEmpty) return;
 
-    await _addressesRef().doc(docId).update({'address': result});
+    await _addressesRef().doc(docId).update({
+      'address': result.address,
+      'lat': result.lat,
+      'lng': result.lng,
+    });
     if (mounted) setState(() {});
   }
 

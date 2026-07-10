@@ -1,3 +1,4 @@
+import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
@@ -22,6 +23,7 @@ class _TripsPageState extends State<TripsPage>
 
   late Future<List<_AvailableRide>> _ridesFuture;
   late final Future<List<UpcomingTrip>> _drivesFuture;
+  bool _hasCommuteLocation = false;
 
   static const _tabs = ['Rides', 'Drives'];
 
@@ -29,6 +31,7 @@ class _TripsPageState extends State<TripsPage>
     app: Firebase.app(),
     databaseId: 'acepool',
   );
+  static final _directions = DirectionsService();
 
   @override
   void initState() {
@@ -119,6 +122,10 @@ class _TripsPageState extends State<TripsPage>
       userOfficeLng = (userData?['officeLng'] as num?)?.toDouble();
     } catch (_) {}
 
+    _hasCommuteLocation =
+        userHomeAddress.isNotEmpty && userOfficeAddress.isNotEmpty;
+    if (!_hasCommuteLocation) return [];
+
     final snap = await _db
         .collection('rides')
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
@@ -160,20 +167,57 @@ class _TripsPageState extends State<TripsPage>
       final rideFromLng = (d['fromLng'] as num?)?.toDouble();
       final rideToLat = (d['toLat'] as num?)?.toDouble();
       final rideToLng = (d['toLng'] as num?)?.toDouble();
+      final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
 
-      final match = _calcMatch(
-        userHome: userHomeAddress,
-        userOffice: userOfficeAddress,
-        userHomeLat: userHomeLat,
-        userHomeLng: userHomeLng,
-        userOfficeLat: userOfficeLat,
-        userOfficeLng: userOfficeLng,
-        rideFrom: rideFrom,
-        rideTo: rideTo,
+      // Only worth a live Google Directions call when the user's commute
+      // points aren't already close to the ride's own endpoints — that case
+      // is already a match without needing a real-route detour check.
+      double? liveDetourKm;
+      final haveUserCoords = userHomeLat != null &&
+          userHomeLng != null &&
+          userOfficeLat != null &&
+          userOfficeLng != null;
+      final haveRideCoords = rideFromLat != null &&
+          rideFromLng != null &&
+          rideToLat != null &&
+          rideToLng != null;
+      if (haveUserCoords && haveRideCoords && rideRouteDistanceKm != null) {
+        final endpointsClose =
+            RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
+                    RideMatcher.maxMatchDistanceKm &&
+                RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng) <=
+                    RideMatcher.maxMatchDistanceKm;
+        if (!endpointsClose) {
+          final viaDistanceKm = await _directions.fetchRouteDistanceKm(
+            originLat: rideFromLat,
+            originLng: rideFromLng,
+            destLat: rideToLat,
+            destLng: rideToLng,
+            waypoints: [
+              [userHomeLat, userHomeLng],
+              [userOfficeLat, userOfficeLng],
+            ],
+          );
+          if (viaDistanceKm != null) {
+            liveDetourKm = viaDistanceKm - rideRouteDistanceKm;
+          }
+        }
+      }
+
+      final match = RideMatcher.computeMatch(
+        userFromAddress: userHomeAddress,
+        userToAddress: userOfficeAddress,
+        userFromLat: userHomeLat,
+        userFromLng: userHomeLng,
+        userToLat: userOfficeLat,
+        userToLng: userOfficeLng,
+        rideFromAddress: rideFrom,
+        rideToAddress: rideTo,
         rideFromLat: rideFromLat,
         rideFromLng: rideFromLng,
         rideToLat: rideToLat,
         rideToLng: rideToLng,
+        liveDetourKm: liveDetourKm,
       );
 
       LatLng? fromLatLng;
@@ -212,53 +256,6 @@ class _TripsPageState extends State<TripsPage>
 
     rides.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
     return rides;
-  }
-
-  _MatchResult _calcMatch({
-    required String userHome,
-    required String userOffice,
-    double? userHomeLat,
-    double? userHomeLng,
-    double? userOfficeLat,
-    double? userOfficeLng,
-    required String rideFrom,
-    required String rideTo,
-    double? rideFromLat,
-    double? rideFromLng,
-    double? rideToLat,
-    double? rideToLng,
-  }) {
-    final haveUserCoords = userHomeLat != null &&
-        userHomeLng != null &&
-        userOfficeLat != null &&
-        userOfficeLng != null;
-    final haveRideCoords = rideFromLat != null &&
-        rideFromLng != null &&
-        rideToLat != null &&
-        rideToLng != null;
-
-    if (haveUserCoords && haveRideCoords) {
-      final fromKm =
-          RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng);
-      final toKm =
-          RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng);
-      final worstKm = fromKm > toKm ? fromKm : toKm;
-      return _MatchResult(RideMatcher.matchPercentFromDistance(worstKm), fromKm);
-    }
-
-    final fromMatch = RideMatcher.fuzzyAddressMatches(userHome, rideFrom);
-    final toMatch = RideMatcher.fuzzyAddressMatches(userOffice, rideTo);
-    int percent;
-    if (fromMatch && toMatch) {
-      percent = 100;
-    } else if (toMatch) {
-      percent = 80;
-    } else if (fromMatch) {
-      percent = 60;
-    } else {
-      percent = 40;
-    }
-    return _MatchResult(percent, null);
   }
 
   Widget _buildList(
@@ -442,7 +439,11 @@ class _TripsPageState extends State<TripsPage>
                                   size: 64,
                                   color: AppColors.grey300),
                               const SizedBox(height: 16),
-                              Text('No available rides from other users',
+                              Text(
+                                  _hasCommuteLocation
+                                      ? 'No available rides from other users'
+                                      : 'Set your start and office location on Home to find rides',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                       color: AppColors.grey500,
                                       fontSize: 15)),
@@ -483,13 +484,6 @@ class _TripsPageState extends State<TripsPage>
       ),
     );
   }
-}
-
-class _MatchResult {
-  const _MatchResult(this.matchPercent, this.distanceKm);
-
-  final int matchPercent;
-  final double? distanceKm;
 }
 
 class _AvailableRide {
@@ -755,13 +749,13 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Icon(Icons.directions_walk,
-                              size: 14, color: AppColors.grey600),
+                              size: 12, color: AppColors.grey600),
                           const SizedBox(width: 4),
                           Text(
                             r.distanceLabel ??
                                 (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 11.5,
                               color: AppColors.grey600,
                               fontWeight: FontWeight.w500,
                             ),
@@ -774,7 +768,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                             r.vehicleType == 'bike'
                                 ? Icons.two_wheeler
                                 : Icons.directions_car,
-                            size: 16,
+                            size: 14,
                             color: AppColors.grey700,
                           ),
                         ],

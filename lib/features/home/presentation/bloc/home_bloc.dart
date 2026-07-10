@@ -66,12 +66,17 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       fromLng: event.lng,
         fromLatLng: event.latLng
     ));
-    _saveCommuteLocation(
-      isHome: true,
-      address: event.address,
-      lat: event.lat,
-      lng: event.lng,
-    );
+    // Only persist as the rider's commute location when picked while
+    // actually looking for a ride — picking a location while offering a
+    // ride as a driver shouldn't unlock the Trips tab's Rides list.
+    if (state.rideMode == RideMode.find) {
+      _saveCommuteLocation(
+        isHome: true,
+        address: event.address,
+        lat: event.lat,
+        lng: event.lng,
+      );
+    }
   }
 
   void _onToAddressChanged(ToAddressChanged event, Emitter<HomeState> emit) {
@@ -81,12 +86,14 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       toLng: event.lng,
         toLatLng: event.latLng
     ));
-    _saveCommuteLocation(
-      isHome: false,
-      address: event.address,
-      lat: event.lat,
-      lng: event.lng,
-    );
+    if (state.rideMode == RideMode.find) {
+      _saveCommuteLocation(
+        isHome: false,
+        address: event.address,
+        lat: event.lat,
+        lng: event.lng,
+      );
+    }
   }
 
   void _onLocationsSwapped(LocationsSwapped event, Emitter<HomeState> emit) {

@@ -1,3 +1,4 @@
+import 'package:acepool/core/services/directions_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,9 +7,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ScheduleRideUseCase {
   final FirebaseFirestore _db;
+  final DirectionsService _directions;
 
-  ScheduleRideUseCase({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool');
+  ScheduleRideUseCase({FirebaseFirestore? db, DirectionsService? directions})
+      : _db = db ?? FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool'),
+        _directions = directions ?? DirectionsService();
 
   Future<void> call({
     required String rideMode,
@@ -26,6 +29,16 @@ class ScheduleRideUseCase {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('User not authenticated');
 
+    double? routeDistanceKm;
+    if (fromLat != null && fromLng != null && toLat != null && toLng != null) {
+      routeDistanceKm = await _directions.fetchRouteDistanceKm(
+        originLat: fromLat,
+        originLng: fromLng,
+        destLat: toLat,
+        destLng: toLng,
+      );
+    }
+
     await _db.collection('rides').add({
       'uid': uid,
       'rideMode': rideMode,
@@ -36,6 +49,7 @@ class ScheduleRideUseCase {
       'fromLng': fromLng,
       'toLat': toLat,
       'toLng': toLng,
+      'routeDistanceKm': routeDistanceKm,
       'date': Timestamp.fromDate(date),
       'time': {'hour': time.hour, 'minute': time.minute},
       'seatCount': seatCount,

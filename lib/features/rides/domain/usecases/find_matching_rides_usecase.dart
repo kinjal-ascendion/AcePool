@@ -1,3 +1,4 @@
+import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,9 +8,11 @@ import 'package:flutter/material.dart';
 
 class FindMatchingRidesUseCase {
   final FirebaseFirestore _db;
+  final DirectionsService _directions;
 
-  FindMatchingRidesUseCase({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool');
+  FindMatchingRidesUseCase({FirebaseFirestore? db, DirectionsService? directions})
+      : _db = db ?? FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool'),
+        _directions = directions ?? DirectionsService();
 
   Future<List<RideMatch>> call({
     required String fromAddress,
@@ -60,60 +63,59 @@ class FindMatchingRidesUseCase {
       final rideFromLng = (d['fromLng'] as num?)?.toDouble();
       final rideToLat = (d['toLat'] as num?)?.toDouble();
       final rideToLng = (d['toLng'] as num?)?.toDouble();
+      final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
 
+      // Only worth a live Google Directions call when the rider's points
+      // aren't already close to the ride's own endpoints — that case is
+      // already a match without needing a real-route detour check.
+      double? liveDetourKm;
       final haveSearchCoords =
           fromLat != null && fromLng != null && toLat != null && toLng != null;
       final haveRideCoords = rideFromLat != null &&
           rideFromLng != null &&
           rideToLat != null &&
           rideToLng != null;
-
-      double? fromDistanceKm;
-      int matchPercent;
-      bool isMatch;
-      if (haveSearchCoords && haveRideCoords) {
-        fromDistanceKm =
-            RideMatcher.distanceKm(fromLat, fromLng, rideFromLat, rideFromLng);
-        final toDistanceKm =
-            RideMatcher.distanceKm(toLat, toLng, rideToLat, rideToLng);
-        final endpointsMatch = fromDistanceKm <= RideMatcher.maxMatchDistanceKm &&
-            toDistanceKm <= RideMatcher.maxMatchDistanceKm;
-
-        // Also accept the rider's pickup/drop being somewhere in between the
-        // driver's start and end (an "on the way" match), even when they're
-        // nowhere near the driver's own endpoints.
-        final fromDeviationKm = RideMatcher.routeDeviationKm(
-            rideFromLat, rideFromLng, fromLat, fromLng, rideToLat, rideToLng);
-        final toDeviationKm = RideMatcher.routeDeviationKm(
-            rideFromLat, rideFromLng, toLat, toLng, rideToLat, rideToLng);
-        final fromProgress = RideMatcher.routeProgress(
-            rideFromLat, rideFromLng, fromLat, fromLng, rideToLat, rideToLng);
-        final toProgress = RideMatcher.routeProgress(
-            rideFromLat, rideFromLng, toLat, toLng, rideToLat, rideToLng);
-        final onRoute = fromDeviationKm <= RideMatcher.maxRouteDeviationKm &&
-            toDeviationKm <= RideMatcher.maxRouteDeviationKm &&
-            fromProgress <= toProgress;
-
-        isMatch = endpointsMatch || onRoute;
-
-        if (endpointsMatch) {
-          final worstKm = fromDistanceKm > toDistanceKm ? fromDistanceKm : toDistanceKm;
-          matchPercent = RideMatcher.matchPercentFromDistance(worstKm);
-        } else {
-          final worstDeviationKm =
-              fromDeviationKm > toDeviationKm ? fromDeviationKm : toDeviationKm;
-          matchPercent = RideMatcher.matchPercentFromDistance(
-            worstDeviationKm,
-            scaleKm: RideMatcher.maxRouteDeviationKm,
+      if (haveSearchCoords && haveRideCoords && rideRouteDistanceKm != null) {
+        final endpointsClose =
+            RideMatcher.distanceKm(fromLat, fromLng, rideFromLat, rideFromLng) <=
+                    RideMatcher.maxMatchDistanceKm &&
+                RideMatcher.distanceKm(toLat, toLng, rideToLat, rideToLng) <=
+                    RideMatcher.maxMatchDistanceKm;
+        if (!endpointsClose) {
+          final viaDistanceKm = await _directions.fetchRouteDistanceKm(
+            originLat: rideFromLat,
+            originLng: rideFromLng,
+            destLat: rideToLat,
+            destLng: rideToLng,
+            waypoints: [
+              [fromLat, fromLng],
+              [toLat, toLng],
+            ],
           );
+          if (viaDistanceKm != null) {
+            liveDetourKm = viaDistanceKm - rideRouteDistanceKm;
+          }
         }
-      } else {
-        isMatch = RideMatcher.fuzzyAddressMatches(rideFrom, fromAddress) &&
-            RideMatcher.fuzzyAddressMatches(rideTo, toAddress);
-        fromDistanceKm = null;
-        matchPercent = 100;
       }
-      if (!isMatch) continue;
+
+      final match = RideMatcher.computeMatch(
+        userFromAddress: fromAddress,
+        userToAddress: toAddress,
+        userFromLat: fromLat,
+        userFromLng: fromLng,
+        userToLat: toLat,
+        userToLng: toLng,
+        rideFromAddress: rideFrom,
+        rideToAddress: rideTo,
+        rideFromLat: rideFromLat,
+        rideFromLng: rideFromLng,
+        rideToLat: rideToLat,
+        rideToLng: rideToLng,
+        liveDetourKm: liveDetourKm,
+      );
+      if (!match.isMatch) continue;
+      final fromDistanceKm = match.distanceKm;
+      final matchPercent = match.matchPercent;
 
       String driverName = '';
       String? driverPhotoUrl;

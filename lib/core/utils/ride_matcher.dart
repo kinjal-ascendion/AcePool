@@ -83,12 +83,12 @@ class RideMatcher {
         .any((w) => bn.contains(w));
   }
 
-  /// Human-friendly "away" label, e.g. "650 m away" / "3.2 km away".
+  /// Human-friendly distance label, e.g. "650 m" / "3.2 km".
   static String formatDistance(double km) {
     if (km < 1) {
-      return '${(km * 1000).round()} m away';
+      return '${(km * 1000).round()} m';
     }
-    return '${km.toStringAsFixed(1)} km away';
+    return '${km.toStringAsFixed(1)} km';
   }
 
   /// Converts a distance into a 0-100 match score: 0km -> 100%, tapering
@@ -97,4 +97,118 @@ class RideMatcher {
     final clamped = km.clamp(0, scaleKm);
     return (100 * (1 - clamped / scaleKm)).round();
   }
+
+  /// Single shared match computation used by both the Find-ride search and
+  /// the Trips tab's Rides list, so match % stays consistent everywhere.
+  ///
+  /// [liveDetourKm], when provided, is the *real road* extra distance
+  /// (fetched live from Google Directions with the user's points forced in as
+  /// waypoints, minus the ride's own direct route distance) of detouring via
+  /// the user's from/to points — this is what lets a rider whose pickup/drop
+  /// is along the actual road, but off the straight geometric line between
+  /// the ride's endpoints, still count as a match. When null (no live Google
+  /// result available — missing key, request failed, etc), falls back to the
+  /// straight-line [routeDeviationKm]/[routeProgress] approximation.
+  static RideMatchResult computeMatch({
+    required String userFromAddress,
+    required String userToAddress,
+    double? userFromLat,
+    double? userFromLng,
+    double? userToLat,
+    double? userToLng,
+    required String rideFromAddress,
+    required String rideToAddress,
+    double? rideFromLat,
+    double? rideFromLng,
+    double? rideToLat,
+    double? rideToLng,
+    double? liveDetourKm,
+  }) {
+    final haveUserCoords = userFromLat != null &&
+        userFromLng != null &&
+        userToLat != null &&
+        userToLng != null;
+    final haveRideCoords = rideFromLat != null &&
+        rideFromLng != null &&
+        rideToLat != null &&
+        rideToLng != null;
+
+    if (!haveUserCoords || !haveRideCoords) {
+      final fromMatch = fuzzyAddressMatches(userFromAddress, rideFromAddress);
+      final toMatch = fuzzyAddressMatches(userToAddress, rideToAddress);
+      int percent;
+      if (fromMatch && toMatch) {
+        percent = 65;
+      } else if (toMatch) {
+        percent = 50;
+      } else if (fromMatch) {
+        percent = 35;
+      } else {
+        percent = 20;
+      }
+      return RideMatchResult(
+        matchPercent: percent,
+        distanceKm: null,
+        isMatch: fromMatch && toMatch,
+      );
+    }
+
+    final fromDistanceKm = distanceKm(userFromLat, userFromLng, rideFromLat, rideFromLng);
+    final toDistanceKm = distanceKm(userToLat, userToLng, rideToLat, rideToLng);
+    final endpointsMatch =
+        fromDistanceKm <= maxMatchDistanceKm && toDistanceKm <= maxMatchDistanceKm;
+
+    final double deviationKm;
+    bool onRoute;
+    if (liveDetourKm != null) {
+      deviationKm = liveDetourKm < 0 ? 0 : liveDetourKm;
+      onRoute = deviationKm <= maxRouteDeviationKm;
+    } else {
+      final fromDeviationKm = routeDeviationKm(
+          rideFromLat, rideFromLng, userFromLat, userFromLng, rideToLat, rideToLng);
+      final toDeviationKm = routeDeviationKm(
+          rideFromLat, rideFromLng, userToLat, userToLng, rideToLat, rideToLng);
+      final fromProgress = routeProgress(
+          rideFromLat, rideFromLng, userFromLat, userFromLng, rideToLat, rideToLng);
+      final toProgress = routeProgress(
+          rideFromLat, rideFromLng, userToLat, userToLng, rideToLat, rideToLng);
+      deviationKm = fromDeviationKm > toDeviationKm ? fromDeviationKm : toDeviationKm;
+      onRoute = deviationKm <= maxRouteDeviationKm && fromProgress <= toProgress;
+    }
+
+    final int percent;
+    if (endpointsMatch) {
+      final worstKm = fromDistanceKm > toDistanceKm ? fromDistanceKm : toDistanceKm;
+      percent = matchPercentFromDistance(worstKm);
+    } else {
+      percent = matchPercentFromDistance(deviationKm, scaleKm: maxRouteDeviationKm);
+    }
+
+    return RideMatchResult(
+      matchPercent: percent,
+      distanceKm: (!endpointsMatch && liveDetourKm != null) ? liveDetourKm : fromDistanceKm,
+      isMatch: endpointsMatch || onRoute,
+    );
+  }
+}
+
+/// Result of [RideMatcher.computeMatch]: how well a user's from/to compares
+/// to a candidate ride's from/to.
+class RideMatchResult {
+  const RideMatchResult({
+    required this.matchPercent,
+    required this.distanceKm,
+    required this.isMatch,
+  });
+
+  /// 0-100 match score.
+  final int matchPercent;
+
+  /// Distance (km) from the user's start point to the ride's start point,
+  /// or null when neither side has coordinates (fuzzy address match only).
+  final double? distanceKm;
+
+  /// Whether this candidate counts as a match at all — either near both of
+  /// the ride's endpoints, or on the ride's route in between them.
+  final bool isMatch;
 }

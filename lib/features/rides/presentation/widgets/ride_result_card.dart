@@ -199,13 +199,13 @@ class _RideResultCardState extends State<RideResultCard> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Icon(Icons.directions_walk,
-                              size: 14, color: AppColors.grey600),
+                              size: 12, color: AppColors.grey600),
                           const SizedBox(width: 4),
                           Text(
                             r.distanceLabel ??
                                 (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 11.5,
                               color: AppColors.grey600,
                               fontWeight: FontWeight.w500,
                             ),
@@ -218,7 +218,7 @@ class _RideResultCardState extends State<RideResultCard> {
                             r.vehicleType == 'bike'
                                 ? Icons.two_wheeler
                                 : Icons.directions_car,
-                            size: 16,
+                            size: 14,
                             color: AppColors.grey700,
                           ),
                         ],
