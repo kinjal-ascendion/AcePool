@@ -64,6 +64,8 @@ class FindMatchingRidesUseCase {
       final rideToLat = (d['toLat'] as num?)?.toDouble();
       final rideToLng = (d['toLng'] as num?)?.toDouble();
       final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
+      final fareMap = d['fare'] as Map<String, dynamic>?;
+      final farePerSeat = (fareMap?['farePerSeat'] as num?)?.toDouble();
 
       // Only worth a live Google Directions call when the rider's points
       // aren't already close to the ride's own endpoints — that case is
@@ -145,6 +147,7 @@ class FindMatchingRidesUseCase {
         alreadyRequested: requestedRideIds.contains(doc.id),
         distanceKm: fromDistanceKm,
         matchPercent: matchPercent,
+        farePerSeat: farePerSeat,
       ));
     }
 

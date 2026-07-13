@@ -150,14 +150,7 @@ class DriveTripCard extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            '₹ 600 / seat',
-                            style: TextStyle(
-                              color: AppColors.primaryGreen,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          _fareLabel(trip.farePerSeat),
                           GestureDetector(
                             onTap: () {}, // Handled by parent
                             child: const Text(
@@ -171,14 +164,7 @@ class DriveTripCard extends StatelessWidget {
                           ),
                         ],
                       )
-                    : const Text(
-                        '₹ 600 / seat',
-                        style: TextStyle(
-                          color: AppColors.primaryGreen,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    : _fareLabel(trip.farePerSeat),
                 const SizedBox(height: 8),
 
                 // Group chat pill
@@ -225,6 +211,17 @@ class DriveTripCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _fareLabel(double? farePerSeat) {
+    return Text(
+      farePerSeat != null ? '₹${farePerSeat.toStringAsFixed(2)} / seat' : 'Fare not set',
+      style: TextStyle(
+        color: farePerSeat != null ? AppColors.primaryGreen : AppColors.grey500,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
       ),
     );
   }

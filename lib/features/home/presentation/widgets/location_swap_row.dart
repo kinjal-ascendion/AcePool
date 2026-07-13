@@ -36,7 +36,7 @@ class LocationSwapRow extends StatelessWidget {
               ),
             ),
             ...List.generate(
-              5,
+              4,
               (_) => Container(
                 width: 1.5,
                 height: 5,
@@ -58,45 +58,34 @@ class LocationSwapRow extends StatelessWidget {
         // Text fields
         Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InkWell(
                 onTap: onFromTap,
-                child: SizedBox(
-                  height: 32,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      fromAddress ?? 'Enter start location',
-                      style: TextStyle(
-                        color: fromAddress != null ? AppColors.black87 : AppColors.black38,
-                        fontWeight:
-                            fromAddress != null ? FontWeight.w500 : FontWeight.normal,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 6),
+                  child: Text(
+                    fromAddress ?? 'Enter start location',
+                    style: TextStyle(
+                      color: fromAddress != null ? AppColors.black87 : AppColors.black45,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
               Divider(height: 1, color: AppColors.grey300),
               InkWell(
                 onTap: onToTap,
-                child: SizedBox(
-                  height: 32,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      toAddress ?? 'Enter office location',
-                      style: TextStyle(
-                        color: toAddress != null ? AppColors.black87 : AppColors.black38,
-                        fontWeight:
-                            toAddress != null ? FontWeight.w500 : FontWeight.normal,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 2),
+                  child: Text(
+                    toAddress ?? 'Enter office location',
+                    style: TextStyle(
+                      color: toAddress != null ? AppColors.black87 : AppColors.black45,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),

@@ -2,7 +2,7 @@ part of 'home_bloc.dart';
 
 const _unset = Object();
 
-enum HomeStatus { initial, loading, success, failure, scheduling, scheduled }
+enum HomeStatus { initial, loading, success, failure }
 
 enum RideMode { find, offer }
 

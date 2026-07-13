@@ -303,10 +303,14 @@ class _RideResultCardState extends State<RideResultCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  '₹ 600 / seat',
+                Text(
+                  r.farePerSeat != null
+                      ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                      : 'Fare not set',
                   style: TextStyle(
-                    color: AppColors.primaryGreen,
+                    color: r.farePerSeat != null
+                        ? AppColors.primaryGreen
+                        : AppColors.grey500,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),

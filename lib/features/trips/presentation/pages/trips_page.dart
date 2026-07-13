@@ -25,7 +25,7 @@ class _TripsPageState extends State<TripsPage>
   late final Future<List<UpcomingTrip>> _drivesFuture;
   bool _hasCommuteLocation = false;
 
-  static const _tabs = ['Rides', 'Drives'];
+  static const _tabs = ['Find ride', 'Offer ride'];
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -170,6 +170,8 @@ class _TripsPageState extends State<TripsPage>
       final rideToLng = (d['toLng'] as num?)?.toDouble() ?? 
           (d['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
       final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
+      final fareMap = d['fare'] as Map<String, dynamic>?;
+      final farePerSeat = (fareMap?['farePerSeat'] as num?)?.toDouble();
 
       // Only worth a live Google Directions call when the user's commute
       // points aren't already close to the ride's own endpoints — that case
@@ -243,6 +245,7 @@ class _TripsPageState extends State<TripsPage>
         distanceKm: match.distanceKm,
         defaultPickupPoint:
             userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
+        farePerSeat: farePerSeat,
       ));
     }
 
@@ -498,6 +501,7 @@ class _AvailableRide {
     required this.matchPercent,
     required this.defaultPickupPoint,
     required this.distanceKm,
+    this.farePerSeat,
   });
 
   final String id;
@@ -518,6 +522,7 @@ class _AvailableRide {
   final int matchPercent;
   final String defaultPickupPoint;
   final double? distanceKm;
+  final double? farePerSeat;
 
   String? get distanceLabel =>
       distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
@@ -834,10 +839,14 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '₹ 600 / seat',
+              Text(
+                r.farePerSeat != null
+                    ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                    : 'Fare not set',
                 style: TextStyle(
-                  color: AppColors.primaryGreen,
+                  color: r.farePerSeat != null
+                      ? AppColors.primaryGreen
+                      : AppColors.grey500,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),

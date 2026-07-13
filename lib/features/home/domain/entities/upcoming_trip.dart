@@ -14,6 +14,7 @@ class UpcomingTrip extends Equatable {
   final double? toLng;
   final int seatsFilled;
   final int seatsTotal;
+  final double? farePerSeat;
 
   const UpcomingTrip({
     required this.id,
@@ -27,6 +28,7 @@ class UpcomingTrip extends Equatable {
     this.toLng,
     required this.seatsFilled,
     required this.seatsTotal,
+    this.farePerSeat,
   });
 
   String get dateLabel =>
@@ -47,5 +49,6 @@ class UpcomingTrip extends Equatable {
     toLng,
     seatsFilled,
     seatsTotal,
+    farePerSeat,
   ];
 }

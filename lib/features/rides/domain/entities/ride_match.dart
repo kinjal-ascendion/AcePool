@@ -19,6 +19,7 @@ class RideMatch {
     required this.alreadyRequested,
     required this.distanceKm,
     required this.matchPercent,
+    this.farePerSeat,
   });
 
   final String id;
@@ -35,6 +36,7 @@ class RideMatch {
   final bool alreadyRequested;
   final double? distanceKm;
   final int matchPercent;
+  final double? farePerSeat;
 
   String get timeLabel => DateTimeFormatter.time12h(time);
   String get dateLabel =>

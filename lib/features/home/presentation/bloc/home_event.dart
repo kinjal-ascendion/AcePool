@@ -75,8 +75,8 @@ class SeatCountChanged extends HomeEvent {
   List<Object?> get props => [seatCount];
 }
 
-class ScheduleRideRequested extends HomeEvent {
-  const ScheduleRideRequested();
+class RideFormReset extends HomeEvent {
+  const RideFormReset();
 }
 
 class FindRidesRequested extends HomeEvent {

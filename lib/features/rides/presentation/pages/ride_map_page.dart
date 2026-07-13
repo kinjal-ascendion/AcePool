@@ -519,9 +519,11 @@ class _RideMapPageState extends State<RideMapPage> {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500),
                           ),
-                          const Text(
-                            '₹ 600 / seat',
-                            style: TextStyle(
+                          Text(
+                            widget.trip.farePerSeat != null
+                                ? '₹${widget.trip.farePerSeat!.toStringAsFixed(2)} / seat'
+                                : 'Fare not set',
+                            style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold),
                           ),

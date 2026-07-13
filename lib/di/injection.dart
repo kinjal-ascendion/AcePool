@@ -8,10 +8,12 @@ import 'package:acepool/features/chat/presentation/bloc/chat_list_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:acepool/features/splash/domain/usecases/initialize_app_usecase.dart';
 import 'package:acepool/features/splash/presentation/bloc/splash_bloc.dart';
+import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/save_commute_location_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:acepool/features/home/presentation/bloc/pricing_bloc.dart';
 import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 
 final sl = GetIt.instance;
@@ -23,6 +25,7 @@ void initDependencies() {
   sl.registerLazySingleton<ScheduleRideUseCase>(() => ScheduleRideUseCase());
   sl.registerLazySingleton<FindMatchingRidesUseCase>(() => FindMatchingRidesUseCase());
   sl.registerLazySingleton<SaveCommuteLocationUseCase>(() => SaveCommuteLocationUseCase());
+  sl.registerLazySingleton<EstimateRouteUseCase>(() => EstimateRouteUseCase());
 
   // Chat Use cases
   sl.registerLazySingleton<GetMessagesUseCase>(() => GetMessagesUseCase(sl()));
@@ -39,10 +42,12 @@ void initDependencies() {
   sl.registerFactory<HomeBloc>(
     () => HomeBloc(
       getUpcomingTrips: sl(),
-      scheduleRide: sl(),
       findMatchingRides: sl(),
       saveCommuteLocation: sl(),
     ),
+  );
+  sl.registerFactory<PricingBloc>(
+    () => PricingBloc(estimateRoute: sl(), scheduleRide: sl()),
   );
   sl.registerFactory<ChatBloc>(
     () => ChatBloc(getMessages: sl(), sendMessage: sl()),

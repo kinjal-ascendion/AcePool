@@ -43,6 +43,7 @@ class GetUpcomingTripsUseCase {
 
       final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
       final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
+      final fareMap = data['fare'] as Map<String, dynamic>?;
 
       return UpcomingTrip(
         id: doc.id,
@@ -59,6 +60,7 @@ class GetUpcomingTripsUseCase {
         toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
+        farePerSeat: (fareMap?['farePerSeat'] as num?)?.toDouble(),
       );
     }).toList();
   }

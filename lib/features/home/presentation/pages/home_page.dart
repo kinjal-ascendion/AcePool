@@ -2,6 +2,7 @@ import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
+import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
 import 'package:acepool/features/home/presentation/widgets/find_ride_results_section.dart';
 import 'package:acepool/features/home/presentation/widgets/home_app_bar_greeting.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart';
@@ -13,7 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.onViewAllTrips, this.onOpenProfile});
 
@@ -73,10 +74,7 @@ class _HomeView extends StatelessWidget {
   }) async {
     final result = await Navigator.of(context).push<PickedLocation>(
       MaterialPageRoute(
-        builder: (_) => LocationSearchPage(
-          title: title,
-          initialValue: current,
-        ),
+        builder: (_) => LocationSearchPage(title: title, initialValue: current),
       ),
     );
     if (result != null && result.address.trim().isNotEmpty) {
@@ -89,21 +87,13 @@ class _HomeView extends StatelessWidget {
     return BlocListener<HomeBloc, HomeState>(
       listenWhen: (previous, current) =>
           (previous.status != current.status &&
-              (current.status == HomeStatus.failure ||
-                  current.status == HomeStatus.scheduled)) ||
+              current.status == HomeStatus.failure) ||
           (previous.findStatus != current.findStatus &&
               current.findStatus == HomeStatus.failure),
       listener: (context, state) {
-        if (state.status == HomeStatus.scheduled) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ride scheduled successfully!')),
-          );
-        } else if (state.status == HomeStatus.failure ||
-            state.findStatus == HomeStatus.failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage ?? 'Something went wrong')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(state.errorMessage ?? 'Something went wrong')),
+        );
       },
       child: BlocBuilder<HomeBloc, HomeState>(
         builder: (context, state) {
@@ -121,103 +111,149 @@ class _HomeView extends StatelessWidget {
           return Scaffold(
             body: SafeArea(
               bottom: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    HomeAppBarGreeting(
-                      initials: initials,
-                      name: displayName,
-                      onAvatarTap: onOpenProfile,
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: RideModeToggle(
-                        selected: state.rideMode,
-                        onChanged: (mode) => bloc.add(RideModeChanged(mode)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    RideScheduleForm(
-                      rideMode: state.rideMode,
-                      vehicleType: state.vehicleType,
-                      fromAddress: state.fromAddress,
-                      toAddress: state.toAddress,
-                      selectedDate: state.selectedDate,
-                      selectedTime: state.selectedTime,
-                      seatCount: state.seatCount,
-                      isScheduling: state.rideMode == RideMode.find
-                          ? state.findStatus == HomeStatus.loading
-                          : state.status == HomeStatus.scheduling,
-                      isFormValid: state.isFormValid,
-                      onVehicleTypeChanged: (type) =>
-                          bloc.add(VehicleTypeChanged(type)),
-                      onFromTap: () => _pickLocation(
-                        context,
-                        title: 'Start location',
-                        current: state.fromAddress,
-                        onConfirm: (loc) => bloc.add(
-                          FromAddressChanged(loc.address, lat: loc.lat, lng: loc.lng),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HomeAppBarGreeting(
+                          initials: initials,
+                          name: displayName,
+                          onAvatarTap: onOpenProfile,
                         ),
-                      ),
-                      onToTap: () => _pickLocation(
-                        context,
-                        title: 'Office location',
-                        current: state.toAddress,
-                        onConfirm: (loc) => bloc.add(
-                          ToAddressChanged(loc.address, lat: loc.lat, lng: loc.lng),
-                        ),
-                      ),
-                      onSwap: () => bloc.add(const LocationsSwapped()),
-                      onDateTap: () => _pickDate(context),
-                      onTimeTap: () => _pickTime(context),
-                      onSeatCountChanged: (count) =>
-                          bloc.add(SeatCountChanged(count)),
-                      onSchedulePressed: () {
-                        if (state.rideMode == RideMode.find) {
-                          bloc.add(const FindRidesRequested());
-                        } else {
-                          bloc.add(const ScheduleRideRequested());
-                        }
-                      },
-                    ),
-                    if (state.rideMode == RideMode.offer) ...[
-                      const SizedBox(height: 28),
-                      UpcomingTripsSection(
-                        trips: state.upcomingTrips,
-                        isLoading: state.status == HomeStatus.loading,
-                        onViewAll: onViewAllTrips,
-                      ),
-                      const SizedBox(height: 16),
-                    ] else ...[
-                      const SizedBox(height: 28),
-                      FindRideResultsSection(
-                        results: state.findResults,
-                        isLoading: state.findStatus == HomeStatus.loading,
-                        hasSearched: state.hasSearchedRides,
-                        riderFromAddress: state.fromAddress ?? '',
-                        riderTime: state.selectedTime ?? TimeOfDay.now(),
-                        db: _db,
-                        onRequested: () => bloc.add(const FindRidesRequested()),
-                        onViewAll: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => FindRideResultsPage(
-                            fromAddress: state.fromAddress!,
-                            toAddress: state.toAddress!,
-                            fromLat: state.fromLat,
-                            fromLng: state.fromLng,
-                            toLat: state.toLat,
-                            toLng: state.toLng,
-                            date: state.selectedDate!,
-                            time: state.selectedTime!,
-                            vehicleType: state.vehicleType.name,
+                        const SizedBox(height: 14),
+                        Center(
+                          child: RideModeToggle(
+                            selected: state.rideMode,
+                            onChanged: (mode) =>
+                                bloc.add(RideModeChanged(mode)),
                           ),
-                        )),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RideScheduleForm(
+                            rideMode: state.rideMode,
+                            vehicleType: state.vehicleType,
+                            fromAddress: state.fromAddress,
+                            toAddress: state.toAddress,
+                            selectedDate: state.selectedDate,
+                            selectedTime: state.selectedTime,
+                            seatCount: state.seatCount,
+                            isScheduling: state.rideMode == RideMode.find
+                                ? state.findStatus == HomeStatus.loading
+                                : false,
+                            isFormValid: state.isFormValid,
+                            onVehicleTypeChanged: (type) =>
+                                bloc.add(VehicleTypeChanged(type)),
+                            onFromTap: () => _pickLocation(
+                              context,
+                              title: 'Start location',
+                              current: state.fromAddress,
+                              onConfirm: (loc) => bloc.add(
+                                FromAddressChanged(
+                                  loc.address,
+                                  lat: loc.lat,
+                                  lng: loc.lng,
+                                ),
+                              ),
+                            ),
+                            onToTap: () => _pickLocation(
+                              context,
+                              title: 'Office location',
+                              current: state.toAddress,
+                              onConfirm: (loc) => bloc.add(
+                                ToAddressChanged(
+                                  loc.address,
+                                  lat: loc.lat,
+                                  lng: loc.lng,
+                                ),
+                              ),
+                            ),
+                            onSwap: () => bloc.add(const LocationsSwapped()),
+                            onDateTap: () => _pickDate(context),
+                            onTimeTap: () => _pickTime(context),
+                            onSeatCountChanged: (count) =>
+                                bloc.add(SeatCountChanged(count)),
+                            onSchedulePressed: () async {
+                              if (state.rideMode == RideMode.find) {
+                                bloc.add(const FindRidesRequested());
+                                return;
+                              }
+                              final published = await Navigator.of(context)
+                                  .push<bool>(
+                                    MaterialPageRoute(
+                                      builder: (_) => PricingPage(
+                                        fromAddress: state.fromAddress!,
+                                        toAddress: state.toAddress!,
+                                        fromLat: state.fromLat,
+                                        fromLng: state.fromLng,
+                                        toLat: state.toLat,
+                                        toLng: state.toLng,
+                                        date: state.selectedDate!,
+                                        time: state.selectedTime!,
+                                        seatCount: state.seatCount,
+                                        vehicleType: state.vehicleType.name,
+                                        rideMode: state.rideMode.name,
+                                      ),
+                                    ),
+                                  );
+                              if (published == true && context.mounted) {
+                                bloc.add(const RideFormReset());
+                              }
+                            },
+                          ),
+                          if (state.rideMode == RideMode.offer) ...[
+                            const SizedBox(height: 28),
+                            UpcomingTripsSection(
+                              trips: state.upcomingTrips,
+                              isLoading: state.status == HomeStatus.loading,
+                              onViewAll: onViewAllTrips,
+                            ),
+                            const SizedBox(height: 16),
+                          ] else ...[
+                            const SizedBox(height: 28),
+                            FindRideResultsSection(
+                              results: state.findResults,
+                              isLoading: state.findStatus == HomeStatus.loading,
+                              hasSearched: state.hasSearchedRides,
+                              riderFromAddress: state.fromAddress ?? '',
+                              riderTime: state.selectedTime ?? TimeOfDay.now(),
+                              db: _db,
+                              onRequested: () =>
+                                  bloc.add(const FindRidesRequested()),
+                              onViewAll: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => FindRideResultsPage(
+                                    fromAddress: state.fromAddress!,
+                                    toAddress: state.toAddress!,
+                                    fromLat: state.fromLat,
+                                    fromLng: state.fromLng,
+                                    toLat: state.toLat,
+                                    toLng: state.toLng,
+                                    date: state.selectedDate!,
+                                    time: state.selectedTime!,
+                                    vehicleType: state.vehicleType.name,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
