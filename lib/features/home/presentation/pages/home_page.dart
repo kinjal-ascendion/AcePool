@@ -1,4 +1,3 @@
-import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
@@ -23,12 +22,11 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<HomeBloc>()..add(const HomeStarted()),
-      child: _HomeView(
-        onViewAllTrips: onViewAllTrips,
-        onOpenProfile: onOpenProfile,
-      ),
+    // HomeBloc is provided by MainShellPage, shared with TripsPage's
+    // "Find ride" tab so both reflect the same search state.
+    return _HomeView(
+      onViewAllTrips: onViewAllTrips,
+      onOpenProfile: onOpenProfile,
     );
   }
 }
@@ -137,7 +135,15 @@ class _HomeView extends StatelessWidget {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
+                      // extendBody:true (see MainShellPage) draws the body
+                      // behind the floating pill nav bar, so the last card
+                      // needs its own clearance to scroll fully above it.
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        16,
+                        16,
+                        100,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

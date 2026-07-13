@@ -150,6 +150,7 @@ class _ChatListPageState extends State<ChatListPage> {
       });
 
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 100),
       itemCount: sortedRooms.length,
       itemBuilder: (context, index) {
         final room = sortedRooms[index];

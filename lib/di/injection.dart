@@ -10,7 +10,6 @@ import 'package:acepool/features/splash/domain/usecases/initialize_app_usecase.d
 import 'package:acepool/features/splash/presentation/bloc/splash_bloc.dart';
 import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
-import 'package:acepool/features/home/domain/usecases/save_commute_location_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/bloc/pricing_bloc.dart';
@@ -24,7 +23,6 @@ void initDependencies() {
   sl.registerLazySingleton<GetUpcomingTripsUseCase>(() => GetUpcomingTripsUseCase());
   sl.registerLazySingleton<ScheduleRideUseCase>(() => ScheduleRideUseCase());
   sl.registerLazySingleton<FindMatchingRidesUseCase>(() => FindMatchingRidesUseCase());
-  sl.registerLazySingleton<SaveCommuteLocationUseCase>(() => SaveCommuteLocationUseCase());
   sl.registerLazySingleton<EstimateRouteUseCase>(() => EstimateRouteUseCase());
 
   // Chat Use cases
@@ -43,7 +41,6 @@ void initDependencies() {
     () => HomeBloc(
       getUpcomingTrips: sl(),
       findMatchingRides: sl(),
-      saveCommuteLocation: sl(),
     ),
   );
   sl.registerFactory<PricingBloc>(

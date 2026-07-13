@@ -2,12 +2,14 @@ import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
@@ -38,8 +40,22 @@ class _TripsPageState extends State<TripsPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
     _tabController.addListener(() => setState(() {}));
-    _ridesFuture = _fetchAvailableRides();
+    _ridesFuture = _fetchAvailableRidesFromHomeState();
     _drivesFuture = _fetchTrips('offer');
+  }
+
+  /// Re-reads whatever's currently on Home's Find-ride form (shared
+  /// `HomeBloc`) and fetches matches for it — blank form means no rides.
+  Future<List<_AvailableRide>> _fetchAvailableRidesFromHomeState() {
+    final homeState = context.read<HomeBloc>().state;
+    return _fetchAvailableRides(
+      fromAddress: homeState.fromAddress,
+      toAddress: homeState.toAddress,
+      fromLat: homeState.fromLat,
+      fromLng: homeState.fromLng,
+      toLat: homeState.toLat,
+      toLng: homeState.toLng,
+    );
   }
 
   @override
@@ -96,33 +112,34 @@ class _TripsPageState extends State<TripsPage>
     }).toList();
   }
 
-  Future<List<_AvailableRide>> _fetchAvailableRides() async {
+  /// [fromAddress]/[toAddress] are whatever's currently entered on Home's
+  /// Find-ride form (shared `HomeBloc`, see [_currentFindRideState]) — this
+  /// tab only shows matches once that form actually has both set, and
+  /// re-reads it fresh every time this future is (re)built.
+  Future<List<_AvailableRide>> _fetchAvailableRides({
+    String? fromAddress,
+    String? toAddress,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
+  }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
 
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
 
-    String userHomeAddress = '';
-    String userOfficeAddress = '';
-    double? userHomeLat;
-    double? userHomeLng;
-    double? userOfficeLat;
-    double? userOfficeLng;
-    try {
-      final userDoc = await _db.collection('users').doc(uid).get();
-      final userData = userDoc.data();
-      userHomeAddress = userData?['homeAddress'] as String? ?? '';
-      userOfficeAddress = userData?['officeAddress'] as String? ?? '';
-      userHomeLat = (userData?['homeLat'] as num?)?.toDouble();
-      userHomeLng = (userData?['homeLng'] as num?)?.toDouble();
-      userOfficeLat = (userData?['officeLat'] as num?)?.toDouble();
-      userOfficeLng = (userData?['officeLng'] as num?)?.toDouble();
-    } catch (_) {}
-
-    _hasCommuteLocation =
-        userHomeAddress.isNotEmpty && userOfficeAddress.isNotEmpty;
+    _hasCommuteLocation = (fromAddress?.trim().isNotEmpty ?? false) &&
+        (toAddress?.trim().isNotEmpty ?? false);
     if (!_hasCommuteLocation) return [];
+
+    final userHomeAddress = fromAddress!;
+    final userOfficeAddress = toAddress!;
+    final userHomeLat = fromLat;
+    final userHomeLng = fromLng;
+    final userOfficeLat = toLat;
+    final userOfficeLng = toLng;
 
     final snap = await _db
         .collection('rides')
@@ -223,6 +240,7 @@ class _TripsPageState extends State<TripsPage>
         rideToLng: rideToLng,
         liveDetourKm: liveDetourKm,
       );
+      if (!match.isMatch) continue;
 
       rides.add(_AvailableRide(
         id: doc.id,
@@ -288,7 +306,7 @@ class _TripsPageState extends State<TripsPage>
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           itemCount: trips.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (_, i) => onTap != null
@@ -434,21 +452,24 @@ class _TripsPageState extends State<TripsPage>
                                   size: 64,
                                   color: AppColors.grey300),
                               const SizedBox(height: 16),
-                              Text(
-                                  _hasCommuteLocation
-                                      ? 'No available rides from other users'
-                                      : 'Set your start and office location on Home to find rides',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      color: AppColors.grey500,
-                                      fontSize: 15)),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(40, 2, 40, 100),
+                                child: Text(
+                                    _hasCommuteLocation
+                                        ? 'No available rides from other users'
+                                        : 'Set your start and office location on Home to find rides',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: AppColors.grey500,
+                                        fontSize: 15)),
+                              ),
                             ],
                           ),
                         );
                       }
                       return ListView.separated(
                         padding:
-                            const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                            const EdgeInsets.fromLTRB(20, 8, 20, 100),
                         itemCount: rides.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(height: 14),
@@ -456,7 +477,7 @@ class _TripsPageState extends State<TripsPage>
                           ride: rides[i],
                           db: _db,
                           onRequested: () => setState(() {
-                            _ridesFuture = _fetchAvailableRides();
+                            _ridesFuture = _fetchAvailableRidesFromHomeState();
                           }),
                         ),
                       );

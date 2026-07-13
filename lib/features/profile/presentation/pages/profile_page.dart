@@ -95,7 +95,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 : '?';
 
             return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
               children: [
                 const Text(
                   'Profile',

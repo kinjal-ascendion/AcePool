@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
-import 'package:acepool/features/home/domain/usecases/save_commute_location_usecase.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -14,15 +13,12 @@ part 'home_state.dart';
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetUpcomingTripsUseCase _getUpcomingTrips;
   final FindMatchingRidesUseCase _findMatchingRides;
-  final SaveCommuteLocationUseCase _saveCommuteLocation;
 
   HomeBloc({
     required GetUpcomingTripsUseCase getUpcomingTrips,
     required FindMatchingRidesUseCase findMatchingRides,
-    required SaveCommuteLocationUseCase saveCommuteLocation,
   })  : _getUpcomingTrips = getUpcomingTrips,
         _findMatchingRides = findMatchingRides,
-        _saveCommuteLocation = saveCommuteLocation,
         super(const HomeState()) {
     on<HomeStarted>(_onHomeStarted);
     on<RideModeChanged>(_onRideModeChanged);
@@ -61,17 +57,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       fromLat: event.lat,
       fromLng: event.lng,
     ));
-    // Only persist as the rider's commute location when picked while
-    // actually looking for a ride — picking a location while offering a
-    // ride as a driver shouldn't unlock the Trips tab's Rides list.
-    if (state.rideMode == RideMode.find) {
-      _saveCommuteLocation(
-        isHome: true,
-        address: event.address,
-        lat: event.lat,
-        lng: event.lng,
-      );
-    }
   }
 
   void _onToAddressChanged(ToAddressChanged event, Emitter<HomeState> emit) {
@@ -80,14 +65,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       toLat: event.lat,
       toLng: event.lng,
     ));
-    if (state.rideMode == RideMode.find) {
-      _saveCommuteLocation(
-        isHome: false,
-        address: event.address,
-        lat: event.lat,
-        lng: event.lng,
-      );
-    }
   }
 
   void _onLocationsSwapped(LocationsSwapped event, Emitter<HomeState> emit) {
