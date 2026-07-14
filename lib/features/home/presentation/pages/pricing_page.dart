@@ -236,6 +236,7 @@ class _PricingView extends StatelessWidget {
                                     ),
                                     RiderCountStepper(
                                       count: fare.riderCount,
+                                      max: state.vehicleType == 'bike' ? 1 : 4,
                                       onChanged: (v) => bloc.add(RiderCountChanged(v)),
                                     ),
                                   ],

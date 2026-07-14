@@ -48,7 +48,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   void _onVehicleTypeChanged(VehicleTypeChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(vehicleType: event.vehicleType));
+    final maxSeats = event.vehicleType == VehicleType.bike ? 1 : 4;
+    emit(state.copyWith(
+      vehicleType: event.vehicleType,
+      seatCount: state.seatCount > maxSeats ? maxSeats : state.seatCount,
+    ));
   }
 
   void _onFromAddressChanged(FromAddressChanged event, Emitter<HomeState> emit) {

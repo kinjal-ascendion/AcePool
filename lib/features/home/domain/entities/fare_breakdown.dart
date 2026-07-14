@@ -47,7 +47,8 @@ class FareBreakdown extends Equatable {
     );
   }
 
-  static int clampRiderCount(int count) => math.max(1, math.min(4, count));
+  static int clampRiderCount(int count, {int maxCount = 4}) =>
+      math.max(1, math.min(maxCount, count));
 
   @override
   List<Object?> get props => [

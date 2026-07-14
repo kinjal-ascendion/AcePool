@@ -72,6 +72,7 @@ class RideScheduleForm extends StatelessWidget {
             selectedDate: selectedDate,
             selectedTime: selectedTime,
             seatCount: seatCount,
+            vehicleType: vehicleType,
             onDateTap: onDateTap,
             onTimeTap: onTimeTap,
             onSeatCountChanged: onSeatCountChanged,

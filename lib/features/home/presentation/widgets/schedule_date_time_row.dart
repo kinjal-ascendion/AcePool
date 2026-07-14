@@ -1,6 +1,7 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/utils/date_time_formatter.dart';
+import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 
 class ScheduleDateTimeRow extends StatelessWidget {
   const ScheduleDateTimeRow({
@@ -8,6 +9,7 @@ class ScheduleDateTimeRow extends StatelessWidget {
     required this.selectedDate,
     required this.selectedTime,
     required this.seatCount,
+    required this.vehicleType,
     required this.onDateTap,
     required this.onTimeTap,
     required this.onSeatCountChanged,
@@ -16,12 +18,14 @@ class ScheduleDateTimeRow extends StatelessWidget {
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
+  final VehicleType vehicleType;
   final VoidCallback onDateTap;
   final VoidCallback onTimeTap;
   final ValueChanged<int> onSeatCountChanged;
 
   @override
   Widget build(BuildContext context) {
+    final maxSeats = vehicleType == VehicleType.bike ? 1 : 4;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -77,7 +81,7 @@ class ScheduleDateTimeRow extends StatelessWidget {
               initialValue: seatCount,
               onSelected: onSeatCountChanged,
               itemBuilder: (context) => List.generate(
-                4,
+                maxSeats,
                 (i) => PopupMenuItem(value: i + 1, child: Text('${i + 1}')),
               ),
               child: Row(

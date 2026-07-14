@@ -20,6 +20,8 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
   String _vehicleType = 'car';
   String _rideMode = 'offer';
 
+  int get _maxSeats => _vehicleType == 'bike' ? 1 : 4;
+
   PricingBloc({
     required EstimateRouteUseCase estimateRoute,
     required ScheduleRideUseCase scheduleRide,
@@ -53,6 +55,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       date: event.date,
       time: event.time,
       seatCount: event.seatCount,
+      vehicleType: _vehicleType,
     ));
 
     var distanceKm = 0.0;
@@ -80,7 +83,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
         tollCost: 0,
         includeTolls: false,
         detourCost: detourCost,
-        riderCount: FareBreakdown.clampRiderCount(event.seatCount),
+        riderCount: FareBreakdown.clampRiderCount(event.seatCount, maxCount: _maxSeats),
       ),
     ));
   }
@@ -116,7 +119,9 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
     final fare = state.fare;
     if (fare == null) return;
     emit(state.copyWith(
-      fare: fare.copyWith(riderCount: FareBreakdown.clampRiderCount(event.riderCount)),
+      fare: fare.copyWith(
+        riderCount: FareBreakdown.clampRiderCount(event.riderCount, maxCount: _maxSeats),
+      ),
     ));
   }
 

@@ -9,6 +9,7 @@ class PricingState extends Equatable {
   final DateTime? date;
   final TimeOfDay? time;
   final int seatCount;
+  final String vehicleType;
   final FareBreakdown? fare;
   final String? errorMessage;
 
@@ -19,6 +20,7 @@ class PricingState extends Equatable {
     this.date,
     this.time,
     this.seatCount = 1,
+    this.vehicleType = 'car',
     this.fare,
     this.errorMessage,
   });
@@ -30,6 +32,7 @@ class PricingState extends Equatable {
     DateTime? date,
     TimeOfDay? time,
     int? seatCount,
+    String? vehicleType,
     FareBreakdown? fare,
     String? errorMessage,
   }) {
@@ -40,6 +43,7 @@ class PricingState extends Equatable {
       date: date ?? this.date,
       time: time ?? this.time,
       seatCount: seatCount ?? this.seatCount,
+      vehicleType: vehicleType ?? this.vehicleType,
       fare: fare ?? this.fare,
       errorMessage: errorMessage,
     );
@@ -53,6 +57,7 @@ class PricingState extends Equatable {
     date,
     time,
     seatCount,
+    vehicleType,
     fare,
     errorMessage,
   ];
