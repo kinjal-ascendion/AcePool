@@ -233,7 +233,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       time: widget.trip.timeLabel,
       position: LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
       isFirst: true,
-      isPinned: true,
+      isPinned: false,
       iconColor: const Color(0xFF00A19A),
     ));
 
@@ -244,7 +244,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
             sub: 'Rider Pickup',
             time: r.pickupTimeLabel,
             position: r.position,
-            isPinned: true,
+            isPinned: false,
             iconColor: Colors.grey,
         ));
     }
