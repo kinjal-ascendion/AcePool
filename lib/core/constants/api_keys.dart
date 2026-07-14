@@ -2,7 +2,9 @@ class ApiKeys {
   ApiKeys._();
 
   // Replace with your Google Cloud API key.
-  // Enable: Directions API at console.cloud.google.com
+  // Enable: Directions API, Places API (New), Maps SDK for Android at
+  // console.cloud.google.com — this key is shared by DirectionsService and
+  // PlacesService.
   static const String googleDirections =
       'AIzaSyCjRlg5y0giiJyiK4Tn7n55TYl1ZcrQnlU';
 

@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
+import 'package:acepool/core/services/places_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
 
 class LocationResult {
   final String address;
@@ -27,15 +26,19 @@ class LocationSearchPage extends StatefulWidget {
 class _LocationSearchPageState extends State<LocationSearchPage> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _places = PlacesService();
 
   List<_PlacePrediction> _predictions = [];
   bool _isLoading = false;
+  bool _isResolvingSelection = false;
   String? _error;
   Timer? _debounce;
+  late String _sessionToken;
 
   @override
   void initState() {
     super.initState();
+    _sessionToken = PlacesService.newSessionToken();
     if (widget.initialValue != null) {
       _controller.text = widget.initialValue!;
     }
@@ -70,56 +73,44 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
       _error = null;
     });
     try {
-      final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
-        'q': query,
-        'format': 'json',
-        'limit': '8',
-        'countrycodes': 'in',
-        'addressdetails': '1',
-      });
-      final response = await http.get(
-        uri,
-        headers: {'Accept-Language': 'en', 'User-Agent': 'AcePool/1.0'},
-      );
+      final results = await _places.autocomplete(query, sessionToken: _sessionToken);
       if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        final results = jsonDecode(response.body) as List;
-        final predictions = results.map((r) {
-          final address = r['address'] as Map<String, dynamic>? ?? {};
-          final mainText = (r['name'] as String?)?.isNotEmpty == true
-              ? r['name'] as String
-              : r['display_name'] as String;
-          final parts = <String>[];
-          for (final key in ['suburb', 'city', 'state']) {
-            final val = address[key] as String?;
-            if (val != null && val.isNotEmpty) parts.add(val);
-          }
-          return _PlacePrediction(
-            mainText: mainText,
-            secondaryText: parts.join(', '),
-            fullText: r['display_name'] as String,
-            lat: double.tryParse(r['lat']?.toString() ?? ''),
-            lng: double.tryParse(r['lon']?.toString() ?? ''),
-          );
-        }).toList();
-        setState(() => _predictions = predictions);
-      } else {
-        setState(() => _error = 'Search failed (${response.statusCode})');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Network error: $e');
+      setState(() {
+        _predictions = results
+            .map((r) => _PlacePrediction(
+                  placeId: r.placeId,
+                  mainText: r.mainText,
+                  secondaryText: r.secondaryText,
+                  fullText: r.description,
+                ))
+            .toList();
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _select(_PlacePrediction prediction) {
+  Future<void> _select(_PlacePrediction prediction) async {
+    setState(() => _isResolvingSelection = true);
+    final details = await _places.getPlaceDetails(
+      prediction.placeId,
+      sessionToken: _sessionToken,
+    );
+    if (!mounted) return;
+    setState(() => _isResolvingSelection = false);
+
+    if (details == null) {
+      setState(() => _error = 'Could not resolve that location. Please try again.');
+      return;
+    }
+
     Navigator.of(context).pop(
       PickedLocation(
-        address: prediction.fullText,
-        lat: prediction.lat,
-        lng: prediction.lng,
+        address: details.formattedAddress.isNotEmpty
+            ? details.formattedAddress
+            : prediction.fullText,
+        lat: details.lat,
+        lng: details.lng,
       ),
     );
   }
@@ -182,7 +173,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
             ),
           ),
         ),
-        bottom: _isLoading
+        bottom: _isLoading || _isResolvingSelection
             ? const PreferredSize(
                 preferredSize: Size.fromHeight(2),
                 child: LinearProgressIndicator(
@@ -262,7 +253,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
               itemBuilder: (context, i) {
                 final p = _predictions[i];
                 return InkWell(
-                  onTap: () => _select(p),
+                  onTap: _isResolvingSelection ? null : () => _select(p),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: Row(
@@ -322,17 +313,15 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
 }
 
 class _PlacePrediction {
+  final String placeId;
   final String mainText;
   final String secondaryText;
   final String fullText;
-  final double? lat;
-  final double? lng;
 
   const _PlacePrediction({
+    required this.placeId,
     required this.mainText,
     required this.secondaryText,
     required this.fullText,
-    this.lat,
-    this.lng,
   });
 }
