@@ -20,7 +20,8 @@ class RideMatcher {
   static double distanceKm(double lat1, double lng1, double lat2, double lng2) {
     final dLat = _degToRad(lat2 - lat1);
     final dLng = _degToRad(lng2 - lng1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_degToRad(lat1)) *
             math.cos(_degToRad(lat2)) *
             math.sin(dLng / 2) *
@@ -45,7 +46,8 @@ class RideMatcher {
     double bLat,
     double bLng,
   ) {
-    final viaP = distanceKm(aLat, aLng, pLat, pLng) + distanceKm(pLat, pLng, bLat, bLng);
+    final viaP =
+        distanceKm(aLat, aLng, pLat, pLng) + distanceKm(pLat, pLng, bLat, bLng);
     final direct = distanceKm(aLat, aLng, bLat, bLng);
     return viaP - direct;
   }
@@ -91,7 +93,10 @@ class RideMatcher {
 
   /// Converts a distance into a 0-100 match score: 0km -> 100%, tapering
   /// linearly to 0% at [scaleKm] (defaults to [maxMatchDistanceKm]).
-  static int matchPercentFromDistance(double km, {double scaleKm = maxMatchDistanceKm}) {
+  static int matchPercentFromDistance(
+    double km, {
+    double scaleKm = maxMatchDistanceKm,
+  }) {
     final clamped = km.clamp(0, scaleKm);
     return (100 * (1 - clamped / scaleKm)).round();
   }
@@ -122,11 +127,13 @@ class RideMatcher {
     double? rideToLng,
     double? liveDetourKm,
   }) {
-    final haveUserCoords = userFromLat != null &&
+    final haveUserCoords =
+        userFromLat != null &&
         userFromLng != null &&
         userToLat != null &&
         userToLng != null;
-    final haveRideCoords = rideFromLat != null &&
+    final haveRideCoords =
+        rideFromLat != null &&
         rideFromLng != null &&
         rideToLat != null &&
         rideToLng != null;
@@ -151,10 +158,16 @@ class RideMatcher {
       );
     }
 
-    final fromDistanceKm = distanceKm(userFromLat, userFromLng, rideFromLat, rideFromLng);
+    final fromDistanceKm = distanceKm(
+      userFromLat,
+      userFromLng,
+      rideFromLat,
+      rideFromLng,
+    );
     final toDistanceKm = distanceKm(userToLat, userToLng, rideToLat, rideToLng);
     final endpointsMatch =
-        fromDistanceKm <= maxMatchDistanceKm && toDistanceKm <= maxMatchDistanceKm;
+        fromDistanceKm <= maxMatchDistanceKm &&
+        toDistanceKm <= maxMatchDistanceKm;
 
     final double deviationKm;
     bool onRoute;
@@ -163,23 +176,55 @@ class RideMatcher {
       onRoute = deviationKm <= maxRouteDeviationKm;
     } else {
       final fromDeviationKm = routeDeviationKm(
-          rideFromLat, rideFromLng, userFromLat, userFromLng, rideToLat, rideToLng);
+        rideFromLat,
+        rideFromLng,
+        userFromLat,
+        userFromLng,
+        rideToLat,
+        rideToLng,
+      );
       final toDeviationKm = routeDeviationKm(
-          rideFromLat, rideFromLng, userToLat, userToLng, rideToLat, rideToLng);
+        rideFromLat,
+        rideFromLng,
+        userToLat,
+        userToLng,
+        rideToLat,
+        rideToLng,
+      );
       final fromProgress = routeProgress(
-          rideFromLat, rideFromLng, userFromLat, userFromLng, rideToLat, rideToLng);
+        rideFromLat,
+        rideFromLng,
+        userFromLat,
+        userFromLng,
+        rideToLat,
+        rideToLng,
+      );
       final toProgress = routeProgress(
-          rideFromLat, rideFromLng, userToLat, userToLng, rideToLat, rideToLng);
-      deviationKm = fromDeviationKm > toDeviationKm ? fromDeviationKm : toDeviationKm;
-      onRoute = deviationKm <= maxRouteDeviationKm && fromProgress <= toProgress;
+        rideFromLat,
+        rideFromLng,
+        userToLat,
+        userToLng,
+        rideToLat,
+        rideToLng,
+      );
+      deviationKm = fromDeviationKm > toDeviationKm
+          ? fromDeviationKm
+          : toDeviationKm;
+      onRoute =
+          deviationKm <= maxRouteDeviationKm && fromProgress <= toProgress;
     }
 
     final int percent;
     if (endpointsMatch) {
-      final worstKm = fromDistanceKm > toDistanceKm ? fromDistanceKm : toDistanceKm;
-      percent = matchPercentFromDistance(worstKm);
+      final worstKm = fromDistanceKm > toDistanceKm
+          ? fromDistanceKm
+          : toDistanceKm;
+      percent = matchPercentFromDistance(worstKm, scaleKm: 10.0);
     } else {
-      percent = matchPercentFromDistance(deviationKm, scaleKm: maxRouteDeviationKm);
+      percent = matchPercentFromDistance(
+        deviationKm,
+        scaleKm: maxRouteDeviationKm,
+      );
     }
 
     // Distance to show the user: distance to the driver's start if they're
@@ -189,7 +234,7 @@ class RideMatcher {
 
     return RideMatchResult(
       matchPercent: percent,
-      distanceKm: displayDistanceKm,
+      distanceKm: fromDistanceKm,
       isMatch: endpointsMatch || onRoute,
     );
   }
