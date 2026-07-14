@@ -82,3 +82,12 @@ class RideFormReset extends HomeEvent {
 class FindRidesRequested extends HomeEvent {
   const FindRidesRequested();
 }
+
+class CurrentLocationFetched extends HomeEvent {
+  final double? lat;
+  final double? lng;
+  const CurrentLocationFetched({this.lat, this.lng});
+
+  @override
+  List<Object?> get props => [lat, lng];
+}

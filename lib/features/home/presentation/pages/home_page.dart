@@ -1,3 +1,4 @@
+import 'package:acepool/core/services/location_service.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
@@ -13,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.onViewAllTrips, this.onOpenProfile});
@@ -61,6 +63,47 @@ class _HomeView extends StatelessWidget {
     );
     if (picked != null && context.mounted) {
       context.read<HomeBloc>().add(TimeSelected(picked));
+    }
+  }
+
+  /// Turns "Find ride" into a location-aware action: if the device's
+  /// location service is off, ask the user to turn it on before searching.
+  /// The search still runs either way (see `_promptEnableLocation`) — this
+  /// only decides whether that prompt is shown first.
+  Future<void> _handleFindRide(BuildContext context, HomeBloc bloc) async {
+    if (!await LocationService().isServiceEnabled() && context.mounted) {
+      await _promptEnableLocation(context);
+    }
+    bloc.add(const FindRidesRequested());
+  }
+
+  /// Shows a dialog asking the user to enable location services, with a
+  /// shortcut to the device Settings screen. If the user dismisses this
+  /// instead of enabling location, the caller proceeds with the search
+  /// anyway — HomeBloc already degrades gracefully when location is
+  /// unavailable, so this never blocks "Find ride".
+  Future<void> _promptEnableLocation(BuildContext context) async {
+    final openSettings = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Turn on location'),
+        content: const Text(
+          'Enable location services to see how far you are from your pickup point.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+    if (openSettings == true) {
+      await Geolocator.openLocationSettings();
     }
   }
 
@@ -192,7 +235,7 @@ class _HomeView extends StatelessWidget {
                                 bloc.add(SeatCountChanged(count)),
                             onSchedulePressed: () async {
                               if (state.rideMode == RideMode.find) {
-                                bloc.add(const FindRidesRequested());
+                                await _handleFindRide(context, bloc);
                                 return;
                               }
                               final published = await Navigator.of(context)
@@ -233,10 +276,13 @@ class _HomeView extends StatelessWidget {
                               isLoading: state.findStatus == HomeStatus.loading,
                               hasSearched: state.hasSearchedRides,
                               riderFromAddress: state.fromAddress ?? '',
+                              riderFromLat: state.fromLat,
+                              riderFromLng: state.fromLng,
                               riderTime: state.selectedTime ?? TimeOfDay.now(),
+                              currentLat: state.currentLat,
+                              currentLng: state.currentLng,
                               db: _db,
-                              onRequested: () =>
-                                  bloc.add(const FindRidesRequested()),
+                              onRequested: () => _handleFindRide(context, bloc),
                               onViewAll: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => FindRideResultsPage(
@@ -249,6 +295,8 @@ class _HomeView extends StatelessWidget {
                                     date: state.selectedDate!,
                                     time: state.selectedTime!,
                                     vehicleType: state.vehicleType.name,
+                                    currentLat: state.currentLat,
+                                    currentLng: state.currentLng,
                                   ),
                                 ),
                               ),

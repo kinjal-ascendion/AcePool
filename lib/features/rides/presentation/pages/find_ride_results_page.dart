@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 import 'package:acepool/features/rides/presentation/widgets/ride_result_card.dart';
@@ -18,6 +19,8 @@ class FindRideResultsPage extends StatefulWidget {
     required this.date,
     required this.time,
     required this.vehicleType,
+    this.currentLat,
+    this.currentLng,
   });
 
   final String fromAddress;
@@ -29,6 +32,8 @@ class FindRideResultsPage extends StatefulWidget {
   final DateTime date;
   final TimeOfDay time;
   final String vehicleType;
+  final double? currentLat;
+  final double? currentLng;
 
   @override
   State<FindRideResultsPage> createState() => _FindRideResultsPageState();
@@ -116,6 +121,23 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
                 ],
               ),
             ),
+
+            if (widget.currentLat != null &&
+                widget.currentLng != null &&
+                widget.fromLat != null &&
+                widget.fromLng != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Your pickup point is ${RideMatcher.formatDistance(RideMatcher.distanceKm(
+                    widget.currentLat!,
+                    widget.currentLng!,
+                    widget.fromLat!,
+                    widget.fromLng!,
+                  ))} from your current location',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.grey600),
+                ),
+              ),
 
             // Results list
             Expanded(
