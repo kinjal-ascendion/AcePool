@@ -40,7 +40,6 @@ class RideMapPage extends StatefulWidget {
 
 class _RideMapPageState extends State<RideMapPage> {
   late GoogleMapController _controller;
-  bool _isSwapped = false;
   late List<PickupPoint> _pickupPoints;
   BitmapDescriptor? _startIcon;
   BitmapDescriptor? _destinationIcon;
@@ -65,7 +64,7 @@ class _RideMapPageState extends State<RideMapPage> {
           sub: 'Pick Up Location 1',
           time: widget.trip.timeLabel,
           position: LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
-          isPinned: true,
+          isPinned: false,
           isFirst: true,
           iconColor: const Color(0xFF00A19A),
         ),
@@ -119,7 +118,7 @@ class _RideMapPageState extends State<RideMapPage> {
     final validPoints = _pickupPoints.where((p) => p.position.latitude != 0 || p.position.longitude != 0).toList();
     if (validPoints.length < 2) return;
 
-    final displayedPoints = _isSwapped ? validPoints.reversed.toList() : validPoints;
+    final displayedPoints = validPoints;
     final coordinates = displayedPoints
         .map((p) => '${p.position.longitude},${p.position.latitude}')
         .join(';');
@@ -165,7 +164,7 @@ class _RideMapPageState extends State<RideMapPage> {
     _polylines.clear();
     _markers.clear();
 
-    final displayedPoints = _isSwapped ? _pickupPoints.reversed.toList() : _pickupPoints;
+    final displayedPoints = _pickupPoints;
 
     // Initial straight line polyline while route is fetching
     _polylines.add(
@@ -325,9 +324,7 @@ class _RideMapPageState extends State<RideMapPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    _isSwapped
-                                        ? widget.trip.toAddress
-                                        : widget.trip.fromAddress,
+                                    widget.trip.fromAddress,
                                     style: const TextStyle(fontSize: 14),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -341,9 +338,7 @@ class _RideMapPageState extends State<RideMapPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    _isSwapped
-                                        ? widget.trip.fromAddress
-                                        : widget.trip.toAddress,
+                                    widget.trip.toAddress,
                                     style: const TextStyle(fontSize: 14),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -357,22 +352,6 @@ class _RideMapPageState extends State<RideMapPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isSwapped = !_isSwapped;
-                            _updateMapElements();
-                          });
-                        },
-                        child: Image.asset(
-                          'assets/images/swap.png',
-                          width: 20,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.swap_vert,
-                              color: Colors.grey.shade400,
-                              size: 20),
-                        ),
-                      ),
                     ],
                   ),
                   const Divider(height: 24, color: Color(0xFFEEEEEE)),
@@ -651,23 +630,6 @@ class _RideMapPageState extends State<RideMapPage> {
                           },
                         );
                       }),
-                      const SizedBox(height: 24),
-                      // Add pickup point button
-                      OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.location_on_outlined,
-                            size: 18),
-                        label: const Text('Add pickup point'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          side: BorderSide(color: Colors.grey.shade400),
-                        ),
-                      ),
                       const SizedBox(height: 32),
                     ],
                   ),

@@ -5,16 +5,14 @@ class RideMatcher {
 
   /// Radius (km) within which a candidate ride's endpoint is considered
   /// a plausible match for "nearest first" results once both sides have
-  /// coordinates. 25km is a generous metro-commute radius: wide enough to
-  /// catch a suburb/locality geocoded to a slightly different point than
-  /// expected, tight enough to exclude a different city entirely.
-  static const double maxMatchDistanceKm = 25.0;
+  /// coordinates. 2km is a walking/short-cab distance to a meeting point.
+  static const double maxMatchDistanceKm = 2.0;
 
   /// Max allowed detour (km) for a rider's pickup/drop point to still count
   /// as "on the way" along a driver's route, even when it's nowhere near
   /// either of the driver's own endpoints. Smaller than [maxMatchDistanceKm]
   /// since this represents extra driving distance, not just "nearby".
-  static const double maxRouteDeviationKm = 8.0;
+  static const double maxRouteDeviationKm = 5.0;
 
   static const double _earthRadiusKm = 6371.0;
 
@@ -184,9 +182,14 @@ class RideMatcher {
       percent = matchPercentFromDistance(deviationKm, scaleKm: maxRouteDeviationKm);
     }
 
+    // Distance to show the user: distance to the driver's start if they're
+    // close, otherwise the distance they'd have to deviate to meet the
+    // driver (the deviation slack).
+    final displayDistanceKm = endpointsMatch ? fromDistanceKm : deviationKm;
+
     return RideMatchResult(
       matchPercent: percent,
-      distanceKm: (!endpointsMatch && liveDetourKm != null) ? liveDetourKm : fromDistanceKm,
+      distanceKm: displayDistanceKm,
       isMatch: endpointsMatch || onRoute,
     );
   }
