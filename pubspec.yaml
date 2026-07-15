@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   google_maps_flutter: ^2.10.0
+  geolocator: ^13.0.0
 
   # State management (MVI pattern)
   flutter_bloc: ^9.0.0

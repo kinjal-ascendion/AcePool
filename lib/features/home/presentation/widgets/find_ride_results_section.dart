@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/widgets/ride_result_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +16,10 @@ class FindRideResultsSection extends StatelessWidget {
     required this.db,
     required this.onRequested,
     this.onViewAll,
+    this.riderFromLat,
+    this.riderFromLng,
+    this.currentLat,
+    this.currentLng,
   });
 
   final List<RideMatch> results;
@@ -25,6 +30,10 @@ class FindRideResultsSection extends StatelessWidget {
   final FirebaseFirestore db;
   final VoidCallback onRequested;
   final VoidCallback? onViewAll;
+  final double? riderFromLat;
+  final double? riderFromLng;
+  final double? currentLat;
+  final double? currentLng;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +64,21 @@ class FindRideResultsSection extends StatelessWidget {
               ),
           ],
         ),
+        if (currentLat != null &&
+            currentLng != null &&
+            riderFromLat != null &&
+            riderFromLng != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Your pickup point is ${RideMatcher.formatDistance(RideMatcher.distanceKm(
+              currentLat!,
+              currentLng!,
+              riderFromLat!,
+              riderFromLng!,
+            ))} from your current location',
+            style: TextStyle(fontSize: 12.5, color: AppColors.grey600),
+          ),
+        ],
         const SizedBox(height: 12),
         if (isLoading)
           const Center(
