@@ -11,6 +11,9 @@ class RideResultCard extends StatefulWidget {
     required this.riderFromAddress,
     this.riderFromLat,
     this.riderFromLng,
+    required this.riderToAddress,
+    this.riderToLat,
+    this.riderToLng,
     required this.riderTime,
     required this.db,
     required this.onRequested,
@@ -20,6 +23,9 @@ class RideResultCard extends StatefulWidget {
   final String riderFromAddress;
   final double? riderFromLat;
   final double? riderFromLng;
+  final String riderToAddress;
+  final double? riderToLat;
+  final double? riderToLng;
   final TimeOfDay riderTime;
   final FirebaseFirestore db;
   final VoidCallback onRequested;
@@ -69,6 +75,13 @@ class _RideResultCardState extends State<RideResultCard> {
             ? {
                 'latitude': widget.riderFromLat,
                 'longitude': widget.riderFromLng,
+              }
+            : null,
+        'dropOffPoint': widget.riderToAddress,
+        'dropOffLatLng': (widget.riderToLat != null && widget.riderToLng != null)
+            ? {
+                'latitude': widget.riderToLat,
+                'longitude': widget.riderToLng,
               }
             : null,
         'pickupTime': {

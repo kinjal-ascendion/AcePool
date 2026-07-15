@@ -73,6 +73,15 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         position = LatLng(widget.trip.fromLat!, widget.trip.fromLng!);
       }
 
+      LatLng? dropOffPosition;
+      if (d['dropOffLatLng'] != null) {
+        final latLngMap = d['dropOffLatLng'] as Map<String, dynamic>;
+        dropOffPosition = LatLng(
+          (latLngMap['latitude'] as num).toDouble(),
+          (latLngMap['longitude'] as num).toDouble(),
+        );
+      }
+
       riders.add(_RiderInfo(
         requestId: doc.id,
         riderId: d['riderId'] as String? ?? '',
@@ -81,6 +90,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         employeeId: employeeId,
         pickupPoint: d['pickupPoint'] as String? ?? '',
         position: position ?? LatLng(widget.trip.fromLat ?? 0, widget.trip.fromLng ?? 0),
+        dropOffPosition: dropOffPosition,
         pickupTime: TimeOfDay(
           hour: (pickupTimeMap['hour'] as num).toInt(),
           minute: (pickupTimeMap['minute'] as num).toInt(),
@@ -244,6 +254,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
             sub: 'Rider Pickup',
             time: r.pickupTimeLabel,
             position: r.position,
+            dropOffPosition: r.dropOffPosition,
             isPinned: false,
             iconColor: Colors.grey,
         ));
@@ -480,6 +491,7 @@ class _RiderInfo {
     required this.employeeId,
     required this.pickupPoint,
     required this.position,
+    this.dropOffPosition,
     required this.pickupTime,
   });
 
@@ -490,6 +502,7 @@ class _RiderInfo {
   final String employeeId;
   final String pickupPoint;
   final LatLng position;
+  final LatLng? dropOffPosition;
   final TimeOfDay pickupTime;
 
   String get pickupTimeLabel {

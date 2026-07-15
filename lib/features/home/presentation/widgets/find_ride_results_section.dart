@@ -12,12 +12,15 @@ class FindRideResultsSection extends StatelessWidget {
     required this.isLoading,
     required this.hasSearched,
     required this.riderFromAddress,
+    required this.riderToAddress,
     required this.riderTime,
     required this.db,
     required this.onRequested,
     this.onViewAll,
     this.riderFromLat,
     this.riderFromLng,
+    this.riderToLat,
+    this.riderToLng,
     this.currentLat,
     this.currentLng,
   });
@@ -26,12 +29,15 @@ class FindRideResultsSection extends StatelessWidget {
   final bool isLoading;
   final bool hasSearched;
   final String riderFromAddress;
+  final String riderToAddress;
   final TimeOfDay riderTime;
   final FirebaseFirestore db;
   final VoidCallback onRequested;
   final VoidCallback? onViewAll;
   final double? riderFromLat;
   final double? riderFromLng;
+  final double? riderToLat;
+  final double? riderToLng;
   final double? currentLat;
   final double? currentLng;
 
@@ -103,6 +109,11 @@ class FindRideResultsSection extends StatelessWidget {
             RideResultCard(
               result: result,
               riderFromAddress: riderFromAddress,
+              riderFromLat: riderFromLat,
+              riderFromLng: riderFromLng,
+              riderToAddress: riderToAddress,
+              riderToLat: riderToLat,
+              riderToLng: riderToLng,
               riderTime: riderTime,
               db: db,
               onRequested: onRequested,
