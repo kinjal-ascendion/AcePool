@@ -11,6 +11,7 @@ class PickupPoint {
   final String sub;
   final String time;
   final LatLng position;
+  final LatLng? dropOffPosition;
   bool isPinned;
   final bool isFirst;
   final bool isLast;
@@ -21,6 +22,7 @@ class PickupPoint {
     required this.sub,
     required this.time,
     required this.position,
+    this.dropOffPosition,
     this.isPinned = false,
     this.isFirst = false,
     this.isLast = false,
@@ -44,6 +46,11 @@ class _RideMapPageState extends State<RideMapPage> {
   BitmapDescriptor? _startIcon;
   BitmapDescriptor? _destinationIcon;
   BitmapDescriptor? _pickupIcon;
+  int? _selectedPickupIndex;
+  List<LatLng> _fullRoutePoints = [];
+  List<LatLng> _selectedRoutePoints = [];
+
+  BitmapDescriptor? _selectedPickupIcon;
 
   // Coordinates will be taken from widget data
   LatLng get _source => _pickupPoints.first.position;
@@ -94,17 +101,46 @@ class _RideMapPageState extends State<RideMapPage> {
       }
     }
     
-    _loadCustomIcons().then((_) => _updateMapElements());
+    _loadCustomIcons().then((_) {
+      _updateMapElements();
+      _fetchRoute();
+    });
   }
 
   Future<void> _loadCustomIcons() async {
     final Uint8List startBytes = await _getBytesFromAsset('assets/images/map_start_pointer.png', 50);
     final Uint8List destBytes = await _getBytesFromAsset('assets/images/map_destination.png', 50);
     final Uint8List pickupBytes = await _getBytesFromAsset('assets/images/maps_pointer.png', 50);
+    final Uint8List selectedPickupBytes = await _createCircularMarker(Colors.blue, 35);
 
     _startIcon = BitmapDescriptor.fromBytes(startBytes);
     _destinationIcon = BitmapDescriptor.fromBytes(destBytes);
     _pickupIcon = BitmapDescriptor.fromBytes(pickupBytes);
+    _selectedPickupIcon = BitmapDescriptor.fromBytes(selectedPickupBytes);
+  }
+
+  Future<Uint8List> _createCircularMarker(Color color, int radius) async {
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    final double size = radius * 2.0;
+
+    // Draw shadow
+    final Paint shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawCircle(Offset(radius.toDouble(), radius.toDouble() + 1), radius.toDouble() - 2, shadowPaint);
+
+    // Draw outer white circle
+    final Paint whitePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(radius.toDouble(), radius.toDouble()), radius.toDouble() - 2, whitePaint);
+
+    // Draw inner colored circle
+    final Paint paint = Paint()..color = color;
+    canvas.drawCircle(Offset(radius.toDouble(), radius.toDouble()), radius.toDouble() - 5, paint);
+
+    final ui.Image image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   Future<Uint8List> _getBytesFromAsset(String path, int width) async {
@@ -115,7 +151,9 @@ class _RideMapPageState extends State<RideMapPage> {
   }
 
   Future<void> _fetchRoute() async {
-    final validPoints = _pickupPoints.where((p) => p.position.latitude != 0 || p.position.longitude != 0).toList();
+    final validPoints = _pickupPoints
+        .where((p) => p.position.latitude != 0 || p.position.longitude != 0)
+        .toList();
     if (validPoints.length < 2) return;
 
     final displayedPoints = validPoints;
@@ -129,10 +167,13 @@ class _RideMapPageState extends State<RideMapPage> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['code'] == 'Ok' && data['routes'] != null && data['routes'].isNotEmpty) {
+        if (data['code'] == 'Ok' &&
+            data['routes'] != null &&
+            data['routes'].isNotEmpty) {
           final geometry = data['routes'][0]['geometry']['coordinates'] as List;
           final routePoints = geometry
-              .map((coord) => LatLng((coord[1] as num).toDouble(), (coord[0] as num).toDouble()))
+              .map((coord) => LatLng(
+                  (coord[1] as num).toDouble(), (coord[0] as num).toDouble()))
               .toList();
 
           // Add start and end points manually to close the gap to markers
@@ -142,17 +183,8 @@ class _RideMapPageState extends State<RideMapPage> {
             routePoints.add(displayedPoints.last.position);
           }
 
-          setState(() {
-            _polylines.clear();
-            _polylines.add(
-              Polyline(
-                polylineId: const PolylineId('route'),
-                points: routePoints,
-                color: const Color(0xFF00A19A),
-                width: 6,
-              ),
-            );
-          });
+          _fullRoutePoints = routePoints;
+          _updateMapElements();
         }
       }
     } catch (e) {
@@ -166,28 +198,63 @@ class _RideMapPageState extends State<RideMapPage> {
 
     final displayedPoints = _pickupPoints;
 
-    // Initial straight line polyline while route is fetching
-    _polylines.add(
-      Polyline(
-        polylineId: const PolylineId('route'),
-        points: displayedPoints.map((p) => p.position).toList(),
-        color: const Color(0xFF00A19A),
-        width: 5,
-      ),
-    );
+    // Base Route (Green)
+    if (_fullRoutePoints.isNotEmpty) {
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: _fullRoutePoints,
+          color: const Color(0xFF00A19A),
+          width: 6,
+        ),
+      );
+    }
+
+    // Highlighted Segment (Black)
+    if (_selectedRoutePoints.isNotEmpty) {
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('selected_route'),
+          points: _selectedRoutePoints,
+          color: Colors.black,
+          width: 6,
+          zIndex: 1,
+        ),
+      );
+    } else if (_fullRoutePoints.isEmpty) {
+      // Fallback straight line polyline while route is fetching
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: displayedPoints.map((p) => p.position).toList(),
+          color: const Color(0xFF00A19A),
+          width: 5,
+        ),
+      );
+    }
 
     for (int i = 0; i < displayedPoints.length; i++) {
       final p = displayedPoints[i];
       if (p.position.latitude == 0 && p.position.longitude == 0) continue;
 
       BitmapDescriptor icon = BitmapDescriptor.defaultMarker;
-      
+
       if (p.isFirst) {
-        icon = _startIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan);
+        icon = _startIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan);
       } else if (p.isLast) {
+        // Use default red marker to ensure it's a "filled marker" as shown in the image
         icon = BitmapDescriptor.defaultMarker;
       } else {
-        icon = _pickupIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+        icon = _pickupIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+      }
+
+      // Highlight selected pickup with rounded blue icon
+      // But only if it's NOT the first or last marker (start/destination)
+      if (_selectedPickupIndex == i && !p.isFirst && !p.isLast) {
+        icon = _selectedPickupIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
       }
 
       _markers.add(
@@ -195,13 +262,42 @@ class _RideMapPageState extends State<RideMapPage> {
           markerId: MarkerId('point_$i'),
           position: p.position,
           icon: icon,
-          anchor: p.isFirst || p.isLast ? const Offset(0.5, 0.8) : const Offset(0.5, 0.5),
+          anchor: (_selectedPickupIndex == i && !p.isFirst && !p.isLast)
+              ? const Offset(0.5, 0.5)
+              : (p.isFirst || p.isLast)
+                  ? const Offset(0.5, 0.8)
+                  : const Offset(0.5, 0.5),
           infoWindow: InfoWindow(title: p.location, snippet: p.sub),
         ),
       );
     }
+
+    // Add a blue marker for dropoff if it's specific and not already in the list
+    if (_selectedPickupIndex != null && 
+        !_pickupPoints[_selectedPickupIndex!].isFirst && 
+        !_pickupPoints[_selectedPickupIndex!].isLast) {
+      final p = _pickupPoints[_selectedPickupIndex!];
+      if (p.dropOffPosition != null) {
+        // Check if a marker already exists at this position to avoid overlap
+        bool exists = displayedPoints.any((dp) =>
+            dp.position.latitude == p.dropOffPosition!.latitude &&
+            dp.position.longitude == p.dropOffPosition!.longitude);
+
+        if (!exists) {
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('selected_dropoff'),
+              position: p.dropOffPosition!,
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue),
+              anchor: const Offset(0.5, 0.8),
+              infoWindow: const InfoWindow(title: 'Drop-off'),
+            ),
+          );
+        }
+      }
+    }
     setState(() {});
-    _fetchRoute();
   }
 
   void _fitBounds() {
@@ -231,6 +327,98 @@ class _RideMapPageState extends State<RideMapPage> {
         100,
       ),
     );
+  }
+
+  Future<void> _fetchSegmentRoute(LatLng start, LatLng end) async {
+    try {
+      final url = Uri.parse(
+          'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson');
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['code'] == 'Ok' &&
+            data['routes'] != null &&
+            data['routes'].isNotEmpty) {
+          final geometry = data['routes'][0]['geometry']['coordinates'] as List;
+          final routePoints = geometry
+              .map((coord) => LatLng(
+                  (coord[1] as num).toDouble(), (coord[0] as num).toDouble()))
+              .toList();
+          
+          // Add start and end points manually to close the gap to markers
+          if (routePoints.isNotEmpty) {
+            routePoints.insert(0, start);
+            routePoints.add(end);
+          }
+          
+          setState(() {
+            _selectedRoutePoints = routePoints;
+            _updateMapElements();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching segment route: $e');
+    }
+  }
+
+  void _onPickupTapped(int index) {
+    if (_selectedPickupIndex == index) {
+      // Toggle off: if clicking the same one again, clear the black line
+      setState(() {
+        _selectedPickupIndex = null;
+        _selectedRoutePoints = [];
+        _updateMapElements();
+      });
+      return;
+    }
+
+    setState(() {
+      _selectedPickupIndex = index;
+      _selectedRoutePoints = []; // Clear previous segment
+    });
+
+    final pickup = _pickupPoints[index];
+
+    // If it's the start or the destination, we just show the full green route (no black line)
+    if (pickup.isFirst || pickup.isLast) {
+      _updateMapElements();
+      return;
+    }
+
+    final dropOff = pickup.dropOffPosition;
+
+    if (dropOff != null) {
+      _fetchSegmentRoute(pickup.position, dropOff);
+    } else {
+      // Fallback: highlight from pickup to trip destination using existing full route
+      final selectedPoint = pickup.position;
+      int startIndex = 0;
+      double minStartDist = double.infinity;
+
+      for (int i = 0; i < _fullRoutePoints.length; i++) {
+        final dist = _calculateDistance(selectedPoint, _fullRoutePoints[i]);
+        if (dist < minStartDist) {
+          minStartDist = dist;
+          startIndex = i;
+        }
+      }
+      
+      setState(() {
+        final subPoints = _fullRoutePoints.sublist(startIndex);
+        if (subPoints.isNotEmpty) {
+          _selectedRoutePoints = [selectedPoint, ...subPoints];
+        } else {
+          _selectedRoutePoints = subPoints;
+        }
+        _updateMapElements();
+      });
+    }
+  }
+
+  double _calculateDistance(LatLng p1, LatLng p2) {
+    return (p1.latitude - p2.latitude) * (p1.latitude - p2.latitude) +
+        (p1.longitude - p2.longitude) * (p1.longitude - p2.longitude);
   }
 
   @override
@@ -622,6 +810,8 @@ class _RideMapPageState extends State<RideMapPage> {
                           isFirst: p.isFirst,
                           isLast: p.isLast,
                           iconColor: p.iconColor,
+                          isSelected: _selectedPickupIndex == idx,
+                          onTap: () => _onPickupTapped(idx),
                           onPinToggle: () {
                             setState(() {
                               p.isPinned = !p.isPinned;
@@ -651,6 +841,8 @@ class _RideMapPageState extends State<RideMapPage> {
     bool isLast = false,
     required Color iconColor,
     VoidCallback? onPinToggle,
+    VoidCallback? onTap,
+    bool isSelected = false,
   }) {
     return IntrinsicHeight(
       child: Row(
@@ -682,11 +874,14 @@ class _RideMapPageState extends State<RideMapPage> {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+            child: GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
                     Expanded(
                       child: Text(
                         location,
@@ -754,8 +949,9 @@ class _RideMapPageState extends State<RideMapPage> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }
