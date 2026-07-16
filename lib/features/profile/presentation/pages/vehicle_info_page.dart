@@ -334,143 +334,143 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: AppColors.white,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.only(
           left: 20,
           right: 20,
           top: 20,
           bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Add vehicle',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Add vehicle',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _TypeOption(
+                    label: '4-Wheeler',
+                    selected: _type == 'four_wheeler',
+                    onTap: () => _setType('four_wheeler'),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TypeOption(
+                    label: '2-Wheeler',
+                    selected: _type == 'two_wheeler',
+                    onTap: () => _setType('two_wheeler'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _label('Vehicle number'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _numberController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
+            ),
+            const SizedBox(height: 16),
+            _label('Vehicle brand'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _brandController,
+              decoration: _fieldDecoration('Enter brand'),
+            ),
+            const SizedBox(height: 16),
+            _label('Brand model'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _modelController,
+              decoration: _fieldDecoration('Enter model'),
+            ),
+            const SizedBox(height: 16),
+            _label('No. of seats available'),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<int>(
+              value: _seatOptions.contains(_seats)
+                  ? _seats
+                  : _seatOptions.first,
+              decoration: _fieldDecoration(''),
+              items: _seatOptions
+                  .map((s) => DropdownMenuItem(value: s, child: Text('$s')))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _seats = value);
+              },
+            ),
+            const SizedBox(height: 16),
+            _label('Choose an option'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _RadioChoice(
+                  label: 'Default',
+                  selected: _isDefault,
+                  onTap: () => setState(() => _isDefault = true),
+                ),
+                const SizedBox(width: 24),
+                _RadioChoice(
+                  label: 'Optional',
+                  selected: !_isDefault,
+                  onTap: () => setState(() => _isDefault = false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TypeOption(
-                      label: '4-Wheeler',
-                      selected: _type == 'four_wheeler',
-                      onTap: () => _setType('four_wheeler'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TypeOption(
-                      label: '2-Wheeler',
-                      selected: _type == 'two_wheeler',
-                      onTap: () => _setType('two_wheeler'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              _label('Vehicle number'),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _numberController,
-                textCapitalization: TextCapitalization.characters,
-                decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
-              ),
-              const SizedBox(height: 16),
-              _label('Vehicle brand'),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _brandController,
-                decoration: _fieldDecoration('Enter brand'),
-              ),
-              const SizedBox(height: 16),
-              _label('Brand model'),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _modelController,
-                decoration: _fieldDecoration('Enter model'),
-              ),
-              const SizedBox(height: 16),
-              _label('No. of seats available'),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<int>(
-                initialValue: _seatOptions.contains(_seats)
-                    ? _seats
-                    : _seatOptions.first,
-                decoration: _fieldDecoration(''),
-                items: _seatOptions
-                    .map((s) => DropdownMenuItem(value: s, child: Text('$s')))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => _seats = value);
-                },
-              ),
-              const SizedBox(height: 16),
-              _label('Choose an option'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _RadioChoice(
-                    label: 'Default',
-                    selected: _isDefault,
-                    onTap: () => setState(() => _isDefault = true),
-                  ),
-                  const SizedBox(width: 24),
-                  _RadioChoice(
-                    label: 'Optional',
-                    selected: !_isDefault,
-                    onTap: () => setState(() => _isDefault = false),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.black87,
-                        side: BorderSide(color: AppColors.grey300),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.black87,
+                      side: BorderSide(color: AppColors.grey300),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Text('Cancel'),
                     ),
+                    child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _confirm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.scheduleButtonColor,
-                        foregroundColor: AppColors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.scheduleButtonColor,
+                      foregroundColor: AppColors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Text('Confirm'),
                     ),
+                    child: const Text('Confirm'),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
