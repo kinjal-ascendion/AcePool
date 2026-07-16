@@ -13,13 +13,9 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<List<ChatRoom>> getChatRooms(String userId) {
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-
     return _db
         .collection('chats')
         .where('participants', arrayContains: userId)
-        .where('rideDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
               final data = doc.data();
