@@ -13,7 +13,11 @@ class HomeState extends Equatable {
   final RideMode rideMode;
   final VehicleType vehicleType;
   final String? fromAddress;
+  final double? fromLatitude;
+  final double? fromLongitude;
   final String? toAddress;
+  final double? toLatitude;
+  final double? toLongitude;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
@@ -25,7 +29,11 @@ class HomeState extends Equatable {
     this.rideMode = RideMode.offer,
     this.vehicleType = VehicleType.car,
     this.fromAddress,
+    this.fromLatitude,
+    this.fromLongitude,
     this.toAddress,
+    this.toLatitude,
+    this.toLongitude,
     this.selectedDate,
     this.selectedTime,
     this.seatCount = 1,
@@ -46,7 +54,11 @@ class HomeState extends Equatable {
     RideMode? rideMode,
     VehicleType? vehicleType,
     Object? fromAddress = _unset,
+    Object? fromLatitude = _unset,
+    Object? fromLongitude = _unset,
     Object? toAddress = _unset,
+    Object? toLatitude = _unset,
+    Object? toLongitude = _unset,
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     int? seatCount,
@@ -58,7 +70,11 @@ class HomeState extends Equatable {
       rideMode: rideMode ?? this.rideMode,
       vehicleType: vehicleType ?? this.vehicleType,
       fromAddress: fromAddress == _unset ? this.fromAddress : fromAddress as String?,
+      fromLatitude: fromLatitude == _unset ? this.fromLatitude : fromLatitude as double?,
+      fromLongitude: fromLongitude == _unset ? this.fromLongitude : fromLongitude as double?,
       toAddress: toAddress == _unset ? this.toAddress : toAddress as String?,
+      toLatitude: toLatitude == _unset ? this.toLatitude : toLatitude as double?,
+      toLongitude: toLongitude == _unset ? this.toLongitude : toLongitude as double?,
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
       seatCount: seatCount ?? this.seatCount,
@@ -73,7 +89,11 @@ class HomeState extends Equatable {
       rideMode: rideMode,
       vehicleType: vehicleType,
       fromAddress: toAddress,
+      fromLatitude: toLatitude,
+      fromLongitude: toLongitude,
       toAddress: fromAddress,
+      toLatitude: fromLatitude,
+      toLongitude: fromLongitude,
       selectedDate: selectedDate,
       selectedTime: selectedTime,
       seatCount: seatCount,
@@ -97,7 +117,11 @@ class HomeState extends Equatable {
     rideMode,
     vehicleType,
     fromAddress,
+    fromLatitude,
+    fromLongitude,
     toAddress,
+    toLatitude,
+    toLongitude,
     selectedDate,
     selectedTime,
     seatCount,

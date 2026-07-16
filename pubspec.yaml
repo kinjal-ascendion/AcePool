@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
+  geolocator: ^14.0.2
+  shared_preferences: ^2.5.3
+
   # State management (MVI pattern)
   flutter_bloc: ^9.0.0
   equatable: ^2.0.5

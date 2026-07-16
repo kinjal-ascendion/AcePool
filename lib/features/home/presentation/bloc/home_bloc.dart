@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
+import 'package:acepool/features/home/domain/entities/selected_location.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -48,13 +49,31 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     emit(state.copyWith(vehicleType: event.vehicleType));
   }
 
-  void _onFromAddressChanged(FromAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(fromAddress: event.address));
-  }
+  void _onFromAddressChanged(
+  FromAddressChanged event,
+  Emitter<HomeState> emit,
+) {
+  emit(
+    state.copyWith(
+      fromAddress: event.location.address,
+      fromLatitude: event.location.latitude,
+      fromLongitude: event.location.longitude,
+    ),
+  );
+}
 
-  void _onToAddressChanged(ToAddressChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(toAddress: event.address));
-  }
+  void _onToAddressChanged(
+  ToAddressChanged event,
+  Emitter<HomeState> emit,
+) {
+  emit(
+    state.copyWith(
+      toAddress: event.location.address,
+      toLatitude: event.location.latitude,
+      toLongitude: event.location.longitude,
+    ),
+  );
+}
 
   void _onLocationsSwapped(LocationsSwapped event, Emitter<HomeState> emit) {
     emit(state.swapLocations());
@@ -83,7 +102,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         rideMode: state.rideMode.name,
         vehicleType: state.vehicleType.name,
         fromAddress: state.fromAddress!,
+        fromLatitude: state.fromLatitude!,
+        fromLongitude: state.fromLongitude!,
         toAddress: state.toAddress!,
+        toLatitude: state.toLatitude!,
+        toLongitude: state.toLongitude!,
         date: state.selectedDate!,
         time: state.selectedTime!,
         seatCount: state.seatCount,

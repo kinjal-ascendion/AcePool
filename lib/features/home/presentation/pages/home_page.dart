@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:acepool/features/home/domain/entities/selected_location.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.onViewAllTrips});
 
@@ -60,9 +61,9 @@ class _HomeView extends StatelessWidget {
     BuildContext context, {
     required String title,
     required String? current,
-    required void Function(String) onConfirm,
+    required void Function(SelectedLocation) onConfirm,
   }) async {
-    final result = await Navigator.of(context).push<String>(
+    final result = await Navigator.of(context).push<SelectedLocation>(
       MaterialPageRoute(
         builder: (_) => LocationSearchPage(
           title: title,
@@ -70,7 +71,7 @@ class _HomeView extends StatelessWidget {
         ),
       ),
     );
-    if (result != null && result.isNotEmpty) {
+    if (result != null) {
       onConfirm(result);
     }
   }
@@ -161,7 +162,11 @@ class _HomeView extends StatelessWidget {
                           Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => FindRideResultsPage(
                               fromAddress: state.fromAddress!,
+                              fromLatitude: state.fromLatitude!,
+                              fromLongitude: state.fromLongitude!,
                               toAddress: state.toAddress!,
+                              toLatitude: state.toLatitude!,
+                              toLongitude: state.toLongitude!,
                               date: state.selectedDate!,
                               time: state.selectedTime!,
                               vehicleType: state.vehicleType.name,

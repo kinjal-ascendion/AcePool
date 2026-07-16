@@ -7,6 +7,7 @@ import 'package:acepool/features/home/presentation/pages/location_search_page.da
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:validifydart/validify_dart.dart';
+import 'route_matching_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -465,6 +466,34 @@ final profilePercentage =
                   ),
 
                   const SizedBox(height: 30),
+
+                  Card(
+  child: ListTile(
+    leading: const Icon(Icons.route_outlined),
+    title: const Text(
+      'Route matching',
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    subtitle: const Text(
+      'Routes & Radius settings',
+    ),
+    trailing: const Icon(
+      Icons.chevron_right,
+    ),
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RouteMatchingPage(),
+        ),
+      );
+    },
+  ),
+),
+
+const SizedBox(height: 30),
 
                   Align(
                     alignment: Alignment.centerLeft,

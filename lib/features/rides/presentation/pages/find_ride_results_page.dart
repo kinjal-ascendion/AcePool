@@ -3,19 +3,29 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FindRideResultsPage extends StatefulWidget {
   const FindRideResultsPage({
     super.key,
     required this.fromAddress,
+    required this.fromLatitude,
+    required this.fromLongitude,
     required this.toAddress,
+    required this.toLatitude,
+    required this.toLongitude,
     required this.date,
     required this.time,
     required this.vehicleType,
   });
 
   final String fromAddress;
+  final double fromLatitude;
+  final double fromLongitude;
   final String toAddress;
+  final double toLatitude;
+  final double toLongitude;
   final DateTime date;
   final TimeOfDay time;
   final String vehicleType;
@@ -74,10 +84,40 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
 
       final rideFrom = d['fromAddress'] as String;
       final rideTo = d['toAddress'] as String;
-      if (!_addressMatches(rideFrom, widget.fromAddress) ||
-          !_addressMatches(rideTo, widget.toAddress)) {
-        continue;
-      }
+      final rideFromLatitude = (d['fromLatitude'] as num?)?.toDouble();
+final rideFromLongitude = (d['fromLongitude'] as num?)?.toDouble();
+final rideToLatitude = (d['toLatitude'] as num?)?.toDouble();
+final rideToLongitude = (d['toLongitude'] as num?)?.toDouble();
+
+if (rideFromLatitude == null ||
+    rideFromLongitude == null ||
+    rideToLatitude == null ||
+    rideToLongitude == null) {
+  continue;
+}
+      final prefs = await SharedPreferences.getInstance();
+
+final radiusInKm =
+    prefs.getDouble('route_matching_radius') ?? 5.0;
+
+final pickupDistance = Geolocator.distanceBetween(
+  widget.fromLatitude,
+  widget.fromLongitude,
+  rideFromLatitude,
+  rideFromLongitude,
+);
+
+final destinationDistance = Geolocator.distanceBetween(
+  widget.toLatitude,
+  widget.toLongitude,
+  rideToLatitude,
+  rideToLongitude,
+);
+
+if (pickupDistance > radiusInKm * 1000 ||
+    destinationDistance > radiusInKm * 1000) {
+  continue;
+}
 
       String driverName = '';
       String? driverPhotoUrl;
@@ -108,12 +148,8 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
         alreadyRequested: requestedRideIds.contains(doc.id),
       ));
     }
-
     return results;
   }
-
-  bool _addressMatches(String a, String b) =>
-      a.trim().toLowerCase() == b.trim().toLowerCase();
 
   void _refresh() => setState(() => _resultsFuture = _fetchResults());
 
@@ -182,6 +218,7 @@ class _FindRideResultsPageState extends State<FindRideResultsPage> {
                     return const Center(
                         child: CircularProgressIndicator());
                   }
+                  
                   final results = snapshot.data ?? [];
                   if (results.isEmpty) {
                     return Center(

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:acepool/features/home/domain/entities/selected_location.dart';
 
 class LocationSearchPage extends StatefulWidget {
   const LocationSearchPage({super.key, required this.title, this.initialValue});
@@ -84,9 +85,11 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
             if (val != null && val.isNotEmpty) parts.add(val);
           }
           return _PlacePrediction(
-            mainText: mainText,
-            secondaryText: parts.join(', '),
-            fullText: r['display_name'] as String,
+           mainText: mainText,
+           secondaryText: parts.join(', '),
+           fullText: r['display_name'] as String,
+           latitude: double.parse(r['lat']),
+           longitude: double.parse(r['lon']),
           );
         }).toList();
         setState(() => _predictions = predictions);
@@ -100,9 +103,15 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     }
   }
 
-  void _select(String address) {
-    Navigator.of(context).pop(address);
-  }
+  void _select(_PlacePrediction place) {
+  Navigator.of(context).pop(
+    SelectedLocation(
+      address: place.fullText,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +219,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                           overflow: TextOverflow.ellipsis,
                         )
                       : null,
-                  onTap: () => _select(p.fullText),
+                  onTap: () => _select(p),
                 );
               },
             ),
@@ -222,10 +231,14 @@ class _PlacePrediction {
   final String mainText;
   final String secondaryText;
   final String fullText;
+  final double latitude;
+  final double longitude;
 
   const _PlacePrediction({
     required this.mainText,
     required this.secondaryText,
     required this.fullText,
+    required this.latitude,
+    required this.longitude,
   });
 }
