@@ -61,6 +61,8 @@ class GetUpcomingTripsUseCase {
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
         farePerSeat: (fareMap?['farePerSeat'] as num?)?.toDouble(),
+        note: data['note'] as String?,
+        durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
       );
     }).toList();
   }
