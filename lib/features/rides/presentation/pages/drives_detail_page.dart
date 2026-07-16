@@ -1,4 +1,6 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
@@ -602,12 +604,27 @@ class _RiderCard extends StatelessWidget {
             children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       final myId = FirebaseAuth.instance.currentUser?.uid;
                       if (myId == null) return;
                       final ids = [myId, rider.riderId];
                       ids.sort();
                       final chatId = ids.join('_');
+
+                      await sl<ChatRepository>().ensureChatExists(
+                        chatId: chatId,
+                        participantIds: [myId, rider.riderId],
+                        participantNames: {
+                          myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver',
+                          rider.riderId: rider.riderName,
+                        },
+                        participantPhotos: {
+                          if (rider.riderPhotoUrl != null) rider.riderId: rider.riderPhotoUrl!,
+                        },
+                        type: 'private',
+                      );
+
+                      if (!context.mounted) return;
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => ChatPage(
                           chatId: chatId,

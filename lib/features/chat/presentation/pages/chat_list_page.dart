@@ -3,6 +3,7 @@ import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/bloc/chat_list_bloc.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
+import 'package:acepool/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,7 +58,9 @@ class _ChatListPageState extends State<ChatListPage> {
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   icon: const Icon(Icons.add, color: AppColors.black, size: 20),
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NewChatPage()),
+                  ),
                 ),
               ),
             )

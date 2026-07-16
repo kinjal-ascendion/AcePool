@@ -21,6 +21,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         super(const ChatState()) {
     on<ChatMessagesSubscriptionRequested>(_onSubscriptionRequested);
     on<ChatMessagesUpdated>(_onMessagesUpdated);
+    on<ChatSubscriptionFailed>(_onSubscriptionFailed);
     on<ChatMessageSent>(_onMessageSent);
   }
 
@@ -32,7 +33,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _subscription?.cancel();
     _subscription = _getMessages(event.chatId).listen(
       (messages) => add(ChatMessagesUpdated(messages)),
-      onError: (e) => add(ChatMessagesUpdated(const [])), // Simplified error handling
+      onError: (e) => add(ChatSubscriptionFailed(e.toString())),
     );
   }
 
@@ -44,6 +45,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       status: ChatStatus.success,
       messages: event.messages,
     ));
+  }
+
+  void _onSubscriptionFailed(
+    ChatSubscriptionFailed event,
+    Emitter<ChatState> emit,
+  ) {
+    emit(state.copyWith(status: ChatStatus.failure, errorMessage: event.error));
   }
 
   Future<void> _onMessageSent(

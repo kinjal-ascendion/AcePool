@@ -162,6 +162,27 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<void> ensureChatExists({
+    required String chatId,
+    required List<String> participantIds,
+    required Map<String, String> participantNames,
+    Map<String, String> participantPhotos = const {},
+    String type = 'private',
+    String? groupTitle,
+  }) async {
+    final data = <String, dynamic>{
+      'participants': FieldValue.arrayUnion(participantIds),
+      'type': type,
+      'participantNames': participantNames,
+      'participantPhotos': participantPhotos,
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    };
+    if (groupTitle != null) data['groupTitle'] = groupTitle;
+
+    await _db.collection('chats').doc(chatId).set(data, SetOptions(merge: true));
+  }
+
+  @override
   Future<String> uploadAudio(File audioFile) async {
     try {
       if (!await audioFile.exists()) {

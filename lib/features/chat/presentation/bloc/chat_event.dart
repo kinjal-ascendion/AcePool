@@ -20,6 +20,13 @@ class ChatMessagesUpdated extends ChatEvent {
   List<Object?> get props => [messages];
 }
 
+class ChatSubscriptionFailed extends ChatEvent {
+  final String error;
+  const ChatSubscriptionFailed(this.error);
+  @override
+  List<Object?> get props => [error];
+}
+
 class ChatMessageSent extends ChatEvent {
   final String chatId;
   final String text;

@@ -1,9 +1,9 @@
-import 'package:acepool/core/theme/app_colors.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:acepool/core/constants/api_keys.dart';
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/auth/presentation/widgets/auth_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,8 +24,10 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   bool _isVerifying = false;
@@ -34,10 +36,8 @@ class _OtpPageState extends State<OtpPage> {
   Timer? _timer;
   String? _errorMessage;
 
-  FirebaseFirestore get _db => FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: 'acepool',
-      );
+  FirebaseFirestore get _db =>
+      FirebaseFirestore.instanceFor(app: Firebase.app(), databaseId: 'acepool');
 
   @override
   void initState() {
@@ -182,9 +182,9 @@ class _OtpPageState extends State<OtpPage> {
         _isResending = false;
         _errorMessage = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP resent successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('OTP resent successfully')));
     }
   }
 
@@ -252,7 +252,10 @@ class _OtpPageState extends State<OtpPage> {
                 child: Text(
                   'Enter the 6-digit OTP sent to\n${widget.email}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: AppColors.black45),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.black45,
+                  ),
                 ),
               ),
               const SizedBox(height: 40),

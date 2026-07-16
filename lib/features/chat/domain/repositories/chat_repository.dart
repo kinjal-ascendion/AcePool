@@ -9,4 +9,12 @@ abstract class ChatRepository {
   Future<void> markAsRead(String chatId, String userId);
   Future<void> togglePin(String chatId, String userId, bool pin);
   Future<String> uploadAudio(File audioFile);
+  Future<void> ensureChatExists({
+    required String chatId,
+    required List<String> participantIds,
+    required Map<String, String> participantNames,
+    Map<String, String> participantPhotos,
+    String type,
+    String? groupTitle,
+  });
 }

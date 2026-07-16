@@ -230,7 +230,19 @@ class _ChatPageState extends State<ChatPage> {
                 child: BlocBuilder<ChatBloc, ChatState>(
                   builder: (context, state) {
                     if (state.status == ChatStatus.loading) return const Center(child: CircularProgressIndicator());
-                    
+                    if (state.status == ChatStatus.failure) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Could not load messages: ${state.errorMessage}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.red600),
+                          ),
+                        ),
+                      );
+                    }
+
                     return ListView.builder(
                       reverse: true,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
