@@ -108,6 +108,8 @@ class _TripsPageState extends State<TripsPage>
         toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
+        note: data['note'] as String?,
+        durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
       );
     }).toList();
   }

@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PickupPoint {
   final String location;
@@ -49,6 +53,15 @@ class _RideMapPageState extends State<RideMapPage> {
   int? _selectedPickupIndex;
   List<LatLng> _fullRoutePoints = [];
   List<LatLng> _selectedRoutePoints = [];
+  String? _tripNote;
+  bool _isDriver = false;
+  final TextEditingController _noteController = TextEditingController();
+  StreamSubscription<DocumentSnapshot>? _tripSubscription;
+
+  final FirebaseFirestore _db = FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'acepool',
+  );
 
   BitmapDescriptor? _selectedPickupIcon;
 
@@ -62,6 +75,10 @@ class _RideMapPageState extends State<RideMapPage> {
   @override
   void initState() {
     super.initState();
+    _tripNote = widget.trip.note;
+    _noteController.text = _tripNote ?? '';
+    _checkIfDriver();
+    _listenToTripChanges();
     if (widget.pickupPoints != null) {
       _pickupPoints = widget.pickupPoints!;
     } else {
@@ -148,6 +165,91 @@ class _RideMapPageState extends State<RideMapPage> {
     ui.Codec codec = await ui.instantiateImageCodec(data.buffer.asUint8List(), targetWidth: width);
     ui.FrameInfo fi = await codec.getNextFrame();
     return (await fi.image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    _tripSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToTripChanges() {
+    _tripSubscription = _db
+        .collection('rides')
+        .doc(widget.trip.id)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _tripNote = data['note'] as String?;
+            if (_noteController.text != (_tripNote ?? '')) {
+              _noteController.text = _tripNote ?? '';
+            }
+          });
+        }
+      }
+    });
+  }
+
+  void _checkIfDriver() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    // In a real app, you might check if widget.trip.driverId == uid
+    // For now, let's check if the trip's UID field matches current UID
+    // We need to fetch the trip document to see who the driver is.
+    try {
+      final doc = await _db.collection('rides').doc(widget.trip.id).get();
+      if (doc.exists) {
+        setState(() {
+          _isDriver = doc.data()?['uid'] == uid;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking driver status: $e');
+    }
+  }
+
+  Future<void> _showNoteDialog() async {
+    if (!_isDriver) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add a Note'),
+        content: TextField(
+          controller: _noteController,
+          decoration: const InputDecoration(
+            hintText: 'Enter a message for your riders...',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newNote = _noteController.text.trim();
+              try {
+                await _db.collection('rides').doc(widget.trip.id).update({
+                  'note': newNote,
+                });
+                setState(() {
+                  _tripNote = newNote;
+                });
+                if (mounted) Navigator.pop(context);
+              } catch (e) {
+                debugPrint('Error saving note: $e');
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _fetchRoute() async {
@@ -421,6 +523,32 @@ class _RideMapPageState extends State<RideMapPage> {
         (p1.longitude - p2.longitude) * (p1.longitude - p2.longitude);
   }
 
+  String _formatDuration(int? minutes) {
+    if (minutes == null || minutes <= 0) return '45 min';
+    if (minutes < 60) return '$minutes min';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (mins == 0) return '${hours}h';
+    return '${hours}h ${mins}m';
+  }
+
+  String _getArrivalTime(TimeOfDay startTime, int? durationMinutes) {
+    if (durationMinutes == null || durationMinutes <= 0) {
+      // Fallback if no duration: assume 15 mins for the screenshot style "10.15 AM"
+      durationMinutes = 15; 
+    }
+    
+    final now = DateTime.now();
+    final startDateTime = DateTime(now.year, now.month, now.day, startTime.hour, startTime.minute);
+    final endDateTime = startDateTime.add(Duration(minutes: durationMinutes));
+    
+    final hour = endDateTime.hour > 12 ? endDateTime.hour - 12 : (endDateTime.hour == 0 ? 12 : endDateTime.hour);
+    final minute = endDateTime.minute.toString().padLeft(2, '0');
+    final period = endDateTime.hour >= 12 ? 'PM' : 'AM';
+    
+    return '$hour.$minute $period';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -668,9 +796,9 @@ class _RideMapPageState extends State<RideMapPage> {
                             );
                           }),
                           const Spacer(),
-                          const Text(
-                            '45 min*',
-                            style: TextStyle(
+                          Text(
+                            '${_formatDuration(widget.trip.durationMinutes)}*',
+                            style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -681,7 +809,7 @@ class _RideMapPageState extends State<RideMapPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${widget.trip.timeLabel} - 10.15 AM*',
+                            '${widget.trip.timeLabel} - ${_getArrivalTime(widget.trip.time, widget.trip.durationMinutes)}*',
                             style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500),
@@ -702,18 +830,48 @@ class _RideMapPageState extends State<RideMapPage> {
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade600),
                       ),
-                      const Divider(height: 32, color: Color(0xFFEEEEEE)),
-                      Row(
-                        children: [
-                          Text(
-                            'Add a Note',
-                            style: TextStyle(
-                                fontSize: 14, color: Colors.grey.shade600),
+                      if (_isDriver || (_tripNote != null && _tripNote!.isNotEmpty)) ...[
+                        const Divider(height: 32, color: Color(0xFFEEEEEE)),
+                        GestureDetector(
+                          onTap: _isDriver ? _showNoteDialog : null,
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _tripNote == null || _tripNote!.isEmpty
+                                          ? 'Add a Note'
+                                          : 'Driver\'s Note',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: _tripNote != null &&
+                                                  _tripNote!.isNotEmpty
+                                              ? FontWeight.bold
+                                              : FontWeight.normal),
+                                    ),
+                                    if (_tripNote != null &&
+                                        _tripNote!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          _tripNote!,
+                                          style: const TextStyle(
+                                              fontSize: 14, color: Colors.black),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (_isDriver)
+                                const Icon(Icons.edit_outlined, size: 18),
+                            ],
                           ),
-                          const Spacer(),
-                          const Icon(Icons.edit_outlined, size: 18),
-                        ],
-                      ),
+                        ),
+                      ],
                       const Divider(height: 32, color: Color(0xFFEEEEEE)),
                       Row(
                         children: [

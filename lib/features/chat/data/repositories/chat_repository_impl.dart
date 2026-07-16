@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:acepool/features/chat/domain/entities/chat_message.dart';
 import 'package:acepool/features/chat/domain/entities/chat_room.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
@@ -10,6 +12,8 @@ class ChatRepositoryImpl implements ChatRepository {
     app: Firebase.app(),
     databaseId: 'acepool',
   );
+
+  final _storage = FirebaseStorage.instance;
 
   @override
   Stream<List<ChatRoom>> getChatRooms(String userId) {
@@ -58,6 +62,8 @@ class ChatRepositoryImpl implements ChatRepository {
                 senderId: data['senderId'] ?? '',
                 receiverId: data['receiverId'] ?? '',
                 text: data['text'] ?? '',
+                audioUrl: data['audioUrl'],
+                type: data['type'] == 'audio' ? MessageType.audio : MessageType.text,
                 timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
                 senderName: data['senderName'],
                 reactionCount: (data['reactionCount'] as num?)?.toInt() ?? 0,
@@ -92,7 +98,7 @@ class ChatRepositoryImpl implements ChatRepository {
     }
 
     final Map<String, dynamic> updateData = {
-      'lastMessage': message.text,
+      'lastMessage': message.type == MessageType.audio ? 'Audio message' : message.text,
       'lastMessageTime': now,
       'participants': FieldValue.arrayUnion(participants),
       'unreadCounts': unreadUpdates,
@@ -121,6 +127,8 @@ class ChatRepositoryImpl implements ChatRepository {
       'senderId': message.senderId,
       'receiverId': message.receiverId,
       'text': message.text,
+      'audioUrl': message.audioUrl,
+      'type': message.type == MessageType.audio ? 'audio' : 'text',
       'timestamp': now,
       'senderName': senderName,
     });
@@ -150,6 +158,46 @@ class ChatRepositoryImpl implements ChatRepository {
       await _db.collection('chats').doc(chatId).update({
         'pinnedBy': FieldValue.arrayRemove([userId]),
       });
+    }
+  }
+
+  @override
+  Future<String> uploadAudio(File audioFile) async {
+    try {
+      if (!await audioFile.exists()) {
+        throw Exception('Audio file does not exist at path: ${audioFile.path}');
+      }
+      
+      final fileSize = await audioFile.length();
+      debugPrint('Uploading audio file: ${audioFile.path} (Size: $fileSize bytes)');
+      
+      if (fileSize == 0) {
+        throw Exception('Audio file is empty');
+      }
+
+      final fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final ref = _storage.ref().child('chat_audio').child(fileName);
+      
+      debugPrint('Uploading to Firebase Storage: ${ref.fullPath}');
+      
+      // Use the task to wait for completion
+      final uploadTask = ref.putFile(
+        audioFile,
+        SettableMetadata(contentType: 'audio/m4a'),
+      );
+
+      final snapshot = await uploadTask;
+      debugPrint('Upload completed. Bytes transferred: ${snapshot.bytesTransferred}');
+      
+      final url = await snapshot.ref.getDownloadURL();
+      debugPrint('Download URL obtained: $url');
+      return url;
+    } catch (e) {
+      debugPrint('Detailed error uploading audio: $e');
+      if (e.toString().contains('object-not-found')) {
+        throw Exception('Storage Error: The file was not found after upload. Please ensure Firebase Storage is enabled in your console and rules allow uploads.');
+      }
+      rethrow;
     }
   }
 }

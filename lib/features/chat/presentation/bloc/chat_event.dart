@@ -23,6 +23,8 @@ class ChatMessagesUpdated extends ChatEvent {
 class ChatMessageSent extends ChatEvent {
   final String chatId;
   final String text;
+  final String? audioUrl;
+  final MessageType type;
   final String senderId;
   final String receiverId;
   final String senderName;
@@ -31,11 +33,13 @@ class ChatMessageSent extends ChatEvent {
   const ChatMessageSent({
     required this.chatId,
     required this.text,
+    this.audioUrl,
+    this.type = MessageType.text,
     required this.senderId,
     required this.receiverId,
     required this.senderName,
     required this.receiverName,
   });
   @override
-  List<Object?> get props => [chatId, text, senderId, receiverId, senderName, receiverName];
+  List<Object?> get props => [chatId, text, audioUrl, type, senderId, receiverId, senderName, receiverName];
 }

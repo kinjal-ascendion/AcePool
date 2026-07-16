@@ -56,6 +56,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         senderId: event.senderId,
         receiverId: event.receiverId,
         text: event.text,
+        audioUrl: event.audioUrl,
+        type: event.type,
         timestamp: DateTime.now(),
       );
       await _sendMessage(
