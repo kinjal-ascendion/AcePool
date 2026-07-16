@@ -269,12 +269,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     _SettingsField(
                       label: 'Email',
                       controller: _emailController,
-                      enabled: true,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Note : Email Id can be edited only once',
-                      style: TextStyle(fontSize: 12, color: AppColors.black45),
+                      enabled: false,
                     ),
                     const SizedBox(height: 20),
                     Divider(color: AppColors.grey200, height: 1),

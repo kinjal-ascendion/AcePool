@@ -23,8 +23,20 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     return _db.collection('users').doc(uid).collection('vehicles');
   }
 
+  late Future<QuerySnapshot<Map<String, dynamic>>> _vehiclesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _vehiclesFuture = _fetchVehicles();
+  }
+
   Future<QuerySnapshot<Map<String, dynamic>>> _fetchVehicles() {
     return _vehiclesRef().get();
+  }
+
+  void _refreshVehicles() {
+    if (mounted) setState(() => _vehiclesFuture = _fetchVehicles());
   }
 
   Future<void> _addVehicle(Map<String, dynamic> vehicle) async {
@@ -41,12 +53,12 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
 
     await ref.add({...vehicle, 'createdAt': FieldValue.serverTimestamp()});
 
-    if (mounted) setState(() {});
+    _refreshVehicles();
   }
 
   Future<void> _deleteVehicle(String vehicleId) async {
     await _vehiclesRef().doc(vehicleId).delete();
-    if (mounted) setState(() {});
+    _refreshVehicles();
   }
 
   Future<void> _confirmDelete(String vehicleId, String name) async {
@@ -173,7 +185,7 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
       ),
       body: SafeArea(
         child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          future: _fetchVehicles(),
+          future: _vehiclesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());

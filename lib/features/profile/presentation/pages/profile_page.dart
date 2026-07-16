@@ -21,6 +21,14 @@ class _ProfilePageState extends State<ProfilePage> {
     databaseId: 'acepool',
   );
 
+  late Future<Map<String, dynamic>?> _userDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userDataFuture = _fetchUserData();
+  }
+
   Future<Map<String, dynamic>?> _fetchUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
@@ -76,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SafeArea(
         bottom: false,
         child: FutureBuilder<Map<String, dynamic>?>(
-          future: _fetchUserData(),
+          future: _userDataFuture,
           builder: (context, snapshot) {
             final data = snapshot.data;
             final fullName = data?['fullName'] as String? ?? '';
@@ -116,7 +124,9 @@ class _ProfilePageState extends State<ProfilePage> {
                             licenceNumber: licenceNumber,
                           ),
                         ),
-                      ).then((_) => setState(() {})),
+                      ).then((_) {
+                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                  }),
                       child: Stack(
                         children: [
                           CircleAvatar(
@@ -191,7 +201,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         licenceNumber: licenceNumber,
                       ),
                     ),
-                  ).then((_) => setState(() {})),
+                  ).then((_) {
+                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                  }),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
