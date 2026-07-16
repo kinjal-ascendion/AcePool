@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
@@ -526,6 +527,18 @@ class _RiderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double? km = rider.dropOffPosition != null
+        ? RideMatcher.distanceKm(
+            rider.position.latitude,
+            rider.position.longitude,
+            rider.dropOffPosition!.latitude,
+            rider.dropOffPosition!.longitude,
+          )
+        : null;
+
+    final distanceLabel = km != null ? RideMatcher.formatDistance(km) : '2.5 km';
+    final timeLabel = km != null ? '${(km * 2).round() + 5} mins' : '15 mins';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -571,11 +584,16 @@ class _RiderCard extends StatelessWidget {
                   Icon(Icons.directions_car, size: 15, color: AppColors.grey700),
                   const SizedBox(width: 4),
                   Text(
-                    '25mins',
+                    timeLabel,
                     style: TextStyle(fontSize: 12, color: AppColors.grey700),
                   ),
-                  Icon(Icons.chevron_right, size: 16, color: AppColors.grey500),
-                  Icon(Icons.location_on_outlined, size: 16, color: AppColors.grey600),
+                  const SizedBox(width: 6),
+                  Icon(Icons.location_on_outlined, size: 14, color: AppColors.grey600),
+                  const SizedBox(width: 2),
+                  Text(
+                    distanceLabel,
+                    style: TextStyle(fontSize: 11, color: AppColors.grey600),
+                  ),
                 ],
               ),
             ],
