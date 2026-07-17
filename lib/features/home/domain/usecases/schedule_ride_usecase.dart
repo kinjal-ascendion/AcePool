@@ -24,7 +24,7 @@ class ScheduleRideUseCase {
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('User not authenticated');
-
+//
     await _db.collection('rides').add({
       'uid': uid,
       'rideMode': rideMode,
