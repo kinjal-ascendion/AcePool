@@ -128,6 +128,10 @@ class _TripsPageState extends State<TripsPage>
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
+    final userDoc = await _db.collection('users').doc(uid).get();
+
+final matchRadiusKm =
+    (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
 
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
@@ -207,9 +211,9 @@ class _TripsPageState extends State<TripsPage>
       if (haveUserCoords && haveRideCoords && rideRouteDistanceKm != null) {
         final endpointsClose =
             RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
-                    RideMatcher.maxMatchDistanceKm &&
+                    matchRadiusKm &&
                 RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng) <=
-                    RideMatcher.maxMatchDistanceKm;
+                    matchRadiusKm;
         if (!endpointsClose) {
           final viaDistanceKm = await _directions.fetchRouteDistanceKm(
             originLat: rideFromLat,
@@ -241,6 +245,7 @@ class _TripsPageState extends State<TripsPage>
         rideToLat: rideToLat,
         rideToLng: rideToLng,
         liveDetourKm: liveDetourKm,
+        matchRadiusKm: matchRadiusKm,
       );
       if (!match.isMatch) continue;
 

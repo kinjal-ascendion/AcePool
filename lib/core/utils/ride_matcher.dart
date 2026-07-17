@@ -126,6 +126,7 @@ class RideMatcher {
     double? rideToLat,
     double? rideToLng,
     double? liveDetourKm,
+    required double matchRadiusKm,
   }) {
     final haveUserCoords =
         userFromLat != null &&
@@ -166,14 +167,13 @@ class RideMatcher {
     );
     final toDistanceKm = distanceKm(userToLat, userToLng, rideToLat, rideToLng);
     final endpointsMatch =
-        fromDistanceKm <= maxMatchDistanceKm &&
-        toDistanceKm <= maxMatchDistanceKm;
-
+        fromDistanceKm <= matchRadiusKm &&
+        toDistanceKm <= matchRadiusKm;
     final double deviationKm;
     bool onRoute;
     if (liveDetourKm != null) {
       deviationKm = liveDetourKm < 0 ? 0 : liveDetourKm;
-      onRoute = deviationKm <= maxRouteDeviationKm;
+      onRoute = deviationKm <= matchRadiusKm;
     } else {
       final fromDeviationKm = routeDeviationKm(
         rideFromLat,
@@ -211,7 +211,7 @@ class RideMatcher {
           ? fromDeviationKm
           : toDeviationKm;
       onRoute =
-          deviationKm <= maxRouteDeviationKm && fromProgress <= toProgress;
+          deviationKm <= matchRadiusKm && fromProgress <= toProgress;
     }
 
     final int percent;
@@ -223,7 +223,7 @@ class RideMatcher {
     } else {
       percent = matchPercentFromDistance(
         deviationKm,
-        scaleKm: maxRouteDeviationKm,
+        scaleKm: matchRadiusKm,
       );
     }
 
@@ -235,7 +235,7 @@ class RideMatcher {
     return RideMatchResult(
       matchPercent: percent,
       distanceKm: fromDistanceKm,
-      isMatch: endpointsMatch || onRoute,
+      isMatch: endpointsMatch,
     );
   }
 }
