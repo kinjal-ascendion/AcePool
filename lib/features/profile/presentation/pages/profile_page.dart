@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'account_settings_page.dart';
 import 'addresses_page.dart';
 import 'vehicle_info_page.dart';
+import 'ride_statistics_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -235,9 +236,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
-                  title: 'Ride statistics',
-                  subtitle: 'Ratings, Reviews & more',
-                ),
+  title: 'Ride statistics',
+  subtitle: 'Ratings, Reviews & more',
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const RideStatisticsPage(),
+    ),
+  ),
+),
                 Divider(color: AppColors.grey200, height: 1),
                 const SizedBox(height: 20),
                 InkWell(
