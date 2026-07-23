@@ -9,20 +9,24 @@ class DriveTripCard extends StatelessWidget {
     required this.trip,
     this.showViewDetails = true,
     this.onChatTap,
+    this.onTap,
   });
 
   final UpcomingTrip trip;
   final bool showViewDetails;
   final VoidCallback? onChatTap;
+  final VoidCallback? onTap;
 
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Top row: seats-filled badge
           ClipRRect(
             borderRadius: const BorderRadius.only(
@@ -212,8 +216,9 @@ class DriveTripCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _fareLabel(double? farePerSeat) {
     return Text(
