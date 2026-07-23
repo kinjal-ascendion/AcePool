@@ -27,6 +27,10 @@ class FindMatchingRidesUseCase {
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
+    final userDoc = await _db.collection('users').doc(uid).get();
+
+final matchRadiusKm =
+    (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
 
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -114,6 +118,7 @@ class FindMatchingRidesUseCase {
         rideToLat: rideToLat,
         rideToLng: rideToLng,
         liveDetourKm: liveDetourKm,
+        matchRadiusKm: matchRadiusKm,
       );
       if (!match.isMatch) continue;
       final fromDistanceKm = match.distanceKm;
