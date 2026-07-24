@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
+import 'add_address_page.dart';
 
 class AddressesPage extends StatefulWidget {
   const AddressesPage({super.key});
@@ -28,52 +29,51 @@ class _AddressesPageState extends State<AddressesPage> {
     return _addressesRef().get();
   }
 
-  Future<void> _addAddress(String category, String label) async {
-    final result = await Navigator.push<PickedLocation>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LocationSearchPage(title: 'Search $label Location'),
+Future<void> _addAddress(String category, String label) async {
+  final saved = await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AddAddressPage(
+        location: PickedLocation(
+          address: "",
+          lat: null,
+          lng: null,
+        ),
+        category: category,
       ),
-    );
+    ),
+  );
 
-    if (result == null || result.address.trim().isEmpty) return;
-
-    final ref = _addressesRef();
-    final existing = await ref.where('category', isEqualTo: category).get();
-
-    await ref.add({
-      'category': category,
-      'address': result.address,
-      'lat': result.lat,
-      'lng': result.lng,
-      'isDefault': existing.docs.isEmpty,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    if (mounted) setState(() {});
+  if (saved == true && mounted) {
+    setState(() {});
   }
+}
 
   Future<void> _editAddress(
-      String docId, String label, String currentAddress) async {
-    final result = await Navigator.push<PickedLocation>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LocationSearchPage(
-          title: 'Search $label Location',
-          initialValue: currentAddress,
+  String docId,
+  String label,
+  String currentAddress,
+) async {
+  final result = await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AddAddressPage(
+        docId: docId,
+        isEdit: true,
+        location: PickedLocation(
+          address: currentAddress,
+          lat: null,
+          lng: null,
         ),
+        category: label,
       ),
-    );
+    ),
+  );
 
-    if (result == null || result.address.trim().isEmpty) return;
-
-    await _addressesRef().doc(docId).update({
-      'address': result.address,
-      'lat': result.lat,
-      'lng': result.lng,
-    });
-    if (mounted) setState(() {});
+  if (result == true && mounted) {
+    setState(() {});
   }
+}
 
   Future<void> _deleteAddress(
       String docId, String category, bool wasDefault) async {
@@ -122,7 +122,7 @@ class _AddressesPageState extends State<AddressesPage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.grey500,
+              color: AppColors.black,
               letterSpacing: 0.5,
             ),
           ),
@@ -300,6 +300,11 @@ class _AddressesPageState extends State<AddressesPage> {
                 docs.where((d) => d.data()['category'] == 'home').toList();
             final officeDocs =
                 docs.where((d) => d.data()['category'] == 'office').toList();
+                final otherDocs = docs.where((d) {
+  final category =
+      (d.data()['category'] as String?)?.toLowerCase() ?? "";
+  return category != "home" && category != "office";
+}).toList();
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -324,6 +329,20 @@ class _AddressesPageState extends State<AddressesPage> {
                     isDefault: doc.data()['isDefault'] as bool? ?? false,
                     category: 'office',
                   ),
+
+if (otherDocs.isNotEmpty) ...[
+  _sectionHeader('Saved', () => _addAddress('other', 'Other')),
+
+  for (final doc in otherDocs)
+    _addressCard(
+      docId: doc.id,
+      label: doc.data()['label'] as String? ?? 'Saved',
+      icon: Icons.bookmark_border,
+      address: doc.data()['address'] as String? ?? '',
+      isDefault: doc.data()['isDefault'] as bool? ?? false,
+      category: doc.data()['category'] as String? ?? '',
+    ),
+],
                 const SizedBox(height: 20),
               ],
             );
