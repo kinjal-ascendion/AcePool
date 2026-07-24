@@ -56,6 +56,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
   LatLng? _pinnedLatLng;
   String? _pinnedName;
 
+  int _driveDurationMinutes = 20; // Default estimate
   bool _loadingData = true;
 
   @override
@@ -136,14 +137,12 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         }
       } else {
         // If no accepted request, use driver's start/end as default pickup/drop-off for visualization
-        _riderPickupLatLng ??= LatLng(widget.ride.fromLat ?? 0, widget.ride.fromLng ?? 0);
-        _riderDropLatLng ??= LatLng(widget.ride.toLat ?? 0, widget.ride.toLng ?? 0);
         _riderPickupPoint = widget.ride.fromAddress;
         _riderDropPoint = widget.ride.toAddress;
       }
     }
 
-    // 3. Fetch Pinned location from Driver's Ride
+    // 3. Fetch Pinned location and route info from Driver's Ride
     final rideDoc = await _db.collection('rides').doc(widget.ride.id).get();
     if (rideDoc.exists) {
       final d = rideDoc.data();
@@ -155,10 +154,101 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         );
         _pinnedName = d['pinnedName'] as String?;
       }
+      if (d?['routeDurationMinutes'] != null) {
+        _driveDurationMinutes = (d!['routeDurationMinutes'] as num).toInt();
+      }
     }
 
+    _calculateRoadsidePoints();
     _initMarkers();
     if (mounted) setState(() => _loadingData = false);
+  }
+
+  void _calculateRoadsidePoints() {
+    final r = widget.ride;
+
+    String getArea(String address) {
+      final parts = address.split(',');
+      for (var p in parts) {
+        String s = p.trim();
+        // Avoid plus codes and short numbers
+        if (s.length > 3 && !s.contains('+') && !RegExp(r'^\d').hasMatch(s)) {
+          return s;
+        }
+      }
+      return parts[0].trim();
+    }
+
+    String getMainRoadName(String address) {
+      String area = getArea(address);
+      if (area.toLowerCase().contains("main road")) return area;
+      return "$area Main Road";
+    }
+
+    // 1. Pickup Point calculation
+    if (_riderStartLatLng != null && r.fromLat != null && r.toLat != null) {
+      final distToDriverStart = RideMatcher.distanceKm(
+          _riderStartLatLng!.latitude,
+          _riderStartLatLng!.longitude,
+          r.fromLat!,
+          r.fromLng!);
+      
+      if (distToDriverStart <= 0.4) {
+        _riderPickupLatLng = LatLng(r.fromLat!, r.fromLng!);
+        // Use existing point if it's meaningful, otherwise use driver's start area
+        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near")) {
+          String addr = r.fromAddress;
+          // If address starts with plus code, skip it
+          if (addr.contains(',') && RegExp(r'^[A-Z0-9]{4}\+').hasMatch(addr)) {
+            _riderPickupPoint = addr.split(',')[1].trim();
+          } else {
+            _riderPickupPoint = addr.split(',')[0];
+          }
+        }
+      } else {
+        final projected = RideMatcher.projectPointToSegment(
+          r.fromLat!, r.fromLng!,
+          r.toLat!, r.toLng!,
+          _riderStartLatLng!.latitude, _riderStartLatLng!.longitude,
+        );
+        _riderPickupLatLng = LatLng(projected['latitude']!, projected['longitude']!);
+        
+        // Only use generic "Main Road" if we don't already have a specific landmark
+        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near")) {
+           _riderPickupPoint = getMainRoadName(r.fromAddress);
+        }
+      }
+    } else {
+      _riderPickupLatLng ??= LatLng(r.fromLat ?? 0, r.fromLng ?? 0);
+      if (_riderPickupPoint.isEmpty) _riderPickupPoint = r.fromAddress.split(',')[0];
+    }
+
+    // 2. Drop Point calculation
+    if (_riderEndLatLng != null && r.fromLat != null && r.toLat != null) {
+      final distToDriverEnd = RideMatcher.distanceKm(
+          _riderEndLatLng!.latitude,
+          _riderEndLatLng!.longitude,
+          r.toLat!,
+          r.toLng!);
+
+      if (distToDriverEnd <= 0.4) {
+        _riderDropLatLng = LatLng(r.toLat!, r.toLng!);
+        if (_riderDropPoint.isEmpty || _riderDropPoint.contains("Road near")) {
+          _riderDropPoint = r.toAddress.split(',')[0];
+        }
+      } else {
+        final projected = RideMatcher.projectPointToSegment(
+          r.fromLat!, r.fromLng!,
+          r.toLat!, r.toLng!,
+          _riderEndLatLng!.latitude, _riderEndLatLng!.longitude,
+        );
+        _riderDropLatLng = LatLng(projected['latitude']!, projected['longitude']!);
+        _riderDropPoint = getMainRoadName(r.toAddress);
+      }
+    } else {
+      _riderDropLatLng ??= LatLng(r.toLat ?? 0, r.toLng ?? 0);
+      if (_riderDropPoint.isEmpty) _riderDropPoint = r.toAddress.split(',')[0];
+    }
   }
 
   Future<void> _determinePosition() async {
@@ -240,6 +330,25 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
        }
     }
 
+    int walkToPickupMin = (walkToPickupKm * 12).round();
+    int walkFromDropMin = (walkFromDropKm * 12).round();
+    int totalJourneyMin = walkToPickupMin + _driveDurationMinutes + walkFromDropMin;
+
+    DateTime startTime = DateTime(r.date.year, r.date.month, r.date.day, r.time.hour, r.time.minute);
+    DateTime arrivalTime = startTime.add(Duration(minutes: _driveDurationMinutes));
+    DateTime finalDestinationTime = arrivalTime.add(Duration(minutes: walkFromDropMin));
+    DateTime journeyStartTime = startTime.subtract(Duration(minutes: walkToPickupMin));
+
+    String formatTime(DateTime dt) {
+      final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+      final m = dt.minute.toString().padLeft(2, '0');
+      final p = dt.hour >= 12 ? 'PM' : 'AM';
+      return "$h:$m $p";
+    }
+
+    String arrivalTimeLabel = formatTime(arrivalTime);
+    String journeyRangeLabel = "${formatTime(journeyStartTime)} - ${formatTime(finalDestinationTime)}";
+
     return Scaffold(
       body: Stack(
         children: [
@@ -286,7 +395,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
             minChildSize: 0.15,
             maxChildSize: 0.9,
             builder: (context, scrollController) {
-              return _buildBottomSheet(context, scrollController, walkToPickupKm, walkFromDropKm, sameAsDriverEnd);
+              return _buildBottomSheet(context, scrollController, walkToPickupKm, walkFromDropKm, sameAsDriverEnd, totalJourneyMin, arrivalTimeLabel, journeyRangeLabel);
             },
           ),
         ],
@@ -349,14 +458,14 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         children: [
           Icon(Icons.person_outline, size: 14, color: AppColors.black87),
           const SizedBox(width: 4),
-          Text('${r.seatsFilled} 1', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text('${r.seatsFilled}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           const Icon(Icons.keyboard_arrow_down, size: 16),
         ],
       ),
     );
   }
 
-  Widget _buildBottomSheet(BuildContext context, ScrollController scrollController, double walkToPickup, double walkFromDrop, bool sameAsDriverEnd) {
+  Widget _buildBottomSheet(BuildContext context, ScrollController scrollController, double walkToPickup, double walkFromDrop, bool sameAsDriverEnd, int totalJourneyMin, String arrivalTimeLabel, String journeyRangeLabel) {
     final r = widget.ride;
     return Container(
       decoration: const BoxDecoration(
@@ -372,9 +481,9 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           const SizedBox(height: 16),
           _buildTransportDetailsHeader(context),
           const SizedBox(height: 16),
-          _buildJourneySummaryIcons(walkToPickup, walkFromDrop),
+          _buildJourneySummaryIcons(walkToPickup, walkFromDrop, totalJourneyMin),
           const SizedBox(height: 8),
-          _buildPriceAndArrival(r),
+          _buildPriceAndArrival(r, journeyRangeLabel),
           const SizedBox(height: 12),
           Text('*Actual arrival time may vary due to traffic and road conditions', style: TextStyle(fontSize: 11, color: AppColors.grey400)),
           const SizedBox(height: 24),
@@ -384,7 +493,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           // Journey Timeline
           _buildTimelineItem(
             title: _riderStartAddress.isNotEmpty ? _riderStartAddress.split(',')[0] : 'Current Location',
-            subtitle: 'Starting Point',
+            subtitle: 'Your Current Location',
             time: 'Now',
             icon: Icons.location_on_outlined,
             iconColor: AppColors.grey400,
@@ -393,7 +502,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           if (_pinnedLatLng != null)
             _buildTimelineItem(
               title: _pinnedName ?? 'Pinned Location',
-              subtitle: 'From Driver',
+              subtitle: 'Pinned',
               time: '',
               icon: Icons.location_on,
               iconColor: AppColors.accentBlue,
@@ -403,7 +512,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           
           _buildTimelineItem(
             title: _riderPickupPoint.split(',')[0],
-            subtitle: 'Meet Driver Here',
+            subtitle: 'Pick Up Point',
             time: r.timeLabel,
             icon: Icons.directions_car,
             iconColor: AppColors.grey400,
@@ -412,8 +521,8 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           
           _buildTimelineItem(
             title: _riderDropPoint.split(',')[0],
-            subtitle: 'End of Ride',
-            time: '',
+            subtitle: 'Drop Point',
+            time: arrivalTimeLabel,
             icon: Icons.location_on_outlined,
             iconColor: AppColors.primaryGreen,
           ),
@@ -423,6 +532,9 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
             _buildTimelineItem(
               title: _riderEndAddress.isNotEmpty ? _riderEndAddress.split(',')[0] : r.toAddress.split(',')[0],
               subtitle: 'Final Destination',
+              description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',') 
+                  ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
+                  : (r.toAddress.contains(',') ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim() : null),
               time: 'Arrival',
               icon: Icons.location_on,
               iconColor: AppColors.red,
@@ -432,6 +544,9 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
             _buildTimelineItem(
               title: _riderEndAddress.isNotEmpty ? _riderEndAddress.split(',')[0] : r.toAddress.split(',')[0],
               subtitle: 'Final Destination',
+              description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',') 
+                  ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
+                  : (r.toAddress.contains(',') ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim() : null),
               time: 'Arrival',
               icon: Icons.location_on,
               iconColor: AppColors.red,
@@ -450,7 +565,10 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
       children: [
         const Text('Transport details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const Spacer(),
-        Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 24),
+        GestureDetector(
+          onTap: () => _showSOSDialog(context),
+          child: const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 24),
+        ),
         const SizedBox(width: 16),
         const Icon(Icons.share_outlined, size: 22),
         const SizedBox(width: 16),
@@ -464,7 +582,99 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     );
   }
 
-  Widget _buildJourneySummaryIcons(double walkTo, double walkFrom) {
+  void _showSOSDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Emergency SOS',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.red),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: AppColors.black54),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Padding(
+                padding: EdgeInsets.only(left: 44, right: 8),
+                child: Text(
+                  'Are you sure you want send an Emergency SOS alert?',
+                  style: TextStyle(fontSize: 14, color: AppColors.black87, fontWeight: FontWeight.w500, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          side: BorderSide(color: AppColors.grey300),
+                        ),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('SOS alert sent successfully')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.black,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          elevation: 0,
+                        ),
+                        child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJourneySummaryIcons(double walkTo, double walkFrom, int totalJourneyMin) {
     return Row(
       children: [
         Icon(Icons.directions_walk, size: 24, color: AppColors.black87),
@@ -479,16 +689,16 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           Text(RideMatcher.formatDistance(walkFrom), style: TextStyle(fontSize: 12, color: AppColors.grey600)),
         ],
         const Spacer(),
-        const Text('45 min*', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('$totalJourneyMin min*', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildPriceAndArrival(RideMatch r) {
+  Widget _buildPriceAndArrival(RideMatch r, String timeRangeLabel) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('${r.timeLabel} - Arrival*', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        Text('$timeRangeLabel*', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         Text('₹ ${r.farePerSeat?.toInt() ?? 0} / seat', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
       ],
     );
@@ -555,6 +765,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     required String time,
     required IconData icon,
     required Color iconColor,
+    String? description,
     bool isCarLeg = false,
     bool isLast = false,
   }) {
@@ -588,6 +799,14 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                   ],
                 ),
                 Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.grey500)),
+                if (description != null && description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      description,
+                      style: TextStyle(fontSize: 11, color: AppColors.grey500, height: 1.3),
+                    ),
+                  ),
                 const SizedBox(height: 16),
               ],
             ),

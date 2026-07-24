@@ -547,6 +547,32 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
+      // Decide if we should meet at driver's endpoints (Endpoint Match) 
+      // or at rider's requested points (Detour Match).
+      bool isEndpointMatch = false;
+      if (widget.ride.userFromLat != null && widget.ride.userFromLng != null &&
+          widget.ride.fromLat != null && widget.ride.fromLng != null &&
+          widget.ride.userToLat != null && widget.ride.userToLng != null &&
+          widget.ride.toLat != null && widget.ride.toLng != null) {
+        final dFrom = RideMatcher.distanceKm(widget.ride.userFromLat!, widget.ride.userFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
+        final dTo = RideMatcher.distanceKm(widget.ride.userToLat!, widget.ride.userToLng!, widget.ride.toLat!, widget.ride.toLng!);
+        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
+      }
+
+      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : widget.ride.userFromAddress;
+      final pickupLatLng = isEndpointMatch 
+          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
+          : (widget.ride.userFromLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userFromLat!, widget.ride.userFromLng!)
+              : {'latitude': widget.ride.userFromLat, 'longitude': widget.ride.userFromLng});
+
+      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : widget.ride.userToAddress;
+      final dropOffLatLng = isEndpointMatch
+          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
+          : (widget.ride.userToLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userToLat!, widget.ride.userToLng!)
+              : {'latitude': widget.ride.userToLat, 'longitude': widget.ride.userToLng});
+
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
       final batch = widget.db.batch();
@@ -566,16 +592,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
           'latitude': widget.ride.userToLat,
           'longitude': widget.ride.userToLng,
         } : null,
-        'pickupPoint': widget.ride.fromAddress,
-        'pickupLatLng': (widget.ride.fromLat != null && widget.ride.fromLng != null) ? {
-          'latitude': widget.ride.fromLat,
-          'longitude': widget.ride.fromLng,
-        } : null,
-        'dropOffPoint': widget.ride.toAddress,
-        'dropOffLatLng': (widget.ride.toLat != null && widget.ride.toLng != null) ? {
-          'latitude': widget.ride.toLat,
-          'longitude': widget.ride.toLng,
-        } : null,
+        'pickupPoint': pickupPoint,
+        'pickupLatLng': pickupLatLng,
+        'dropOffPoint': dropOffPoint,
+        'dropOffLatLng': dropOffLatLng,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,

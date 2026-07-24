@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/track_route_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -135,6 +136,32 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
         riderPhotoUrl = userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
+      // Decide if we should meet at driver's endpoints (Endpoint Match) 
+      // or at rider's requested points (Detour Match).
+      bool isEndpointMatch = false;
+      if (widget.riderFromLat != null && widget.riderFromLng != null &&
+          widget.ride.fromLat != null && widget.ride.fromLng != null &&
+          widget.riderToLat != null && widget.riderToLng != null &&
+          widget.ride.toLat != null && widget.ride.toLng != null) {
+        final dFrom = RideMatcher.distanceKm(widget.riderFromLat!, widget.riderFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
+        final dTo = RideMatcher.distanceKm(widget.riderToLat!, widget.riderToLng!, widget.ride.toLat!, widget.ride.toLng!);
+        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
+      }
+
+      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : (widget.riderFromAddress ?? widget.ride.fromAddress);
+      final pickupLatLng = isEndpointMatch 
+          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
+          : (widget.riderFromLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.riderFromLat!, widget.riderFromLng!)
+              : {'latitude': widget.riderFromLat ?? widget.ride.fromLat, 'longitude': widget.riderFromLng ?? widget.ride.fromLng});
+
+      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : (widget.riderToAddress ?? widget.ride.toAddress);
+      final dropOffLatLng = isEndpointMatch
+          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
+          : (widget.riderToLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.riderToLat!, widget.riderToLng!)
+              : {'latitude': widget.riderToLat ?? widget.ride.toLat, 'longitude': widget.riderToLng ?? widget.ride.toLng});
+
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
       
@@ -152,14 +179,10 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
         'riderEndLatLng': (widget.riderToLat != null && widget.riderToLng != null)
             ? {'latitude': widget.riderToLat, 'longitude': widget.riderToLng}
             : null,
-        'pickupPoint': widget.ride.fromAddress,
-        'pickupLatLng': (widget.ride.fromLat != null && widget.ride.fromLng != null)
-            ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
-            : null,
-        'dropOffPoint': widget.ride.toAddress,
-        'dropOffLatLng': (widget.ride.toLat != null && widget.ride.toLng != null)
-            ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
-            : null,
+        'pickupPoint': pickupPoint,
+        'pickupLatLng': pickupLatLng,
+        'dropOffPoint': dropOffPoint,
+        'dropOffLatLng': dropOffLatLng,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
