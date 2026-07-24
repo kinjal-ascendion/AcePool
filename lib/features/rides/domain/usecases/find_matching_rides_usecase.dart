@@ -153,6 +153,10 @@ final matchRadiusKm =
         distanceKm: fromDistanceKm,
         matchPercent: matchPercent,
         farePerSeat: farePerSeat,
+        fromLat: rideFromLat,
+        fromLng: rideFromLng,
+        toLat: rideToLat,
+        toLng: rideToLng,
       ));
     }
 

@@ -3,7 +3,9 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
+import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -249,6 +251,12 @@ final matchRadiusKm =
       );
       if (!match.isMatch) continue;
 
+      final endpointsClose =
+          userHomeLat != null && userHomeLng != null &&
+          rideFromLat != null && rideFromLng != null &&
+          RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
+                  RideMatcher.maxMatchDistanceKm;
+
       rides.add(_AvailableRide(
         id: doc.id,
         driverId: d['uid'] as String,
@@ -271,6 +279,12 @@ final matchRadiusKm =
         defaultPickupPoint:
             userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
         farePerSeat: farePerSeat,
+        userFromAddress: userHomeAddress,
+        userToAddress: userOfficeAddress,
+        userFromLat: userHomeLat,
+        userFromLng: userHomeLng,
+        userToLat: userOfficeLat,
+        userToLng: userOfficeLng,
       ));
     }
 
@@ -303,25 +317,23 @@ final matchRadiusKm =
                 const SizedBox(height: 16),
                 Text(
                   emptyLabel,
-                  style: TextStyle(
-                    color: AppColors.grey500,
-                    fontSize: 15,
-                  ),
+                  style: TextStyle(color: AppColors.grey500, fontSize: 16),
                 ),
               ],
             ),
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           itemCount: trips.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (_, i) => onTap != null
-              ? GestureDetector(
-                  onTap: () => onTap(trips[i]),
-                  child: DriveTripCard(trip: trips[i]),
-                )
-              : DriveTripCard(trip: trips[i]),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final trip = trips[index];
+            return DriveTripCard(
+              trip: trip,
+              onTap: () => onTap?.call(trip),
+            );
+          },
         );
       },
     );
@@ -330,180 +342,94 @@ final matchRadiusKm =
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 14),
-              child: Center(
-                child: Text(
-                  'Trips',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  children: List.generate(_tabs.length, (i) {
-                    final active = _tabController.index == i;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => _tabController.animateTo(i),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          decoration: BoxDecoration(
-                            color: active ? AppColors.black : AppColors.transparent,
-                            borderRadius: BorderRadius.circular(26),
-                          ),
-                          child: Text(
-                            _tabs[i],
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: active
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: active ? AppColors.white : AppColors.black54,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.only(right: 20, top: 12, bottom: 4),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.grey300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Upcoming',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 18,
-                        color: AppColors.grey600,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  FutureBuilder<List<_AvailableRide>>(
-                    future: _ridesFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                            child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              'Error: ${snapshot.error}',
-                              style: TextStyle(
-                                  color: AppColors.red400, fontSize: 13),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        );
-                      }
-                      final rides = snapshot.data ?? [];
-                      if (rides.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.event_seat_outlined,
-                                  size: 64,
-                                  color: AppColors.grey300),
-                              const SizedBox(height: 16),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(40, 2, 40, 100),
-                                child: Text(
-                                    _hasCommuteLocation
-                                        ? 'No available rides from other users'
-                                        : 'Set your start and office location on Home to find rides',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        color: AppColors.grey500,
-                                        fontSize: 15)),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                        itemCount: rides.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 14),
-                        itemBuilder: (_, i) => _AvailableRideCard(
-                          ride: rides[i],
-                          db: _db,
-                          onRequested: () => setState(() {
-                            _ridesFuture = _fetchAvailableRidesFromHomeState();
-                          }),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildList(
-                    _drivesFuture,
-                    'No drives scheduled yet',
-                    onTap: (trip) => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => DrivesDetailPage(trip: trip),
-                      ),
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: const Text('Trips',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        centerTitle: false,
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: _tabs.map((t) => Tab(text: t)).toList(),
+          labelColor: AppColors.primaryGreen,
+          unselectedLabelColor: AppColors.grey500,
+          indicatorColor: AppColors.primaryGreen,
+          indicatorWeight: 3,
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          unselectedLabelStyle:
+              const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Find ride tab
+          FutureBuilder<List<_AvailableRide>>(
+            future: _ridesFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final rides = snapshot.data ?? [];
+              if (!_hasCommuteLocation) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text(
+                      'Enter your commute details on the Home tab to find matching rides.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.grey600, fontSize: 16),
                     ),
                   ),
-                ],
+                );
+              }
+              if (rides.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No matching rides found for your commute.',
+                    style: TextStyle(color: AppColors.grey500, fontSize: 16),
+                  ),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {
+                    _ridesFuture = _fetchAvailableRidesFromHomeState();
+                  });
+                },
+                child: ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  itemCount: rides.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  itemBuilder: (context, index) => _AvailableRideCard(
+                    ride: rides[index],
+                    db: _db,
+                    onRequested: () {
+                      setState(() {
+                        _ridesFuture = _fetchAvailableRidesFromHomeState();
+                      });
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Offer ride tab
+          _buildList(
+            _drivesFuture,
+            'You haven\'t offered any rides yet.',
+            onTap: (trip) => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DrivesDetailPage(trip: trip),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -530,6 +456,12 @@ class _AvailableRide {
     required this.defaultPickupPoint,
     required this.distanceKm,
     this.farePerSeat,
+    this.userFromAddress = '',
+    this.userToAddress = '',
+    this.userFromLat,
+    this.userFromLng,
+    this.userToLat,
+    this.userToLng,
   });
 
   final String id;
@@ -551,6 +483,12 @@ class _AvailableRide {
   final String defaultPickupPoint;
   final double? distanceKm;
   final double? farePerSeat;
+  final String userFromAddress;
+  final String userToAddress;
+  final double? userFromLat;
+  final double? userFromLng;
+  final double? userToLat;
+  final double? userToLng;
 
   String? get distanceLabel =>
       distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
@@ -614,26 +552,55 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
             userDoc.data()?['profileImageUrl'] as String?;
       } catch (_) {}
 
-      final pickupPoint = widget.ride.defaultPickupPoint;
+      // Decide if we should meet at driver's endpoints (Endpoint Match) 
+      // or at rider's requested points (Detour Match).
+      bool isEndpointMatch = false;
+      if (widget.ride.userFromLat != null && widget.ride.userFromLng != null &&
+          widget.ride.fromLat != null && widget.ride.fromLng != null &&
+          widget.ride.userToLat != null && widget.ride.userToLng != null &&
+          widget.ride.toLat != null && widget.ride.toLng != null) {
+        final dFrom = RideMatcher.distanceKm(widget.ride.userFromLat!, widget.ride.userFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
+        final dTo = RideMatcher.distanceKm(widget.ride.userToLat!, widget.ride.userToLng!, widget.ride.toLat!, widget.ride.toLng!);
+        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
+      }
 
-      // Use ride's coordinates as pickup coordinate if user didn't change pickup point text
-      LatLng? pickupLatLng = (widget.ride.fromLat != null && widget.ride.fromLng != null)
-          ? LatLng(widget.ride.fromLat!, widget.ride.fromLng!)
-          : null;
+      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : widget.ride.userFromAddress;
+      final pickupLatLng = isEndpointMatch 
+          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
+          : (widget.ride.userFromLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userFromLat!, widget.ride.userFromLng!)
+              : {'latitude': widget.ride.userFromLat, 'longitude': widget.ride.userFromLng});
+
+      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : widget.ride.userToAddress;
+      final dropOffLatLng = isEndpointMatch
+          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
+          : (widget.ride.userToLat != null && widget.ride.fromLat != null 
+              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userToLat!, widget.ride.userToLng!)
+              : {'latitude': widget.ride.userToLat, 'longitude': widget.ride.userToLng});
 
       final requestRef = widget.db.collection('ride_requests').doc();
       final rideRef = widget.db.collection('rides').doc(widget.ride.id);
       final batch = widget.db.batch();
+
       batch.set(requestRef, {
         'rideId': widget.ride.id,
         'riderId': uid,
         'riderName': riderName,
         'riderPhotoUrl': riderPhotoUrl,
-        'pickupPoint': pickupPoint,
-        'pickupLatLng': pickupLatLng != null ? {
-          'latitude': pickupLatLng.latitude,
-          'longitude': pickupLatLng.longitude,
+        'riderStartAddress': widget.ride.userFromAddress,
+        'riderEndAddress': widget.ride.userToAddress,
+        'riderStartLatLng': (widget.ride.userFromLat != null && widget.ride.userFromLng != null) ? {
+          'latitude': widget.ride.userFromLat,
+          'longitude': widget.ride.userFromLng,
         } : null,
+        'riderEndLatLng': (widget.ride.userToLat != null && widget.ride.userToLng != null) ? {
+          'latitude': widget.ride.userToLat,
+          'longitude': widget.ride.userToLng,
+        } : null,
+        'pickupPoint': pickupPoint,
+        'pickupLatLng': pickupLatLng,
+        'dropOffPoint': dropOffPoint,
+        'dropOffLatLng': dropOffLatLng,
         'pickupTime': {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
@@ -643,14 +610,6 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
         'rideTo': widget.ride.toAddress,
-        'rideFromLatLng': (widget.ride.fromLat != null && widget.ride.fromLng != null) ? {
-          'latitude': widget.ride.fromLat!,
-          'longitude': widget.ride.fromLng!,
-        } : null,
-        'rideToLatLng': (widget.ride.toLat != null && widget.ride.toLng != null) ? {
-          'latitude': widget.ride.toLat!,
-          'longitude': widget.ride.toLng!,
-        } : null,
         'rideDate': Timestamp.fromDate(widget.ride.date),
         'rideTime': {
           'hour': widget.ride.time.hour,
@@ -684,271 +643,309 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     final r = widget.ride;
     final requested = r.alreadyRequested || _justRequested;
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RideDetailsPage(
+              ride: RideMatch(
+                id: r.id,
+                driverId: r.driverId,
+                driverName: r.driverName,
+                date: r.date,
+                time: r.time,
+                fromAddress: r.fromAddress,
+                toAddress: r.toAddress,
+                seatsFilled: r.seatsFilled,
+                seatsTotal: r.seatsTotal,
+                vehicleType: r.vehicleType,
+                alreadyRequested: r.alreadyRequested,
+                distanceKm: r.distanceKm,
+                matchPercent: r.matchPercent,
+                farePerSeat: r.farePerSeat,
+                fromLat: r.fromLat,
+                fromLng: r.fromLng,
+                toLat: r.toLat,
+                toLng: r.toLng,
+              ),
+              db: widget.db,
+              riderFromAddress: r.userFromAddress,
+              riderFromLat: r.userFromLat,
+              riderFromLng: r.userFromLng,
+              riderToAddress: r.userToAddress,
+              riderToLat: r.userToLat,
+              riderToLng: r.userToLng,
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Top banner + match% overlay (pinned to extreme corners) ──
-          SizedBox(
-            width: double.infinity,
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                  child: ColoredBox(
-                    color: AppColors.primaryGreen,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.person_outline,
-                              color: AppColors.white, size: 15),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+        );
+      },
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top banner + match% overlay (pinned to extreme corners) ──
+            SizedBox(
+              width: double.infinity,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${r.matchPercent}% Match',
-                        style: const TextStyle(
-                          color: AppColors.primaryGreen,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                    child: ColoredBox(
+                      color: AppColors.primaryGreen,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.person_outline,
+                                color: AppColors.white, size: 15),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                              style: const TextStyle(
+                                color: AppColors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 2),
-                      Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${r.matchPercent}% Match',
+                          style: const TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        r.dateLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: AppColors.black87,
+                        ),
+                      ),
+                      const Spacer(),
+                      Transform.translate(
+                        offset: const Offset(0, -2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(Icons.directions_walk,
+                                size: 12, color: AppColors.grey600),
+                            const SizedBox(width: 4),
+                            Text(
+                              r.distanceLabel ??
+                                  (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.grey600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.chevron_right,
+                                size: 14, color: AppColors.grey400),
+                            const SizedBox(width: 6),
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.grey700,
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      r.dateLabel,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: AppColors.black87,
+                  const SizedBox(height: 2),
+
+                  Text(
+                    r.timeLabel,
+                    style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Row(
+                    children: [
+                      _dot(filled: false),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(r.fromAddress,
+                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        3,
+                        (i) => Container(
+                          width: 1.5,
+                          height: 3,
+                          margin: EdgeInsets.only(
+                            top: i == 0 ? 0 : 1,
+                            bottom: i == 2 ? 0 : 1,
+                          ),
+                          color: AppColors.black26,
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    Transform.translate(
-                      offset: const Offset(0, -2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(Icons.directions_walk,
-                              size: 12, color: AppColors.grey600),
-                          const SizedBox(width: 4),
-                          Text(
-                            r.distanceLabel ??
-                                (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.grey600,
-                              fontWeight: FontWeight.w500,
+                  ),
+                  Row(
+                    children: [
+                      _dot(filled: true),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(r.toAddress,
+                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+                  Divider(color: AppColors.grey200, height: 1),
+                  const SizedBox(height: 8),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.farePerSeat != null
+                            ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                            : 'Fare not set',
+                        style: TextStyle(
+                          color: r.farePerSeat != null
+                              ? AppColors.primaryGreen
+                              : AppColors.grey500,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        'View Details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.black54,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Container(
+                    padding: const EdgeInsets.only(
+                        left: 16, right: 4, top: 4, bottom: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey100,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            enabled: !requested && !_submitting,
+                            style: const TextStyle(fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: requested
+                                  ? 'Request sent'
+                                  : 'Share message with driver',
+                              hintStyle: TextStyle(
+                                  fontSize: 13, color: AppColors.grey400),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 6),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.chevron_right,
-                              size: 14, color: AppColors.grey400),
-                          const SizedBox(width: 6),
-                          Icon(
-                            r.vehicleType == 'bike'
-                                ? Icons.two_wheeler
-                                : Icons.directions_car,
-                            size: 14,
-                            color: AppColors.grey700,
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: requested || _submitting ? null : _requestRide,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: requested ? AppColors.grey400 : AppColors.primaryGreen,
+                              shape: BoxShape.circle,
+                            ),
+                            child: _submitting
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: AppColors.white),
+                                  )
+                                : Icon(
+                                    requested ? Icons.check : Icons.send_rounded,
+                                    color: AppColors.white,
+                                    size: 16,
+                                  ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 2),
-
-          Text(
-            r.timeLabel,
-            style: const TextStyle(color: AppColors.black45, fontSize: 12),
-          ),
-
-          const SizedBox(height: 6),
-
-          Row(
-            children: [
-              _dot(filled: false),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(r.fromAddress,
-                    style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                3,
-                (i) => Container(
-                  width: 1.5,
-                  height: 3,
-                  margin: EdgeInsets.only(
-                    top: i == 0 ? 0 : 1,
-                    bottom: i == 2 ? 0 : 1,
-                  ),
-                  color: AppColors.black26,
-                ),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              _dot(filled: true),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(r.toAddress,
-                    style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-          Divider(color: AppColors.grey200, height: 1),
-          const SizedBox(height: 8),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                r.farePerSeat != null
-                    ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
-                    : 'Fare not set',
-                style: TextStyle(
-                  color: r.farePerSeat != null
-                      ? AppColors.primaryGreen
-                      : AppColors.grey500,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                'View Details',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.black54,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.only(
-                left: 16, right: 4, top: 4, bottom: 4),
-            decoration: BoxDecoration(
-              color: AppColors.grey100,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    enabled: !requested && !_submitting,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: requested
-                          ? 'Request sent'
-                          : 'Share message with driver',
-                      hintStyle: TextStyle(
-                          fontSize: 13, color: AppColors.grey400),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 6),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: requested || _submitting ? null : _requestRide,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: requested ? AppColors.grey400 : AppColors.primaryGreen,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.white),
-                          )
-                        : Icon(
-                            requested ? Icons.check : Icons.send_rounded,
-                            color: AppColors.white,
-                            size: 16,
-                          ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

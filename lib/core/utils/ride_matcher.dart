@@ -91,6 +91,33 @@ class RideMatcher {
     return '${km.toStringAsFixed(1)} km';
   }
 
+  /// Calculates the point on the line segment AB that is closest to point P.
+  /// Used to find the "on the road" drop-off/pick-up point for along-the-route
+  /// matches where the driver isn't detouring to the rider's building.
+  static Map<String, double> projectPointToSegment(
+    double aLat,
+    double aLng,
+    double bLat,
+    double bLng,
+    double pLat,
+    double pLng,
+  ) {
+    final double l2 = _distSq(aLat, aLng, bLat, bLng);
+    if (l2 == 0) return {'latitude': aLat, 'longitude': aLng};
+    
+    // t is the projection fraction along the line AB
+    final double t = (((pLat - aLat) * (bLat - aLat) + (pLng - aLng) * (bLng - aLng)) / l2).clamp(0.0, 1.0);
+    
+    return {
+      'latitude': aLat + t * (bLat - aLat),
+      'longitude': aLng + t * (bLng - aLng),
+    };
+  }
+
+  static double _distSq(double lat1, double lng1, double lat2, double lng2) {
+    return (lat1 - lat2) * (lat1 - lat2) + (lng1 - lng2) * (lng1 - lng2);
+  }
+
   /// Converts a distance into a 0-100 match score: 0km -> 100%, tapering
   /// linearly to 0% at [scaleKm] (defaults to [maxMatchDistanceKm]).
   static int matchPercentFromDistance(
