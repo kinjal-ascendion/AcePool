@@ -17,6 +17,7 @@ class UpcomingTrip extends Equatable {
   final double? farePerSeat;
   final String? note;
   final int? durationMinutes;
+  final String status;
 
   const UpcomingTrip({
     required this.id,
@@ -33,7 +34,30 @@ class UpcomingTrip extends Equatable {
     this.farePerSeat,
     this.note,
     this.durationMinutes,
+    this.status = 'upcoming',
   });
+
+  UpcomingTrip copyWith({
+    String? status,
+  }) {
+    return UpcomingTrip(
+      id: id,
+      date: date,
+      time: time,
+      fromAddress: fromAddress,
+      toAddress: toAddress,
+      fromLat: fromLat,
+      fromLng: fromLng,
+      toLat: toLat,
+      toLng: toLng,
+      seatsFilled: seatsFilled,
+      seatsTotal: seatsTotal,
+      farePerSeat: farePerSeat,
+      note: note,
+      durationMinutes: durationMinutes,
+      status: status ?? this.status,
+    );
+  }
 
   String get dateLabel =>
       '${DateTimeFormatter.monthDayYear(date)}${DateTimeFormatter.relativeDayLabel(date)}';
@@ -56,5 +80,6 @@ class UpcomingTrip extends Equatable {
     farePerSeat,
     note,
     durationMinutes,
+    status,
   ];
 }

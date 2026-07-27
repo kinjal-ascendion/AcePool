@@ -20,6 +20,10 @@ class RideMatch {
     required this.distanceKm,
     required this.matchPercent,
     this.farePerSeat,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
   });
 
   final String id;
@@ -30,6 +34,10 @@ class RideMatch {
   final TimeOfDay time;
   final String fromAddress;
   final String toAddress;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final int seatsFilled;
   final int seatsTotal;
   final String vehicleType;

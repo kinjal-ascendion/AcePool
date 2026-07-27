@@ -9,55 +9,81 @@ class DriveTripCard extends StatelessWidget {
     required this.trip,
     this.showViewDetails = true,
     this.onChatTap,
+    this.onTap,
+    this.onStartRide,
+    this.onEndRide,
   });
 
   final UpcomingTrip trip;
   final bool showViewDetails;
   final VoidCallback? onChatTap;
-
+  final VoidCallback? onTap;
+  final VoidCallback? onStartRide;
+  final VoidCallback? onEndRide;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: seats-filled badge
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              bottomRight: Radius.circular(20),
-            ),
-            child: ColoredBox(
-              color: AppColors.primaryGreen,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.person_outline,
-                      color: AppColors.white,
-                      size: 15,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+    final bool isInProgress = trip.status == 'in_progress';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: seats-filled badge or status badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: isInProgress ? AppColors.primaryGreen : AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isInProgress ? Icons.directions_car : Icons.person_outline,
+                            color: AppColors.white,
+                            size: 15,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isInProgress ? 'Trip in Progress' : '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                if (isInProgress)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Text(
+                      'Ride ID #${trip.id.substring(0, 5)}',
+                      style: TextStyle(
+                        color: AppColors.grey500,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
 
           // Card content
           Padding(
@@ -207,13 +233,40 @@ class DriveTripCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Start/End Ride button
+                if ((!isInProgress && onStartRide != null) || (isInProgress && onEndRide != null))
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isInProgress ? onEndRide : onStartRide,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.black,
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        isInProgress ? 'End Ride' : 'Start Ride',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _fareLabel(double? farePerSeat) {
     return Text(

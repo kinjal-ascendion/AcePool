@@ -37,6 +37,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<SeatCountChanged>(_onSeatCountChanged);
     on<RideFormReset>(_onRideFormReset);
     on<FindRidesRequested>(_onFindRidesRequested);
+    on<RefreshUpcomingTrips>(_onRefreshUpcomingTrips);
     on<CurrentLocationFetched>(_onCurrentLocationFetched);
   }
 
@@ -51,6 +52,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     // Opportunistic, silent — if permission isn't granted yet this simply
     // resolves to null and "Find ride" gets a second chance to prompt.
     unawaited(_fetchCurrentLocation());
+  }
+
+  Future<void> _onRefreshUpcomingTrips(
+    RefreshUpcomingTrips event,
+    Emitter<HomeState> emit,
+  ) async {
+    try {
+      final trips = await _getUpcomingTrips();
+      emit(state.copyWith(upcomingTrips: trips));
+    } catch (_) {}
   }
 
   Future<void> _fetchCurrentLocation() async {

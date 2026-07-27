@@ -8,6 +8,7 @@ import 'account_settings_page.dart';
 import 'addresses_page.dart';
 import 'vehicle_info_page.dart';
 import 'ride_statistics_page.dart';
+import 'route_matching_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -217,9 +218,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
-                  title: 'Route matching',
-                  subtitle: 'Routes & Radius settings',
-                ),
+  title: 'Route matching',
+  subtitle: 'Routes & Radius settings',
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const RouteMatchingPage(),
+    ),
+  ),
+),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Pricing',

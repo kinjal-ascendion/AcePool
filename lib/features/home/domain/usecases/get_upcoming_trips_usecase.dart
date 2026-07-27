@@ -63,7 +63,8 @@ class GetUpcomingTripsUseCase {
         farePerSeat: (fareMap?['farePerSeat'] as num?)?.toDouble(),
         note: data['note'] as String?,
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
+        status: data['status'] as String? ?? 'upcoming',
       );
-    }).toList();
+    }).where((trip) => trip.status != 'completed').toList();
   }
 }

@@ -25,10 +25,11 @@ service cloud.firestore {
     }
 
     match /ride_requests/{requestId} {
-      // Riders can read their own requests; drivers can read requests for their rides
+      // Riders can read/update their own; drivers can read/update theirs; anyone can see accepted riders
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.riderId ||
-         request.auth.uid == resource.data.driverId);
+         request.auth.uid == resource.data.driverId ||
+         resource.data.status == 'accepted');
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.riderId;
       allow update: if request.auth != null &&
