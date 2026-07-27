@@ -26,7 +26,7 @@ class _TripsPageState extends State<TripsPage>
   late final TabController _tabController;
 
   late Future<List<_AvailableRide>> _ridesFuture;
-  late final Future<List<UpcomingTrip>> _drivesFuture;
+  late Future<List<UpcomingTrip>> _drivesFuture;
   bool _hasCommuteLocation = false;
 
   static const _tabs = ['Find ride', 'Offer ride'];
@@ -112,8 +112,9 @@ class _TripsPageState extends State<TripsPage>
         seatsTotal: data['seatCount'] as int,
         note: data['note'] as String?,
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
+        status: data['status'] as String? ?? 'upcoming',
       );
-    }).toList();
+    }).where((trip) => trip.status != 'completed').toList();
   }
 
   /// [fromAddress]/[toAddress] are whatever's currently entered on Home's
@@ -332,11 +333,31 @@ final matchRadiusKm =
             return DriveTripCard(
               trip: trip,
               onTap: () => onTap?.call(trip),
+              onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
+              onEndRide: () => _updateTripStatus(trip.id, 'completed'),
             );
           },
         );
       },
     );
+  }
+
+  Future<void> _updateTripStatus(String tripId, String status) async {
+    try {
+      await _db.collection('rides').doc(tripId).update({'status': status});
+      if (mounted) {
+        context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+      }
+      setState(() {
+        _drivesFuture = _fetchTrips('offer');
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update trip: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -423,11 +444,17 @@ final matchRadiusKm =
           _buildList(
             _drivesFuture,
             'You haven\'t offered any rides yet.',
-            onTap: (trip) => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => DrivesDetailPage(trip: trip),
-              ),
-            ),
+            onTap: (trip) {
+              final homeBloc = context.read<HomeBloc>();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: homeBloc,
+                    child: DrivesDetailPage(trip: trip),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

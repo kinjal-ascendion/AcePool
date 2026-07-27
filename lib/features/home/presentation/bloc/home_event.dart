@@ -83,6 +83,10 @@ class FindRidesRequested extends HomeEvent {
   const FindRidesRequested();
 }
 
+class RefreshUpcomingTrips extends HomeEvent {
+  const RefreshUpcomingTrips();
+}
+
 class CurrentLocationFetched extends HomeEvent {
   final double? lat;
   final double? lng;
