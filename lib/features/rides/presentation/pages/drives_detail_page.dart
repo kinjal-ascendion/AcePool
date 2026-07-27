@@ -4,12 +4,14 @@ import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DrivesDetailPage extends StatefulWidget {
@@ -28,15 +30,38 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   );
 
   late Future<List<_RiderInfo>> _ridersFuture;
+  late UpcomingTrip _currentTrip;
 
   @override
   void initState() {
     super.initState();
+    _currentTrip = widget.trip;
     _reload();
   }
 
   void _reload() {
     _ridersFuture = _fetchRiders('accepted');
+  }
+
+  Future<void> _updateTripStatus(String status) async {
+    try {
+      await _db.collection('rides').doc(_currentTrip.id).update({'status': status});
+      if (mounted) {
+        context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+        setState(() {
+          _currentTrip = _currentTrip.copyWith(status: status);
+        });
+        if (status == 'completed') {
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update trip: $e')),
+        );
+      }
+    }
   }
 
   Future<List<_RiderInfo>> _fetchRiders(String status) async {
@@ -322,8 +347,10 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DriveTripCard(
-                      trip: widget.trip,
+                      trip: _currentTrip,
                       showViewDetails: false,
+                      onStartRide: () => _updateTripStatus('in_progress'),
+                      onEndRide: () => _updateTripStatus('completed'),
                       onChatTap: () async {
                         final riders = await _ridersFuture;
                         final myId = FirebaseAuth.instance.currentUser?.uid;

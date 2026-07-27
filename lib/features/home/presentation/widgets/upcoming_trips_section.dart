@@ -1,8 +1,10 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class UpcomingTripsSection extends StatelessWidget {
   const UpcomingTripsSection({
@@ -64,11 +66,17 @@ class UpcomingTripsSection extends StatelessWidget {
         else
           for (final trip in trips.take(3)) ...[
             GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => DrivesDetailPage(trip: trip),
-                ),
-              ),
+              onTap: () {
+                final homeBloc = context.read<HomeBloc>();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: homeBloc,
+                      child: DrivesDetailPage(trip: trip),
+                    ),
+                  ),
+                );
+              },
               child: DriveTripCard(trip: trip),
             ),
             const SizedBox(height: 12),
