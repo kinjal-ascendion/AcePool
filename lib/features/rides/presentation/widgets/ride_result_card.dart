@@ -190,61 +190,58 @@ class _RideResultCardState extends State<RideResultCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top banner + match% overlay (pinned to extreme corners) ──
-            SizedBox(
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: ColoredBox(
-                      color: AppColors.primaryGreen,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.person_outline,
-                                color: AppColors.white, size: 15),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
+            // ── Top row: seats-filled chip pinned to corner + match% ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_outline,
+                              color: AppColors.white, size: 15),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${r.matchPercent}% Match',
-                          style: const TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: const TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
             Padding(
@@ -304,6 +301,49 @@ class _RideResultCardState extends State<RideResultCard> {
                   Text(
                     r.timeLabel,
                     style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Driver info ─────────────────────────────────────────
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.grey200,
+                        backgroundImage: (r.driverPhotoUrl?.isNotEmpty ?? false)
+                            ? NetworkImage(r.driverPhotoUrl!)
+                            : null,
+                        child: (r.driverPhotoUrl?.isNotEmpty ?? false)
+                            ? null
+                            : Icon(Icons.person, color: AppColors.grey400),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.driverName.isNotEmpty ? r.driverName : 'Driver',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Verified ID',
+                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
+                        onPressed: () {},
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 6),
@@ -423,12 +463,13 @@ class _RideResultCardState extends State<RideResultCard> {
                         GestureDetector(
                           onTap: requested || _submitting ? null : _requestRide,
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               color: requested
                                   ? AppColors.grey400
                                   : AppColors.primaryGreen,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(30),
                             ),
                             child: _submitting
                                 ? const SizedBox(
@@ -437,10 +478,13 @@ class _RideResultCardState extends State<RideResultCard> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: AppColors.white),
                                   )
-                                : Icon(
-                                    requested ? Icons.check : Icons.send_rounded,
-                                    color: AppColors.white,
-                                    size: 16,
+                                : Text(
+                                    requested ? 'Requested' : 'Request ride',
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                           ),
                         ),

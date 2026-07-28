@@ -27,40 +27,68 @@ class FindMatchingRidesUseCase {
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
-    final userDoc = await _db.collection('users').doc(uid).get();
 
-final matchRadiusKm =
-    (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
-
+    // Kick off the independent reads together instead of awaiting them one
+    // at a time — each .get() starts its network call immediately.
+    final userDocFuture = _db.collection('users').doc(uid).get();
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    final snap = await _db
+    final ridesSnapFuture = _db
         .collection('rides')
         .where('rideMode', isEqualTo: 'offer')
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
         .where('date', isLessThan: Timestamp.fromDate(endOfDay))
         .get();
-
-    final myRequestsSnap = await _db
+    final myRequestsSnapFuture = _db
         .collection('ride_requests')
         .where('riderId', isEqualTo: uid)
         .where('status', isEqualTo: 'accepted')
         .get();
+
+    final userDoc = await userDocFuture;
+    final snap = await ridesSnapFuture;
+    final myRequestsSnap = await myRequestsSnapFuture;
+
+    final matchRadiusKm =
+        (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
+
     final requestedRideIds = myRequestsSnap.docs
         .map((d) => d.data()['rideId'] as String)
         .toSet();
 
-    final results = <RideMatch>[];
-    for (final doc in snap.docs) {
+    final candidates = snap.docs.where((doc) {
       final d = doc.data();
-      if (d['uid'] == uid) continue;
+      if (d['uid'] == uid) return false;
       final rideVehicleType = d['vehicleType'] as String? ?? 'car';
-      if (rideVehicleType != vehicleType) continue;
+      if (rideVehicleType != vehicleType) return false;
       final seatCount = d['seatCount'] as int;
       final seatsFilled = (d['seatsFilled'] as int?) ?? 0;
-      if (seatsFilled >= seatCount) continue;
+      if (seatsFilled >= seatCount) return false;
+      return true;
+    }).toList();
 
+    // Fetch each distinct driver's profile once, in parallel, instead of
+    // once per ride inside the loop below.
+    final driverIds = candidates.map((doc) => doc.data()['uid'] as String).toSet();
+    final driverProfiles = <String, ({String name, String? photoUrl})>{};
+    await Future.wait(driverIds.map((driverId) async {
+      try {
+        final driverDoc = await _db.collection('users').doc(driverId).get();
+        final dd = driverDoc.data();
+        driverProfiles[driverId] = (
+          name: dd?['fullName'] as String? ?? '',
+          photoUrl: dd?['profileImageUrl'] as String?,
+        );
+      } catch (_) {
+        driverProfiles[driverId] = (name: '', photoUrl: null);
+      }
+    }));
+
+    final matchResults = await Future.wait(candidates.map((doc) async {
+      final d = doc.data();
+      final rideVehicleType = d['vehicleType'] as String? ?? 'car';
+      final seatCount = d['seatCount'] as int;
+      final seatsFilled = (d['seatsFilled'] as int?) ?? 0;
       final rideFrom = d['fromAddress'] as String;
       final rideTo = d['toAddress'] as String;
       final rideFromLat = (d['fromLat'] as num?)?.toDouble();
@@ -120,27 +148,21 @@ final matchRadiusKm =
         liveDetourKm: liveDetourKm,
         matchRadiusKm: matchRadiusKm,
       );
-      if (!match.isMatch) continue;
+      if (!match.isMatch) return null;
       final fromDistanceKm = match.distanceKm;
       final matchPercent = match.matchPercent;
 
-      String driverName = '';
-      String? driverPhotoUrl;
-      try {
-        final driverDoc = await _db.collection('users').doc(d['uid'] as String).get();
-        final dd = driverDoc.data();
-        driverName = dd?['fullName'] as String? ?? '';
-        driverPhotoUrl = dd?['profileImageUrl'] as String?;
-      } catch (_) {}
+      final driverId = d['uid'] as String;
+      final driver = driverProfiles[driverId];
 
       final rideDate = (d['date'] as Timestamp).toDate();
       final timeMap = d['time'] as Map<String, dynamic>;
 
-      results.add(RideMatch(
+      return RideMatch(
         id: doc.id,
-        driverId: d['uid'] as String,
-        driverName: driverName,
-        driverPhotoUrl: driverPhotoUrl,
+        driverId: driverId,
+        driverName: driver?.name ?? '',
+        driverPhotoUrl: driver?.photoUrl,
         date: rideDate,
         time: TimeOfDay(
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
@@ -157,8 +179,10 @@ final matchRadiusKm =
         fromLng: rideFromLng,
         toLat: rideToLat,
         toLng: rideToLng,
-      ));
-    }
+      );
+    }));
+
+    final results = matchResults.whereType<RideMatch>().toList();
 
     results.sort((a, b) {
       if (a.distanceKm == null && b.distanceKm == null) return 0;

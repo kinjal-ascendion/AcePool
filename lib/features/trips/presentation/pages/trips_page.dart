@@ -35,7 +35,7 @@ class _TripsPageState extends State<TripsPage>
   late String _findRideFilter;
   static const _findRideFilters = ['Suggested Rides', 'Ride Requests'];
 
-  static const _tabs = ['Find ride', 'Offered rides'];
+  static const _tabs = ['Find ride', 'Offer ride'];
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -191,11 +191,14 @@ final matchRadiusKm =
       if (seatsFilled >= seatCount) continue;
 
       String driverName = '';
+      String driverPhotoUrl = '';
       try {
         final driverDoc =
             await _db.collection('users').doc(d['uid'] as String).get();
         driverName = driverDoc.data()?['fullName'] as String? ?? '';
+        driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
       } catch (_) {}
+      if (driverName.isEmpty) driverName = 'Driver';
 
       final date = (d['date'] as Timestamp).toDate();
       final timeMap = d['time'] as Map<String, dynamic>;
@@ -276,6 +279,7 @@ final matchRadiusKm =
         id: doc.id,
         driverId: d['uid'] as String,
         driverName: driverName,
+        driverPhotoUrl: driverPhotoUrl,
         date: date,
         time: TimeOfDay(
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
@@ -333,12 +337,15 @@ final matchRadiusKm =
       } catch (_) {}
 
       final rideTime = d['rideTime'] as Map<String, dynamic>;
+      final storedDriverName = d['driverName'] as String?;
 
       requests.add(_RequestedRide(
         id: doc.id,
         rideId: rideId,
         driverId: d['driverId'] as String? ?? '',
-        driverName: d['driverName'] as String? ?? 'Driver',
+        driverName: (storedDriverName != null && storedDriverName.isNotEmpty)
+            ? storedDriverName
+            : 'Driver',
         driverPhotoUrl: driverPhotoUrl,
         date: (d['rideDate'] as Timestamp).toDate(),
         time: TimeOfDay(
@@ -480,7 +487,7 @@ final matchRadiusKm =
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.black),
@@ -489,7 +496,7 @@ final matchRadiusKm =
         title: const Text('Trips',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: true,
-        backgroundColor: AppColors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
         bottom: PreferredSize(
@@ -682,6 +689,7 @@ class _AvailableRide {
     required this.id,
     required this.driverId,
     required this.driverName,
+    this.driverPhotoUrl = '',
     required this.date,
     required this.time,
     required this.fromAddress,
@@ -709,6 +717,7 @@ class _AvailableRide {
   final String id;
   final String driverId;
   final String driverName;
+  final String driverPhotoUrl;
   final DateTime date;
   final TimeOfDay time;
   final String fromAddress;
@@ -1053,6 +1062,49 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                     style: const TextStyle(color: AppColors.black45, fontSize: 12),
                   ),
 
+                  const SizedBox(height: 12),
+
+                  // Driver info
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.grey200,
+                        backgroundImage: r.driverPhotoUrl.isNotEmpty
+                            ? NetworkImage(r.driverPhotoUrl)
+                            : null,
+                        child: r.driverPhotoUrl.isEmpty
+                            ? Icon(Icons.person, color: AppColors.grey400)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.driverName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Verified ID',
+                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
+                        onPressed: () {},
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(height: 6),
 
                   Row(
@@ -1161,10 +1213,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         GestureDetector(
                           onTap: requested || _submitting ? null : _requestRide,
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               color: requested ? AppColors.grey400 : AppColors.primaryGreen,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(30),
                             ),
                             child: _submitting
                                 ? const SizedBox(
@@ -1173,10 +1226,13 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: AppColors.white),
                                   )
-                                : Icon(
-                                    requested ? Icons.check : Icons.send_rounded,
-                                    color: AppColors.white,
-                                    size: 16,
+                                : Text(
+                                    requested ? 'Requested' : 'Request ride',
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                           ),
                         ),
@@ -1466,7 +1522,35 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
   @override
   Widget build(BuildContext context) {
     final r = widget.request;
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RideDetailsPage(
+              ride: RideMatch(
+                id: r.rideId,
+                driverId: r.driverId,
+                driverName: r.driverName,
+                driverPhotoUrl: r.driverPhotoUrl,
+                date: r.date,
+                time: r.time,
+                fromAddress: r.fromAddress,
+                toAddress: r.toAddress,
+                seatsFilled: r.seatsFilled,
+                seatsTotal: r.seatsTotal,
+                vehicleType: r.vehicleType,
+                alreadyRequested: true,
+                distanceKm: null,
+                matchPercent: 100,
+                farePerSeat: r.farePerSeat,
+              ),
+              db: widget.db,
+            ),
+          ),
+        );
+      },
+      child: Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -1642,15 +1726,12 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {},
-                      child: const Text(
-                        'View Details',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.black54,
-                          decoration: TextDecoration.underline,
-                        ),
+                    const Text(
+                      'View Details',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.black54,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ],
@@ -1681,6 +1762,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

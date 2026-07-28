@@ -564,7 +564,7 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            r.driverName,
+                            r.driverName.isNotEmpty ? r.driverName : 'Driver',
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                           ),
                           Text(
