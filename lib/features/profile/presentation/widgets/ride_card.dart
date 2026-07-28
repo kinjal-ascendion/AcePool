@@ -8,6 +8,7 @@ class RideCard extends StatelessWidget {
   final String drop;
   final double rating;
   final int reviews;
+  final bool showReviews;
   final Widget? trailing;
   final VoidCallback? onReview;
 
@@ -19,6 +20,7 @@ class RideCard extends StatelessWidget {
     required this.drop,
     required this.rating,
     required this.reviews,
+    this.showReviews = true,
     this.trailing,
     this.onReview,
   });
@@ -26,13 +28,13 @@ class RideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 2),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.grey200),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: AppColors.grey300),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -53,47 +55,61 @@ class RideCard extends StatelessWidget {
 
                       const SizedBox(height: 6),
 
-                      Text(time, style: TextStyle(color: AppColors.grey700)),
+                      Text(
+  time,
+ style: const TextStyle(
+    color: Colors.black,
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+  ),
+),
                     ],
                   ),
                 ),
 
                 trailing ??
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                   Column(
+  mainAxisSize: MainAxisSize.min,
+  crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Row(
-                          children: List.generate(
-                            5,
-                            (index) => Icon(
-                              index < rating.round()
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$reviews reviews",
-                          style: TextStyle(
-                            color: AppColors.grey600,
-                            fontSize: 12,
-                          ),
-                        ),
+  children: List.generate(
+    5,
+    (index) => Icon(
+      index < rating.round()
+          ? Icons.star
+          : Icons.star_border,
+      color: index < rating.round()
+          ? Colors.amber
+          : const Color.fromARGB(255, 191, 191, 191),
+      size: 22,
+    ),
+  ),
+),
+                        if (showReviews && reviews > 0) ...[
+  const SizedBox(height: 4),
+  Text(
+    "$reviews review${reviews == 1 ? '' : 's'}",
+    style: TextStyle(
+      color: AppColors.grey600,
+      fontSize: 12,
+    ),
+  ),
+],
                       ],
                     ),
               ],
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
+           Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        children: [
                     Container(
                       width: 12,
                       height: 12,
@@ -105,7 +121,7 @@ class RideCard extends StatelessWidget {
 
                     Container(
                       width: 2,
-                      height: 32,
+                      height: 26,
                       color: Colors.green.shade300,
                     ),
 
@@ -119,20 +135,40 @@ class RideCard extends StatelessWidget {
                     ),
                   ],
                 ),
+    ),
 
                 const SizedBox(width: 12),
 
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(pickup, style: const TextStyle(fontSize: 15)),
+  child: Padding(
+    padding: const EdgeInsets.only(top: 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+  pickup,
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    fontSize: 15,
+    color: AppColors.grey600,
+  ),
+),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 10),
 
-                      Text(drop, style: const TextStyle(fontSize: 15)),
+Text(
+  drop,
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    fontSize: 15,
+    color: AppColors.grey600,
+  ),
+),
                     ],
                   ),
+                ),
                 ),
               ],
             ),
@@ -142,3 +178,4 @@ class RideCard extends StatelessWidget {
     );
   }
 }
+

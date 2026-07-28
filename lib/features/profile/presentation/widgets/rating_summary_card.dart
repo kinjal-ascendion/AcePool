@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 
 class RatingSummaryCard extends StatelessWidget {
-  const RatingSummaryCard({super.key});
+  final double averageRating;
+  final int totalReviews;
+  final Map<int, int> ratingCounts;
+
+  const RatingSummaryCard({
+    super.key,
+    required this.averageRating,
+    required this.totalReviews,
+    required this.ratingCounts,
+  });
 
   Widget _ratingBar(int stars, int count) {
     return Padding(
@@ -50,8 +59,8 @@ class RatingSummaryCard extends StatelessWidget {
               width: 90,
               child: Column(
                 children: [
-                  const Text(
-                    "3.7",
+                 Text(
+  averageRating.toStringAsFixed(1),
                     style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 6),
@@ -67,7 +76,7 @@ class RatingSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "15 reviews",
+  "$totalReviews review${totalReviews == 1 ? '' : 's'}",
                     style: TextStyle(color: AppColors.grey600),
                   ),
                 ],
@@ -76,17 +85,17 @@ class RatingSummaryCard extends StatelessWidget {
 
             const SizedBox(width: 20),
 
-            const Expanded(
-              child: Column(
-                children: [
-                  _RatingRow(stars: 5, count: 4),
-                  _RatingRow(stars: 4, count: 4),
-                  _RatingRow(stars: 3, count: 0),
-                  _RatingRow(stars: 2, count: 3),
-                  _RatingRow(stars: 1, count: 0),
-                ],
-              ),
-            ),
+            Expanded(
+  child: Column(
+    children: [
+      _RatingRow(stars: 5, count: ratingCounts[5] ?? 0),
+      _RatingRow(stars: 4, count: ratingCounts[4] ?? 0),
+      _RatingRow(stars: 3, count: ratingCounts[3] ?? 0),
+      _RatingRow(stars: 2, count: ratingCounts[2] ?? 0),
+      _RatingRow(stars: 1, count: ratingCounts[1] ?? 0),
+    ],
+  ),
+),
           ],
         ),
       ),
@@ -115,7 +124,7 @@ class _RatingRow extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: count / 5,
                 minHeight: 8,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor: Colors.grey.shade200,
                 valueColor: const AlwaysStoppedAnimation(Colors.amber),
               ),
             ),
