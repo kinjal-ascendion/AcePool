@@ -15,7 +15,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
-  const TripsPage({super.key});
+  const TripsPage({super.key, this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   State<TripsPage> createState() => _TripsPageState();
@@ -33,7 +35,7 @@ class _TripsPageState extends State<TripsPage>
   late String _findRideFilter;
   static const _findRideFilters = ['Suggested Rides', 'Ride Requests'];
 
-  static const _tabs = ['Find ride', 'Offer ride'];
+  static const _tabs = ['Find ride', 'Offered rides'];
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -422,28 +424,80 @@ final matchRadiusKm =
     }
   }
 
+  Widget _buildTabToggle() {
+    return Center(
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F1F2),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.10),
+              blurRadius: 5,
+              blurStyle: BlurStyle.inner,
+            ),
+          ],
+        ),
+        child: IntrinsicWidth(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: List.generate(_tabs.length, (i) {
+              final selected = _tabController.index == i;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => _tabController.animateTo(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.toggleActiveBlack
+                          : AppColors.transparent,
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                    child: Text(
+                      _tabs[i],
+                      style: TextStyle(
+                        color: selected ? AppColors.white : AppColors.black87,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
+        ),
         title: const Text('Trips',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-        centerTitle: false,
+        centerTitle: true,
         backgroundColor: AppColors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: _tabs.map((t) => Tab(text: t)).toList(),
-          labelColor: AppColors.primaryGreen,
-          unselectedLabelColor: AppColors.grey500,
-          indicatorColor: AppColors.primaryGreen,
-          indicatorWeight: 3,
-          labelStyle:
-              const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          unselectedLabelStyle:
-              const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: _buildTabToggle(),
+          ),
         ),
       ),
       body: TabBarView(
@@ -453,12 +507,14 @@ final matchRadiusKm =
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
+                      height: 45,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -467,6 +523,7 @@ final matchRadiusKm =
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _findRideFilter,
+                          isDense: true,
                           items: _findRideFilters
                               .map((f) => DropdownMenuItem(
                                     value: f,
@@ -1435,7 +1492,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   bottomRight: Radius.circular(20),
                 ),
                 child: ColoredBox(
-                  color: AppColors.grey500,
+                  color: AppColors.primaryGreen,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
