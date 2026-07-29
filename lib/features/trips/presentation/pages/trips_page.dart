@@ -1,6 +1,9 @@
 import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/domain/entities/chat_message.dart';
+import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
@@ -820,6 +823,34 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
   }
 
   Future<void> _requestRide() async {
+    final messageText = _messageController.text.trim();
+    if (_submitting) return;
+
+    final requested = widget.ride.alreadyRequested || _justRequested;
+
+    if (requested) {
+      if (messageText.isEmpty) return;
+      setState(() => _submitting = true);
+      try {
+        await _sendMessage(messageText);
+        if (mounted) {
+          _messageController.clear();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Message sent to driver')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send message: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -878,7 +909,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         } : null,
         'riderEndLatLng': (widget.ride.userToLat != null && widget.ride.userToLng != null) ? {
           'latitude': widget.ride.userToLat,
-          'longitude': widget.ride.userToLng,
+          'longitude': widget.ride.toLng,
         } : null,
         'pickupPoint': pickupPoint,
         'pickupLatLng': pickupLatLng,
@@ -888,7 +919,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
         },
-        'message': _messageController.text.trim(),
+        'message': messageText,
         'status': 'accepted',
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
@@ -904,11 +935,16 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
       await batch.commit();
 
+      if (messageText.isNotEmpty) {
+        await _sendMessage(messageText);
+      }
+
       if (mounted) {
         setState(() {
           _justRequested = true;
           _submitting = false;
         });
+        _messageController.clear();
         widget.onRequested();
       }
     } catch (e) {
@@ -919,6 +955,33 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         );
       }
     }
+  }
+
+  Future<void> _sendMessage(String text) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    String senderName = '';
+    try {
+      final userDoc = await widget.db.collection('users').doc(uid).get();
+      senderName = userDoc.data()?['fullName'] as String? ?? 'User';
+    } catch (_) {}
+
+    final ids = [uid, widget.ride.driverId]..sort();
+    final chatId = ids.join('_');
+
+    await sl<ChatRepository>().sendMessage(
+      chatId,
+      ChatMessage(
+        id: '',
+        senderId: uid,
+        receiverId: widget.ride.driverId,
+        text: text,
+        timestamp: DateTime.now(),
+      ),
+      senderName,
+      widget.ride.driverName,
+    );
   }
 
   @override
@@ -1265,12 +1328,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         Expanded(
                           child: TextField(
                             controller: _messageController,
-                            enabled: !requested && !_submitting,
+                            enabled: !_submitting,
                             style: const TextStyle(fontSize: 13),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              hintText: requested
-                                  ? 'Request sent'
-                                  : 'Share message with driver',
+                              hintText: 'Share message with driver',
                               hintStyle: TextStyle(
                                   fontSize: 13, color: AppColors.grey400),
                               border: InputBorder.none,
@@ -1282,12 +1344,12 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         ),
                         const SizedBox(width: 6),
                         GestureDetector(
-                          onTap: requested || _submitting ? null : _requestRide,
+                          onTap: _submitting ? null : _requestRide,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
-                              color: requested ? AppColors.grey400 : AppColors.primaryGreen,
+                              color: (requested && _messageController.text.trim().isEmpty) ? AppColors.grey400 : AppColors.primaryGreen,
                               borderRadius: BorderRadius.circular(30),
                             ),
                             child: _submitting
@@ -1298,7 +1360,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                                         strokeWidth: 2, color: AppColors.white),
                                   )
                                 : Text(
-                                    requested ? 'Requested' : 'Request ride',
+                                    (requested && _messageController.text.trim().isNotEmpty) ? 'Send' : (requested ? 'Requested' : 'Request ride'),
                                     style: const TextStyle(
                                       color: AppColors.white,
                                       fontSize: 13,
@@ -1406,6 +1468,62 @@ class _RequestedRideCard extends StatefulWidget {
 
 class _RequestedRideCardState extends State<_RequestedRideCard> {
   bool _cancelling = false;
+  final _messageController = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _submitting) return;
+
+    setState(() => _submitting = true);
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      String senderName = '';
+      try {
+        final userDoc = await widget.db.collection('users').doc(uid).get();
+        senderName = userDoc.data()?['fullName'] as String? ?? 'User';
+      } catch (_) {}
+
+      final ids = [uid, widget.request.driverId]..sort();
+      final chatId = ids.join('_');
+
+      await sl<ChatRepository>().sendMessage(
+        chatId,
+        ChatMessage(
+          id: '',
+          senderId: uid,
+          receiverId: widget.request.driverId,
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+        senderName,
+        widget.request.driverName,
+      );
+
+      if (mounted) {
+        _messageController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message sent to driver')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send message: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   Future<void> _cancelRequest() async {
     final confirm = await showDialog<bool>(
@@ -1904,7 +2022,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 const SizedBox(height: 12),
 
                 Container(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+                  padding: const EdgeInsets.only(left: 16, right: 4, top: 4, bottom: 4),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(30),
@@ -1913,20 +2031,42 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          r.status == 'accepted' ? 'Request Sent. Share a message' : 'Request Pending',
-                          style: TextStyle(fontSize: 13, color: AppColors.grey400),
+                        child: TextField(
+                          controller: _messageController,
+                          enabled: !_submitting,
+                          style: const TextStyle(fontSize: 13),
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Share a message...',
+                            hintStyle: TextStyle(fontSize: 13, color: AppColors.grey400),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.primaryGreen, width: 2),
+                      GestureDetector(
+                        onTap: _submitting ? null : _sendMessage,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _messageController.text.trim().isEmpty ? Colors.transparent : AppColors.primaryGreen,
+                            border: _messageController.text.trim().isEmpty ? Border.all(color: AppColors.primaryGreen, width: 2) : null,
+                          ),
+                          child: _submitting
+                            ? const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen),
+                              )
+                            : Icon(
+                                _messageController.text.trim().isEmpty ? Icons.check : Icons.send,
+                                color: _messageController.text.trim().isEmpty ? AppColors.primaryGreen : AppColors.white,
+                                size: 18,
+                              ),
                         ),
-                        child: const Icon(Icons.check, color: AppColors.primaryGreen, size: 18),
                       ),
                     ],
                   ),
