@@ -1,6 +1,8 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/presentation/pages/security_page.dart';
 import 'package:acepool/features/profile/presentation/pages/route_matching_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -652,7 +654,10 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           child: const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 24),
         ),
         const SizedBox(width: 16),
-        const Icon(Icons.share_outlined, size: 22),
+        GestureDetector(
+          onTap: () => LocationShareHelper.shareCurrentLocation(context),
+          child: const Icon(Icons.share_outlined, size: 22),
+        ),
         const SizedBox(width: 16),
         IconButton(
           padding: EdgeInsets.zero,
@@ -664,10 +669,10 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     );
   }
 
-  void _showSOSDialog(BuildContext context) {
+  void _showSOSDialog(BuildContext pageContext) {
     showDialog(
-      context: context,
-      builder: (context) => Dialog(
+      context: pageContext,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: Colors.white,
@@ -697,7 +702,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, size: 18, color: AppColors.black54),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(dialogContext),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -717,7 +722,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(dialogContext),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
@@ -730,9 +735,11 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('SOS alert sent successfully')),
+                          Navigator.pop(dialogContext);
+                          if (!pageContext.mounted) return;
+                          Navigator.push(
+                            pageContext,
+                            MaterialPageRoute(builder: (_) => const SecurityPage()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
