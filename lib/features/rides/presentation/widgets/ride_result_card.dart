@@ -1,5 +1,8 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/domain/entities/chat_message.dart';
+import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -134,11 +137,32 @@ class _RideResultCardState extends State<RideResultCard> {
       batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
       await batch.commit();
 
+      // Also send a chat message if there's a message entered
+      final messageText = _messageController.text.trim();
+      if (messageText.isNotEmpty) {
+        final ids = [uid, widget.result.driverId]..sort();
+        final chatId = ids.join('_');
+        
+        await sl<ChatRepository>().sendMessage(
+          chatId,
+          ChatMessage(
+            id: '',
+            senderId: uid,
+            receiverId: widget.result.driverId,
+            text: messageText,
+            timestamp: DateTime.now(),
+          ),
+          riderName,
+          widget.result.driverName,
+        );
+      }
+
       if (mounted) {
         setState(() {
           _justRequested = true;
           _submitting = false;
         });
+        _messageController.clear();
         widget.onRequested();
       }
     } catch (e) {
@@ -482,12 +506,11 @@ class _RideResultCardState extends State<RideResultCard> {
                         Expanded(
                           child: TextField(
                             controller: _messageController,
-                            enabled: !requested && !_submitting,
+                            enabled: !_submitting,
                             style: const TextStyle(fontSize: 13),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              hintText: requested
-                                  ? 'Request sent'
-                                  : 'Share message with driver',
+                              hintText: 'Share message with driver',
                               hintStyle: TextStyle(
                                   fontSize: 13, color: AppColors.grey400),
                               border: InputBorder.none,
@@ -499,12 +522,12 @@ class _RideResultCardState extends State<RideResultCard> {
                         ),
                         const SizedBox(width: 6),
                         GestureDetector(
-                          onTap: requested || _submitting ? null : _requestRide,
+                          onTap: _submitting ? null : _requestRide,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
-                              color: requested
+                              color: (requested && _messageController.text.trim().isEmpty)
                                   ? AppColors.grey400
                                   : AppColors.primaryGreen,
                               borderRadius: BorderRadius.circular(30),
@@ -517,7 +540,7 @@ class _RideResultCardState extends State<RideResultCard> {
                                         strokeWidth: 2, color: AppColors.white),
                                   )
                                 : Text(
-                                    requested ? 'Requested' : 'Request ride',
+                                    (requested && _messageController.text.trim().isNotEmpty) ? 'Send' : (requested ? 'Requested' : 'Request ride'),
                                     style: const TextStyle(
                                       color: AppColors.white,
                                       fontSize: 13,

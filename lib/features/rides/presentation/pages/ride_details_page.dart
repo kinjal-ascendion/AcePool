@@ -1,5 +1,8 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/domain/entities/chat_message.dart';
+import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/track_route_page.dart';
@@ -123,7 +126,32 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
   }
 
   Future<void> _requestRide() async {
-    if (_justRequested || _submitting) return;
+    final messageText = _messageController.text.trim();
+    if (_submitting) return;
+
+    if (_justRequested) {
+      if (messageText.isEmpty) return;
+      setState(() => _submitting = true);
+      try {
+        await _sendMessage(messageText);
+        if (mounted) {
+          _messageController.clear();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Message sent to driver')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send message: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -188,7 +216,7 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
           'hour': widget.ride.time.hour,
           'minute': widget.ride.time.minute,
         },
-        'message': _messageController.text.trim(),
+        'message': messageText,
         'status': 'accepted',
         'createdAt': FieldValue.serverTimestamp(),
         'rideFrom': widget.ride.fromAddress,
@@ -204,11 +232,16 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
       batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
       await batch.commit();
 
+      if (messageText.isNotEmpty) {
+        await _sendMessage(messageText);
+      }
+
       if (mounted) {
         setState(() {
           _justRequested = true;
           _submitting = false;
         });
+        _messageController.clear();
         _ridersFuture = _fetchRiders();
       }
     } catch (e) {
@@ -219,6 +252,33 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
         );
       }
     }
+  }
+
+  Future<void> _sendMessage(String text) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    String senderName = '';
+    try {
+      final userDoc = await widget.db.collection('users').doc(uid).get();
+      senderName = userDoc.data()?['fullName'] as String? ?? 'User';
+    } catch (_) {}
+
+    final ids = [uid, widget.ride.driverId]..sort();
+    final chatId = ids.join('_');
+
+    await sl<ChatRepository>().sendMessage(
+      chatId,
+      ChatMessage(
+        id: '',
+        senderId: uid,
+        receiverId: widget.ride.driverId,
+        text: text,
+        timestamp: DateTime.now(),
+      ),
+      senderName,
+      widget.ride.driverName,
+    );
   }
 
   @override
