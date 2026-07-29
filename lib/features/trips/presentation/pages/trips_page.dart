@@ -315,6 +315,10 @@ final matchRadiusKm =
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return [];
 
+    final homeState = context.read<HomeBloc>().state;
+    final userDoc = await _db.collection('users').doc(uid).get();
+    final matchRadiusKm = (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
+
     final snap = await _db
         .collection('ride_requests')
         .where('riderId', isEqualTo: uid)
@@ -328,6 +332,7 @@ final matchRadiusKm =
 
       final rideDoc = await _db.collection('rides').doc(rideId).get();
       final rideData = rideDoc.data();
+      if (rideData == null) continue;
 
       String driverPhotoUrl = '';
       try {
@@ -338,6 +343,31 @@ final matchRadiusKm =
 
       final rideTime = d['rideTime'] as Map<String, dynamic>;
       final storedDriverName = d['driverName'] as String?;
+
+      final rideFromLat = (rideData['fromLat'] as num?)?.toDouble() ?? 
+          (rideData['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
+      final rideFromLng = (rideData['fromLng'] as num?)?.toDouble() ?? 
+          (rideData['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
+      final rideToLat = (rideData['toLat'] as num?)?.toDouble() ?? 
+          (rideData['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
+      final rideToLng = (rideData['toLng'] as num?)?.toDouble() ?? 
+          (rideData['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
+
+      final match = RideMatcher.computeMatch(
+        userFromAddress: homeState.fromAddress ?? '',
+        userToAddress: homeState.toAddress ?? '',
+        userFromLat: homeState.fromLat,
+        userFromLng: homeState.fromLng,
+        userToLat: homeState.toLat,
+        userToLng: homeState.toLng,
+        rideFromAddress: rideData['fromAddress'] as String? ?? '',
+        rideToAddress: rideData['toAddress'] as String? ?? '',
+        rideFromLat: rideFromLat,
+        rideFromLng: rideFromLng,
+        rideToLat: rideToLat,
+        rideToLng: rideToLng,
+        matchRadiusKm: matchRadiusKm,
+      );
 
       requests.add(_RequestedRide(
         id: doc.id,
@@ -354,11 +384,13 @@ final matchRadiusKm =
         ),
         fromAddress: d['rideFrom'] as String,
         toAddress: d['rideTo'] as String,
-        seatsFilled: rideData?['seatsFilled'] as int? ?? 0,
-        seatsTotal: rideData?['seatCount'] as int? ?? 0,
+        seatsFilled: rideData['seatsFilled'] as int? ?? 0,
+        seatsTotal: rideData['seatCount'] as int? ?? 0,
         status: d['status'] as String? ?? 'pending',
-        farePerSeat: (rideData?['fare'] as Map?)?['farePerSeat'] as double?,
-        vehicleType: rideData?['vehicleType'] as String? ?? 'car',
+        farePerSeat: (rideData['fare'] as Map?)?['farePerSeat'] as double?,
+        vehicleType: rideData['vehicleType'] as String? ?? 'car',
+        matchPercent: match.matchPercent,
+        distanceKm: match.distanceKm,
       ));
     }
     return requests;
@@ -1057,12 +1089,48 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
 
                   const SizedBox(height: 2),
 
-                  Text(
-                    r.timeLabel,
-                    style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                  // ── Row 4: time + vehicle pill ───────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.timeLabel,
+                        style: const TextStyle(
+                            color: AppColors.black45, fontSize: 12),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.grey300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.black87,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: AppColors.black12),
+                  const SizedBox(height: 8),
 
                   // Driver info
                   Row(
@@ -1094,13 +1162,16 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      const SizedBox(width: 2),
+                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
                       ),
                     ],
                   ),
@@ -1277,6 +1348,8 @@ class _RequestedRide {
   final String status;
   final double? farePerSeat;
   final String vehicleType;
+  final int matchPercent;
+  final double? distanceKm;
 
   _RequestedRide({
     required this.id,
@@ -1293,7 +1366,12 @@ class _RequestedRide {
     required this.status,
     this.farePerSeat,
     required this.vehicleType,
+    required this.matchPercent,
+    this.distanceKm,
   });
+
+  String? get distanceLabel =>
+      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
 
   String get timeLabel {
     final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
@@ -1442,20 +1520,16 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 ),
                                 Row(
                                   children: [
-                                    IconButton(
-                                      icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
-                                      onPressed: () {},
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
+                                    GestureDetector(
+                                      onTap: () {},
+                                      child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text('|', style: TextStyle(color: AppColors.grey300)),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
-                                      onPressed: () {},
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
+                                    const SizedBox(width: 2),
+                                    Text('|', style: TextStyle(color: AppColors.grey400)),
+                                    const SizedBox(width: 2),
+                                    GestureDetector(
+                                      onTap: () {},
+                                      child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
                                     ),
                                   ],
                                 ),
@@ -1569,6 +1643,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
           // Top row: seats filled + popup menu
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.only(
@@ -1576,7 +1651,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   bottomRight: Radius.circular(20),
                 ),
                 child: ColoredBox(
-                  color: AppColors.primaryGreen,
+                  color: const Color(0xFF6B6B6B),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
@@ -1597,42 +1672,128 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   ),
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: AppColors.grey600),
-                onSelected: (val) {
-                  if (val == 'delete') _cancelRequest();
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 18),
-                        SizedBox(width: 8),
-                        Text('Delete Ride'),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, right: 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${r.matchPercent}% Match',
+                      style: const TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
+                      onSelected: (val) {
+                        if (val == 'delete') _cancelRequest();
+                      },
+                      offset: const Offset(8, 0),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline, size: 18),
+                              SizedBox(width: 8),
+                              Text('Delete Ride'),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  r.dateLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      r.dateLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    Transform.translate(
+                      offset: const Offset(0, -2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_walk, size: 12, color: AppColors.grey600),
+                          const SizedBox(width: 4),
+                          Text(
+                            r.distanceLabel ?? (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.grey600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.chevron_right, size: 14, color: AppColors.grey400),
+                          const SizedBox(width: 6),
+                          Icon(
+                            r.vehicleType == 'bike' ? Icons.two_wheeler : Icons.directions_car,
+                            size: 14,
+                            color: AppColors.grey700,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  r.timeLabel,
-                  style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                // ── Row 4: time + vehicle pill ───────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      r.timeLabel,
+                      style: const TextStyle(
+                          color: AppColors.black45, fontSize: 12),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.grey300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            r.vehicleType == 'bike'
+                                ? Icons.two_wheeler
+                                : Icons.directions_car,
+                            size: 14,
+                            color: AppColors.black87,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
+                const Divider(height: 1, color: AppColors.black12),
+                const SizedBox(height: 6),
 
                 // Driver info
                 GestureDetector(
@@ -1667,19 +1828,22 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      const SizedBox(width: 2),
+                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 Row(
                   children: [
@@ -1710,7 +1874,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1737,24 +1901,33 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
                   decoration: BoxDecoration(
-                    color: AppColors.grey100,
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: AppColors.grey200),
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           r.status == 'accepted' ? 'Request Sent. Share a message' : 'Request Pending',
-                          style: TextStyle(fontSize: 13, color: AppColors.grey500),
+                          style: TextStyle(fontSize: 13, color: AppColors.grey400),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primaryGreen, width: 2),
+                        ),
+                        child: const Icon(Icons.check, color: AppColors.primaryGreen, size: 18),
+                      ),
                     ],
                   ),
                 ),

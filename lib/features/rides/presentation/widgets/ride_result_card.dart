@@ -297,13 +297,48 @@ class _RideResultCardState extends State<RideResultCard> {
 
                   const SizedBox(height: 2),
 
-                  // ── Row 4: time ─────────────────────────────────────────
-                  Text(
-                    r.timeLabel,
-                    style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                  // ── Row 4: time + vehicle pill ───────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.timeLabel,
+                        style: const TextStyle(
+                            color: AppColors.black45, fontSize: 12),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.grey300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.black87,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: AppColors.black12),
+                  const SizedBox(height: 8),
 
                   // ── Driver info ─────────────────────────────────────────
                   Row(
@@ -335,13 +370,16 @@ class _RideResultCardState extends State<RideResultCard> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.phone_outlined, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.grey600),
-                        onPressed: () {},
+                      const SizedBox(width: 2),
+                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
                       ),
                     ],
                   ),
