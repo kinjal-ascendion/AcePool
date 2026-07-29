@@ -53,6 +53,7 @@ Future<void> _addAddress(String category, String label) async {
   String docId,
   String label,
   String currentAddress,
+  String currentLandmark,
 ) async {
   final result = await Navigator.push<bool>(
     context,
@@ -66,6 +67,7 @@ Future<void> _addAddress(String category, String label) async {
           lng: null,
         ),
         category: label,
+        landmark: currentLandmark,
       ),
     ),
   );
@@ -79,39 +81,135 @@ Future<void> _addAddress(String category, String label) async {
       String docId, String category, bool wasDefault) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove address?'),
-        content: const Text('This address will be removed from your account.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: AppColors.red)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) {
+        var removing = false;
+        return StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> handleRemove() async {
+            setDialogState(() => removing = true);
+            try {
+              final ref = _addressesRef();
+              await ref.doc(docId).delete();
+
+              if (wasDefault) {
+                final remaining = await ref
+                    .where('category', isEqualTo: category)
+                    .limit(1)
+                    .get();
+                if (remaining.docs.isNotEmpty) {
+                  await remaining.docs.first.reference
+                      .update({'isDefault': true});
+                }
+              }
+
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            } catch (e) {
+              setDialogState(() => removing = false);
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text('Could not remove address: $e')),
+                );
+              }
+            }
+          }
+
+          return Dialog(
+            backgroundColor: AppColors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.red50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.delete_outline,
+                        color: AppColors.red, size: 28),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Remove address?',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'This address will be removed from your account.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: AppColors.grey600, fontSize: 14, height: 1.4),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              removing ? null : () => Navigator.pop(ctx, false),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.black87,
+                            side: BorderSide(color: AppColors.grey300),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: removing ? null : handleRemove,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.red,
+                            disabledBackgroundColor: AppColors.red,
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: removing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Remove',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        );
+      },
     );
 
-    if (confirmed != true) return;
-
-    final ref = _addressesRef();
-    await ref.doc(docId).delete();
-
-    if (wasDefault) {
-      final remaining =
-          await ref.where('category', isEqualTo: category).limit(1).get();
-      if (remaining.docs.isNotEmpty) {
-        await remaining.docs.first.reference.update({'isDefault': true});
-      }
-    }
-
-    if (mounted) setState(() {});
+    if (confirmed == true && mounted) setState(() {});
   }
 
-  Widget _sectionHeader(String label, VoidCallback onAdd) {
+  Widget _sectionHeader(String label, VoidCallback? onAdd) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 20),
       child: Row(
@@ -126,23 +224,24 @@ Future<void> _addAddress(String category, String label) async {
               letterSpacing: 0.5,
             ),
           ),
-          InkWell(
-            onTap: onAdd,
-            child: Row(
-              children: [
-                Icon(Icons.add, size: 16, color: AppColors.grey700),
-                const SizedBox(width: 2),
-                Text(
-                  'Add',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.grey700,
+          if (onAdd != null)
+            InkWell(
+              onTap: onAdd,
+              child: Row(
+                children: [
+                  Icon(Icons.add, size: 16, color: AppColors.grey700),
+                  const SizedBox(width: 2),
+                  Text(
+                    'Add',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.grey700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -153,6 +252,7 @@ Future<void> _addAddress(String category, String label) async {
     required String label,
     required IconData icon,
     required String address,
+    required String landmark,
     required bool isDefault,
     required String category,
   }) {
@@ -164,8 +264,8 @@ Future<void> _addAddress(String category, String label) async {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.grey200),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.grey300),
       ),
       child: Column(
         children: [
@@ -179,7 +279,7 @@ Future<void> _addAddress(String category, String label) async {
                   height: 40,
                   decoration: BoxDecoration(
                     color: AppColors.grey100,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, size: 20, color: AppColors.black87),
                 ),
@@ -194,8 +294,8 @@ Future<void> _addAddress(String category, String label) async {
                             child: Text(
                               label,
                               style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
                               ),
                             ),
                           ),
@@ -210,7 +310,7 @@ Future<void> _addAddress(String category, String label) async {
                               child: Text(
                                 'Default',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   color: AppColors.grey700,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -221,13 +321,13 @@ Future<void> _addAddress(String category, String label) async {
                       const SizedBox(height: 4),
                       Text(
                         line1,
-                        style: TextStyle(color: AppColors.grey600, fontSize: 13),
+                        style: TextStyle(color: AppColors.grey600, fontSize: 15),
                       ),
                       if (line2.isNotEmpty)
                         Text(
                           line2,
                           style:
-                              TextStyle(color: AppColors.grey600, fontSize: 13),
+                              TextStyle(color: AppColors.grey600, fontSize: 15),
                         ),
                     ],
                   ),
@@ -235,45 +335,131 @@ Future<void> _addAddress(String category, String label) async {
               ],
             ),
           ),
-          Divider(height: 1, color: AppColors.grey200),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => _editAddress(docId, label, address),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.edit_outlined, size: 16),
-                        SizedBox(width: 6),
-                        Text('Edit'),
-                      ],
+          Divider(height: 1, color: AppColors.grey300),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _editAddress(docId, label, address, landmark),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18, color: AppColors.black87),
+                          SizedBox(width: 6),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: AppColors.black87,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Container(width: 1, height: 24, color: AppColors.grey200),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _deleteAddress(docId, category, isDefault),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.delete_outline, size: 16, color: AppColors.red),
-                        SizedBox(width: 6),
-                        Text('Delete', style: TextStyle(color: AppColors.red)),
-                      ],
+                Container(width: 1, color: AppColors.grey300),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _deleteAddress(docId, category, isDefault),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete_outline, size: 18, color: AppColors.red),
+                          SizedBox(width: 6),
+                          Text(
+                            'Delete',
+                            style: TextStyle(color: AppColors.red, fontSize: 14),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _emptyAddressPlaceholder(String category, VoidCallback onAdd) {
+    return InkWell(
+      onTap: onAdd,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: AppColors.black,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_off_outlined,
+                  size: 18, color: AppColors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No $category address added',
+                    style: const TextStyle(
+                      color: AppColors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to add one now',
+                    style: TextStyle(color: AppColors.grey500, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.black,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, size: 14, color: AppColors.white),
+                  SizedBox(width: 4),
+                  Text(
+                    'Add',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -283,8 +469,11 @@ Future<void> _addAddress(String category, String label) async {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.scaffoldBackground,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         foregroundColor: AppColors.black,
+        centerTitle: true,
         title: const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
       body: SafeArea(
@@ -295,7 +484,12 @@ Future<void> _addAddress(String category, String label) async {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final docs = snapshot.data?.docs ?? [];
+            final docs = [...snapshot.data?.docs ?? []]..sort((a, b) {
+              final ta = a.data()['createdAt'] as Timestamp?;
+              final tb = b.data()['createdAt'] as Timestamp?;
+              if (ta == null || tb == null) return 0;
+              return ta.compareTo(tb);
+            });
             final homeDocs =
                 docs.where((d) => d.data()['category'] == 'home').toList();
             final officeDocs =
@@ -305,28 +499,49 @@ Future<void> _addAddress(String category, String label) async {
       (d.data()['category'] as String?)?.toLowerCase() ?? "";
   return category != "home" && category != "office";
 }).toList();
+            final seenOtherCategories = <String>{};
+            String? firstHomeOrOfficeId;
+            for (final d in docs) {
+              final cat = d.data()['category'] as String?;
+              if (cat == 'home' || cat == 'office') {
+                firstHomeOrOfficeId = d.id;
+                break;
+              }
+            }
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                _sectionHeader('Home', () => _addAddress('home', 'Home')),
-                for (final doc in homeDocs)
+                _sectionHeader(
+                  'Home',
+                  homeDocs.isEmpty ? null : () => _addAddress('home', 'Home'),
+                ),
+                if (homeDocs.isEmpty)
+                  _emptyAddressPlaceholder('home', () => _addAddress('home', 'Home')),
+                for (var i = 0; i < homeDocs.length; i++)
                   _addressCard(
-                    docId: doc.id,
+                    docId: homeDocs[i].id,
                     label: 'Home',
                     icon: Icons.home_outlined,
-                    address: doc.data()['address'] as String? ?? '',
-                    isDefault: doc.data()['isDefault'] as bool? ?? false,
+                    address: homeDocs[i].data()['address'] as String? ?? '',
+                    landmark: homeDocs[i].data()['landmark'] as String? ?? '',
+                    isDefault: homeDocs[i].id == firstHomeOrOfficeId,
                     category: 'home',
                   ),
-                _sectionHeader('Office', () => _addAddress('office', 'Office')),
-                for (final doc in officeDocs)
+                _sectionHeader(
+                  'Office',
+                  officeDocs.isEmpty ? null : () => _addAddress('office', 'Office'),
+                ),
+                if (officeDocs.isEmpty)
+                  _emptyAddressPlaceholder('office', () => _addAddress('office', 'Office')),
+                for (var i = 0; i < officeDocs.length; i++)
                   _addressCard(
-                    docId: doc.id,
+                    docId: officeDocs[i].id,
                     label: 'Office',
                     icon: Icons.apartment_outlined,
-                    address: doc.data()['address'] as String? ?? '',
-                    isDefault: doc.data()['isDefault'] as bool? ?? false,
+                    address: officeDocs[i].data()['address'] as String? ?? '',
+                    landmark: officeDocs[i].data()['landmark'] as String? ?? '',
+                    isDefault: officeDocs[i].id == firstHomeOrOfficeId,
                     category: 'office',
                   ),
 
@@ -339,7 +554,8 @@ if (otherDocs.isNotEmpty) ...[
       label: doc.data()['label'] as String? ?? 'Saved',
       icon: Icons.bookmark_border,
       address: doc.data()['address'] as String? ?? '',
-      isDefault: doc.data()['isDefault'] as bool? ?? false,
+      landmark: doc.data()['landmark'] as String? ?? '',
+      isDefault: seenOtherCategories.add(doc.data()['category'] as String? ?? ''),
       category: doc.data()['category'] as String? ?? '',
     ),
 ],

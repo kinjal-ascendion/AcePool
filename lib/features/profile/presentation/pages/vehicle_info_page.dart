@@ -260,6 +260,14 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   List<int> get _seatOptions =>
       _type == 'four_wheeler' ? const [2, 4, 5, 6, 7] : const [1, 2];
 
+  String get _nameHint => _type == 'four_wheeler'
+      ? 'E.g., City, Swift, Creta, Nexon, Slavia'
+      : 'E.g., Activa, Splendor, Pulsar, Access, FZ';
+
+  String get _brandHint => _type == 'four_wheeler'
+      ? 'E.g., Honda, Maruti Suzuki, Hyundai, Tata, Skoda'
+      : 'E.g., Honda, TVS, Bajaj, Hero, Yamaha';
+
   @override
   void dispose() {
     _numberController.dispose();
@@ -310,6 +318,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: TextStyle(color: AppColors.grey400, fontSize: 15),
       filled: true,
       fillColor: AppColors.grey50,
       contentPadding:
@@ -386,21 +395,24 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
             TextField(
               controller: _numberController,
               textCapitalization: TextCapitalization.characters,
+              style: TextStyle(color: AppColors.black87),
               decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
             ),
             const SizedBox(height: 16),
-            _label('Vehicle brand'),
+            _label('Vehicle name'),
             const SizedBox(height: 6),
             TextField(
               controller: _brandController,
-              decoration: _fieldDecoration('Enter brand'),
+              style: TextStyle(color: AppColors.black87),
+              decoration: _fieldDecoration(_nameHint),
             ),
             const SizedBox(height: 16),
-            _label('Brand model'),
+            _label('Brand'),
             const SizedBox(height: 6),
             TextField(
               controller: _modelController,
-              decoration: _fieldDecoration('Enter model'),
+              style: TextStyle(color: AppColors.black87),
+              decoration: _fieldDecoration(_brandHint),
             ),
             const SizedBox(height: 16),
             _label('No. of seats available'),
