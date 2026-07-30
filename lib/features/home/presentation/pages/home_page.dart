@@ -111,11 +111,18 @@ class _HomeView extends StatelessWidget {
     BuildContext context, {
     required String title,
     required String? current,
+    double? biasLat,
+    double? biasLng,
     required void Function(PickedLocation) onConfirm,
   }) async {
     final result = await Navigator.of(context).push<PickedLocation>(
       MaterialPageRoute(
-        builder: (_) => LocationSearchPage(title: title, initialValue: current),
+        builder: (_) => LocationSearchPage(
+          title: title,
+          initialValue: current,
+          biasLat: biasLat,
+          biasLng: biasLng,
+        ),
       ),
     );
     if (result != null && result.address.trim().isNotEmpty) {
@@ -181,12 +188,7 @@ class _HomeView extends StatelessWidget {
                       // extendBody:true (see MainShellPage) draws the body
                       // behind the floating pill nav bar, so the last card
                       // needs its own clearance to scroll fully above it.
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        16,
-                        16,
-                        100,
-                      ),
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -208,6 +210,8 @@ class _HomeView extends StatelessWidget {
                               context,
                               title: 'Start location',
                               current: state.fromAddress,
+                              biasLat: state.currentLat,
+                              biasLng: state.currentLng,
                               onConfirm: (loc) => bloc.add(
                                 FromAddressChanged(
                                   loc.address,
@@ -220,6 +224,8 @@ class _HomeView extends StatelessWidget {
                               context,
                               title: 'Office location',
                               current: state.toAddress,
+                              biasLat: state.currentLat,
+                              biasLng: state.currentLng,
                               onConfirm: (loc) => bloc.add(
                                 ToAddressChanged(
                                   loc.address,

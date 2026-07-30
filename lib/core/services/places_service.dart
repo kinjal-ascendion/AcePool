@@ -37,7 +37,8 @@ class PlaceDetails {
 /// there (unlike OpenStreetMap-based search, which has much sparser
 /// building/flat-level address coverage).
 class PlacesService {
-  static const _autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete';
+  static const _autocompleteUrl =
+      'https://places.googleapis.com/v1/places:autocomplete';
   static const _detailsBaseUrl = 'https://places.googleapis.com/v1/places';
 
   /// A random per-search-session token, grouping autocomplete keystrokes with
@@ -53,6 +54,8 @@ class PlacesService {
   Future<List<PlacePrediction>> autocomplete(
     String input, {
     required String sessionToken,
+    double? biasLat,
+    double? biasLng,
   }) async {
     try {
       final response = await http
@@ -67,6 +70,17 @@ class PlacesService {
               'sessionToken': sessionToken,
               'includedRegionCodes': ['in'],
               'languageCode': 'en',
+              // Nudges results toward the user's current area (does not
+              // exclude matches elsewhere) so a common place name — e.g. a
+              // locality that recurs across the state — doesn't surface a
+              // same-named match far from where the user actually is.
+              if (biasLat != null && biasLng != null)
+                'locationBias': {
+                  'circle': {
+                    'center': {'latitude': biasLat, 'longitude': biasLng},
+                    'radius': 50000.0,
+                  },
+                },
             }),
           )
           .timeout(const Duration(seconds: 15));
@@ -75,15 +89,22 @@ class PlacesService {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final suggestions = body['suggestions'] as List<dynamic>? ?? [];
       return suggestions
-          .map((s) => (s as Map<String, dynamic>)['placePrediction'] as Map<String, dynamic>?)
+          .map(
+            (s) =>
+                (s as Map<String, dynamic>)['placePrediction']
+                    as Map<String, dynamic>?,
+          )
           .whereType<Map<String, dynamic>>()
           .map((p) {
             final structured = p['structuredFormat'] as Map<String, dynamic>?;
             final mainText =
-                (structured?['mainText'] as Map<String, dynamic>?)?['text'] as String?;
+                (structured?['mainText'] as Map<String, dynamic>?)?['text']
+                    as String?;
             final secondaryText =
-                (structured?['secondaryText'] as Map<String, dynamic>?)?['text'] as String?;
-            final description = (p['text'] as Map<String, dynamic>?)?['text'] as String?;
+                (structured?['secondaryText'] as Map<String, dynamic>?)?['text']
+                    as String?;
+            final description =
+                (p['text'] as Map<String, dynamic>?)?['text'] as String?;
             return PlacePrediction(
               placeId: p['placeId'] as String,
               mainText: mainText ?? description ?? '',
@@ -105,16 +126,18 @@ class PlacesService {
     required String sessionToken,
   }) async {
     try {
-      final uri = Uri.parse('$_detailsBaseUrl/$placeId').replace(queryParameters: {
-        'sessionToken': sessionToken,
-      });
-      final response = await http.get(
-        uri,
-        headers: {
-          'X-Goog-Api-Key': ApiKeys.googleDirections,
-          'X-Goog-FieldMask': 'formattedAddress,location',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final uri = Uri.parse(
+        '$_detailsBaseUrl/$placeId',
+      ).replace(queryParameters: {'sessionToken': sessionToken});
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'X-Goog-Api-Key': ApiKeys.googleDirections,
+              'X-Goog-FieldMask': 'formattedAddress,location',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;

@@ -50,44 +50,25 @@ class PricingStarted extends PricingEvent {
   ];
 }
 
-class TollsIncludedToggled extends PricingEvent {
-  final bool includeTolls;
-  const TollsIncludedToggled(this.includeTolls);
+class VehicleSelected extends PricingEvent {
+  final String vehicleId;
+  final String label;
+  const VehicleSelected(this.vehicleId, this.label);
 
   @override
-  List<Object?> get props => [includeTolls];
+  List<Object?> get props => [vehicleId, label];
 }
 
-class DistanceCostChanged extends PricingEvent {
+class RatePerKmChanged extends PricingEvent {
   final double value;
-  const DistanceCostChanged(this.value);
+  const RatePerKmChanged(this.value);
 
   @override
   List<Object?> get props => [value];
 }
 
-class TollCostChanged extends PricingEvent {
-  final double value;
-  const TollCostChanged(this.value);
-
-  @override
-  List<Object?> get props => [value];
-}
-
-class DetourCostChanged extends PricingEvent {
-  final double value;
-  const DetourCostChanged(this.value);
-
-  @override
-  List<Object?> get props => [value];
-}
-
-class RiderCountChanged extends PricingEvent {
-  final int riderCount;
-  const RiderCountChanged(this.riderCount);
-
-  @override
-  List<Object?> get props => [riderCount];
+class VehiclesRefreshRequested extends PricingEvent {
+  const VehiclesRefreshRequested();
 }
 
 class PublishRideRequested extends PricingEvent {
