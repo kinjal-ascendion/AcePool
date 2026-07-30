@@ -90,6 +90,7 @@ class _ProfilePageState extends State<ProfilePage> {
             final data = snapshot.data;
             final fullName = data?['fullName'] as String? ?? '';
             final employeeId = data?['employeeId'] as String? ?? '';
+            final phone = data?['phone'] as String?;
             final licenceVerified = data?['licenceVerified'] as bool?;
             final licenceNumber = data?['licenceNumber'] as String?;
 
@@ -121,12 +122,17 @@ class _ProfilePageState extends State<ProfilePage> {
                           builder: (_) => AccountSettingsPage(
                             fullName: fullName,
                             employeeId: employeeId,
+                            phone: phone,
                             licenceVerified: licenceVerified,
                             licenceNumber: licenceNumber,
                           ),
                         ),
                       ).then((_) {
-                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                    if (mounted) {
+                      setState(() {
+                        _userDataFuture = _fetchUserData();
+                      });
+                    }
                   }),
                       child: Stack(
                         children: [
@@ -198,12 +204,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       builder: (_) => AccountSettingsPage(
                         fullName: fullName,
                         employeeId: employeeId,
+                        phone: phone,
                         licenceVerified: licenceVerified,
                         licenceNumber: licenceNumber,
                       ),
                     ),
                   ).then((_) {
-                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                    if (mounted) {
+                      setState(() {
+                        _userDataFuture = _fetchUserData();
+                      });
+                    }
                   }),
                 ),
                 Divider(color: AppColors.grey200, height: 1),

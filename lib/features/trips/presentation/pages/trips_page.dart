@@ -1,5 +1,6 @@
 import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/entities/chat_message.dart';
@@ -195,11 +196,13 @@ final matchRadiusKm =
 
       String driverName = '';
       String driverPhotoUrl = '';
+      String driverPhone = '';
       try {
         final driverDoc =
             await _db.collection('users').doc(d['uid'] as String).get();
         driverName = driverDoc.data()?['fullName'] as String? ?? '';
         driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
+        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
       } catch (_) {}
       if (driverName.isEmpty) driverName = 'Driver';
 
@@ -283,6 +286,7 @@ final matchRadiusKm =
         driverId: d['uid'] as String,
         driverName: driverName,
         driverPhotoUrl: driverPhotoUrl,
+        driverPhone: driverPhone,
         date: date,
         time: TimeOfDay(
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
@@ -338,10 +342,12 @@ final matchRadiusKm =
       if (rideData == null) continue;
 
       String driverPhotoUrl = '';
+      String driverPhone = '';
       try {
         final driverDoc =
             await _db.collection('users').doc(d['driverId'] as String).get();
         driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
+        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
       } catch (_) {}
 
       final rideTime = d['rideTime'] as Map<String, dynamic>;
@@ -380,6 +386,7 @@ final matchRadiusKm =
             ? storedDriverName
             : 'Driver',
         driverPhotoUrl: driverPhotoUrl,
+        driverPhone: driverPhone,
         date: (d['rideDate'] as Timestamp).toDate(),
         time: TimeOfDay(
           hour: rideTime['hour'] as int,
@@ -727,6 +734,7 @@ class _AvailableRide {
     required this.driverId,
     required this.driverName,
     this.driverPhotoUrl = '',
+    this.driverPhone = '',
     required this.date,
     required this.time,
     required this.fromAddress,
@@ -755,6 +763,7 @@ class _AvailableRide {
   final String driverId;
   final String driverName;
   final String driverPhotoUrl;
+  final String driverPhone;
   final DateTime date;
   final TimeOfDay time;
   final String fromAddress;
@@ -1228,7 +1237,9 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: r.driverPhone.isNotEmpty
+                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                            : null,
                         child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                       ),
                       const SizedBox(width: 2),
@@ -1403,6 +1414,7 @@ class _RequestedRide {
   final String driverId;
   final String driverName;
   final String driverPhotoUrl;
+  final String driverPhone;
   final DateTime date;
   final TimeOfDay time;
   final String fromAddress;
@@ -1423,6 +1435,7 @@ class _RequestedRide {
     required this.driverId,
     required this.driverName,
     required this.driverPhotoUrl,
+    this.driverPhone = '',
     required this.date,
     required this.time,
     required this.fromAddress,
@@ -1633,7 +1646,9 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 Row(
                                   children: [
                                     GestureDetector(
-                                      onTap: () {},
+                                      onTap: r.driverPhone.isNotEmpty
+                                          ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                                          : null,
                                       child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                                     ),
                                     const SizedBox(width: 2),
@@ -1943,7 +1958,9 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: r.driverPhone.isNotEmpty
+                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                            : null,
                         child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
                       ),
                       const SizedBox(width: 2),

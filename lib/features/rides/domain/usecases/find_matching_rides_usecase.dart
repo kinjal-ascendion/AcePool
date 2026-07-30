@@ -70,7 +70,7 @@ class FindMatchingRidesUseCase {
     // Fetch each distinct driver's profile once, in parallel, instead of
     // once per ride inside the loop below.
     final driverIds = candidates.map((doc) => doc.data()['uid'] as String).toSet();
-    final driverProfiles = <String, ({String name, String? photoUrl})>{};
+    final driverProfiles = <String, ({String name, String? photoUrl, String? phone})>{};
     await Future.wait(driverIds.map((driverId) async {
       try {
         final driverDoc = await _db.collection('users').doc(driverId).get();
@@ -78,9 +78,10 @@ class FindMatchingRidesUseCase {
         driverProfiles[driverId] = (
           name: dd?['fullName'] as String? ?? '',
           photoUrl: dd?['profileImageUrl'] as String?,
+          phone: dd?['phone'] as String?,
         );
       } catch (_) {
-        driverProfiles[driverId] = (name: '', photoUrl: null);
+        driverProfiles[driverId] = (name: '', photoUrl: null, phone: null);
       }
     }));
 
@@ -163,6 +164,7 @@ class FindMatchingRidesUseCase {
         driverId: driverId,
         driverName: driver?.name ?? '',
         driverPhotoUrl: driver?.photoUrl,
+        driverPhone: driver?.phone,
         date: rideDate,
         time: TimeOfDay(
             hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),

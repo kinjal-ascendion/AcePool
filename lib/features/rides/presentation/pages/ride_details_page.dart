@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/entities/chat_message.dart';
@@ -576,7 +577,9 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {},
+                      onTap: (r.driverPhone?.isNotEmpty ?? false)
+                          ? () => LocationShareHelper.launchDialer(r.driverPhone!)
+                          : null,
                       child: Icon(Icons.phone_outlined, size: 19, color: AppColors.grey700),
                     ),
                     const SizedBox(width: 2),
