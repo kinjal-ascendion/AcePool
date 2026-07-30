@@ -23,42 +23,16 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     return _db.collection('users').doc(uid).collection('vehicles');
   }
 
-  late Future<QuerySnapshot<Map<String, dynamic>>> _vehiclesFuture;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _vehiclesStream;
 
   @override
   void initState() {
     super.initState();
-    _vehiclesFuture = _fetchVehicles();
-  }
-
-  Future<QuerySnapshot<Map<String, dynamic>>> _fetchVehicles() {
-    return _vehiclesRef().get();
-  }
-
-  void _refreshVehicles() {
-    if (mounted) setState(() => _vehiclesFuture = _fetchVehicles());
-  }
-
-  Future<void> _addVehicle(Map<String, dynamic> vehicle) async {
-    final ref = _vehiclesRef();
-
-    if (vehicle['isDefault'] == true) {
-      final existing = await ref.get();
-      final batch = _db.batch();
-      for (final doc in existing.docs) {
-        batch.update(doc.reference, {'isDefault': false});
-      }
-      await batch.commit();
-    }
-
-    await ref.add({...vehicle, 'createdAt': FieldValue.serverTimestamp()});
-
-    _refreshVehicles();
+    _vehiclesStream = _vehiclesRef().snapshots();
   }
 
   Future<void> _deleteVehicle(String vehicleId) async {
     await _vehiclesRef().doc(vehicleId).delete();
-    _refreshVehicles();
   }
 
   Future<void> _confirmDelete(String vehicleId, String name) async {
@@ -86,14 +60,10 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
   }
 
   Future<void> _openAddVehicleSheet() async {
-    final result = await showDialog<Map<String, dynamic>>(
+    await showDialog<bool>(
       context: context,
       builder: (_) => const _AddVehicleDialog(),
     );
-
-    if (result != null) {
-      await _addVehicle(result);
-    }
   }
 
   Widget _tag(String label) {
@@ -184,11 +154,15 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
         ),
       ),
       body: SafeArea(
-        child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          future: _vehiclesFuture,
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _vehiclesStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
             }
 
             final vehicles = snapshot.data?.docs ?? [];
@@ -252,6 +226,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   String _type = 'four_wheeler';
   int _seats = 4;
   bool _isDefault = true;
+  bool _isSaving = false;
 
   final _numberController = TextEditingController();
   final _brandController = TextEditingController();
@@ -285,23 +260,60 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
     });
   }
 
-  void _confirm() {
-    if (_numberController.text.trim().isEmpty ||
-        _brandController.text.trim().isEmpty) {
+  Future<void> _confirm() async {
+    final number = _numberController.text.trim();
+    final brand = _brandController.text.trim();
+    final model = _modelController.text.trim();
+
+    if (number.isEmpty || brand.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vehicle number and brand are required')),
       );
       return;
     }
 
-    Navigator.pop(context, {
-      'type': _type,
-      'number': _numberController.text.trim(),
-      'brand': _brandController.text.trim(),
-      'model': _modelController.text.trim(),
-      'seats': _seats,
-      'isDefault': _isDefault,
-    });
+    setState(() => _isSaving = true);
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final db = FirebaseFirestore.instanceFor(
+        app: Firebase.app(),
+        databaseId: 'acepool',
+      );
+      final ref = db.collection('users').doc(uid).collection('vehicles');
+
+      if (_isDefault) {
+        final existing = await ref.get();
+        final batch = db.batch();
+        for (final doc in existing.docs) {
+          batch.update(doc.reference, {'isDefault': false});
+        }
+        await batch.commit();
+      }
+
+      final vehicleData = {
+        'type': _type,
+        'number': number,
+        'brand': brand,
+        'model': model,
+        'seats': _seats,
+        'isDefault': _isDefault,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await ref.add(vehicleData);
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding vehicle: $e')),
+        );
+      }
+    }
   }
 
   Widget _label(String text) {
@@ -346,12 +358,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
-        ),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +474,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _confirm,
+                    onPressed: _isSaving ? null : _confirm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.scheduleButtonColor,
                       foregroundColor: AppColors.white,
@@ -477,7 +484,16 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text('Confirm'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Confirm'),
                   ),
                 ),
               ],
