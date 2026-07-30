@@ -217,7 +217,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         _riderPickupLatLng = LatLng(projected['latitude']!, projected['longitude']!);
         
         // Only use generic "Main Road" if we don't already have a specific landmark
-        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near")) {
+        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near") || _riderPickupPoint == "Pick Up Point") {
            _riderPickupPoint = getMainRoadName(r.fromAddress);
         }
       }
@@ -576,7 +576,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           
           // Journey Timeline
           _buildTimelineItem(
-            title: _riderPickupPoint.isNotEmpty ? _riderPickupPoint.split(',')[0] : 'Current Location',
+            title: _riderStartAddress.isNotEmpty ? _riderStartAddress.split(',')[0] : 'Current Location',
             subtitle: 'Your Current Location',
             time: 'Now',
             icon: Icons.location_on_outlined,
@@ -595,7 +595,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           _buildWalkSegment('Walk ${RideMatcher.formatDistance(walkToPickup)} (${(walkToPickup * 12).round()} min)'),
           
           _buildTimelineItem(
-            title: _riderStartAddress.isNotEmpty ? _riderStartAddress.split(',')[0] : 'Pick Up Point',
+            title: _riderPickupPoint.isNotEmpty ? _riderPickupPoint.split(',')[0] : 'Pick Up Point',
             subtitle: 'Pick Up Point',
             time: r.timeLabel,
             icon: Icons.directions_car,

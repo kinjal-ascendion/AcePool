@@ -397,6 +397,7 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                     ),
                     child: ListView.separated(
                       shrinkWrap: true,
+                      padding: EdgeInsets.zero,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: riders.length,
                       separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.black12),

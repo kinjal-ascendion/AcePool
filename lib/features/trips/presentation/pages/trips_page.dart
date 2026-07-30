@@ -387,6 +387,8 @@ final matchRadiusKm =
         ),
         fromAddress: d['rideFrom'] as String,
         toAddress: d['rideTo'] as String,
+        riderStartAddress: d['riderStartAddress'] as String? ?? '',
+        riderEndAddress: d['riderEndAddress'] as String? ?? '',
         seatsFilled: rideData['seatsFilled'] as int? ?? 0,
         seatsTotal: rideData['seatCount'] as int? ?? 0,
         status: d['status'] as String? ?? 'pending',
@@ -878,14 +880,14 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
       }
 
-      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : widget.ride.userFromAddress;
+      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : 'Pick Up Point';
       final pickupLatLng = isEndpointMatch 
           ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
           : (widget.ride.userFromLat != null && widget.ride.fromLat != null 
               ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userFromLat!, widget.ride.userFromLng!)
               : {'latitude': widget.ride.userFromLat, 'longitude': widget.ride.userFromLng});
 
-      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : widget.ride.userToAddress;
+      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : 'Drop Point';
       final dropOffLatLng = isEndpointMatch
           ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
           : (widget.ride.userToLat != null && widget.ride.fromLat != null 
@@ -1405,6 +1407,8 @@ class _RequestedRide {
   final TimeOfDay time;
   final String fromAddress;
   final String toAddress;
+  final String riderStartAddress;
+  final String riderEndAddress;
   final int seatsFilled;
   final int seatsTotal;
   final String status;
@@ -1423,6 +1427,8 @@ class _RequestedRide {
     required this.time,
     required this.fromAddress,
     required this.toAddress,
+    required this.riderStartAddress,
+    required this.riderEndAddress,
     required this.seatsFilled,
     required this.seatsTotal,
     required this.status,
@@ -1607,18 +1613,6 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 ? Icon(Icons.person, size: 40, color: AppColors.grey400)
                                 : null,
                           ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.grey200,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.camera_alt_outlined, size: 14, color: AppColors.grey600),
-                            ),
-                          ),
                         ],
                       ),
                       const SizedBox(width: 16),
@@ -1738,6 +1732,8 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 farePerSeat: r.farePerSeat,
               ),
               db: widget.db,
+              riderFromAddress: r.riderStartAddress,
+              riderToAddress: r.riderEndAddress,
             ),
           ),
         );
