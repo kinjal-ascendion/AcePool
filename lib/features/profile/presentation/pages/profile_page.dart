@@ -9,6 +9,7 @@ import 'addresses_page.dart';
 import 'vehicle_info_page.dart';
 import 'ride_statistics_page.dart';
 import 'route_matching_page.dart';
+import 'package:acepool/core/enums/ride_mode.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -24,6 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
   );
 
   late Future<Map<String, dynamic>?> _userDataFuture;
+  RideMode _selectedMode = RideMode.takeRide;
 
   @override
   void initState() {
@@ -108,11 +110,51 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
               children: [
                 const Text(
-                  'Profile',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 24),
+  'Profile',
+  textAlign: TextAlign.center,
+  style: TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+  ),
+),
+
+const SizedBox(height: 20),
+Center(
+  child: Container(
+    height: 48,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: AppColors.grey300),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _modeButton(
+          title: "Take Ride",
+          selected: _selectedMode == RideMode.takeRide,
+          onTap: () {
+            setState(() {
+              _selectedMode = RideMode.takeRide;
+            });
+          },
+        ),
+
+        _modeButton(
+          title: "Offer Ride",
+          selected: _selectedMode == RideMode.offerRide,
+          onTap: () {
+            setState(() {
+              _selectedMode = RideMode.offerRide;
+            });
+          },
+        ),
+      ],
+    ),
+  ),
+),
+
+const SizedBox(height: 24),
                 Row(
                   children: [
                     GestureDetector(
@@ -242,13 +284,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
-                _settingsRow(
+               _settingsRow(
   title: 'Ride statistics',
   subtitle: 'Ratings, Reviews & more',
   onTap: () => Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => const RideStatisticsPage(),
+      builder: (_) => RideStatisticsPage(
+        mode: _selectedMode,
+      ),
     ),
   ),
 ),
@@ -287,4 +331,32 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+  Widget _modeButton({
+  required String title,
+  required bool selected,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    borderRadius: BorderRadius.circular(24),
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      width: 150,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: selected ? AppColors.black87 : Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+          color: selected ? Colors.white : AppColors.black87,
+        ),
+      ),
+    ),
+  );
+}
 }

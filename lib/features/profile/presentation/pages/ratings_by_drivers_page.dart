@@ -6,14 +6,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/intl.dart';
 
-class RatingsByRidersPage extends StatefulWidget {
-  const RatingsByRidersPage({super.key});
+class RatingsByDriversPage extends StatefulWidget {
+  const RatingsByDriversPage({super.key});
 
   @override
-  State<RatingsByRidersPage> createState() => _RatingsByRidersPageState();
+  State<RatingsByDriversPage> createState() => _RatingsByDriversPageState();
 }
 
-class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
+class _RatingsByDriversPageState extends State<RatingsByDriversPage> {
 
   static final _db = FirebaseFirestore.instanceFor(
   app: Firebase.app(),
@@ -52,19 +52,17 @@ _ratingCounts = {
   1: 0,
 };
 
-  final requestSnapshot = await _db
-      .collection('ride_requests')
-      .where('driverId', isEqualTo: uid)
-      .where('status', isEqualTo: 'accepted')
-      .get();
-
+ final requestSnapshot = await _db
+    .collection('ride_requests')
+    .where('riderId', isEqualTo: uid)
+    .where('status', isEqualTo: 'accepted')
+    .get();
   List<ReceivedRatingRide> rides = [];
 
   for (final request in requestSnapshot.docs) {
   final requestData = request.data();
 
-  // Ignore if the rider hasn't rated yet
-  if (requestData['riderRating'] == null) continue;
+  if (requestData['driverRating'] == null) continue;
 
   final rideDoc = await _db
       .collection('rides')
@@ -77,51 +75,37 @@ _ratingCounts = {
 
   if (rideData['status'] != 'completed') continue;
 
-  // Get all requests for this ride
   final allRequests = await _db
       .collection('ride_requests')
       .where('rideId', isEqualTo: requestData['rideId'])
       .where('status', isEqualTo: 'accepted')
       .get();
 
-  double totalRating = 0;
-  int reviewCount = 0;
+ final driverRating =
+    (requestData['driverRating'] as num).toDouble();
 
-  for (final doc in allRequests.docs) {
-  final data = doc.data();
+_totalReviews++;
 
-  if (data['riderRating'] != null) {
-    final rating = (data['riderRating'] as num).toDouble();
-
-    totalRating += rating;
-    reviewCount++;
-
-    _totalReviews++;
-
-    if (_ratingCounts.containsKey(rating.toInt())) {
-      _ratingCounts[rating.toInt()] =
-          (_ratingCounts[rating.toInt()] ?? 0) + 1;
-    }
-  }
+if (_ratingCounts.containsKey(driverRating.toInt())) {
+  _ratingCounts[driverRating.toInt()] =
+      (_ratingCounts[driverRating.toInt()] ?? 0) + 1;
 }
-  final averageRating =
-      reviewCount == 0 ? 0.0 : totalRating / reviewCount;
 
-  final rideTime = requestData['rideTime'] as Map<String, dynamic>;
+  final rideTime = rideData['time'] as Map<String, dynamic>;
 
   rides.add(
-    ReceivedRatingRide(
-      rideId: requestData['rideId'],
-      date: (requestData['rideDate'] as Timestamp).toDate(),
-      time: TimeOfDay(
-        hour: rideTime['hour'],
-        minute: rideTime['minute'],
-      ),
-      pickup: requestData['rideFrom'],
-      drop: requestData['rideTo'],
-      rating: averageRating,
-      reviews: reviewCount,
-    ),
+   ReceivedRatingRide(
+  rideId: requestData['rideId'],
+  date: (rideData['date'] as Timestamp).toDate(),
+  time: TimeOfDay(
+    hour: rideTime['hour'],
+    minute: rideTime['minute'],
+  ),
+  pickup: rideData['fromAddress'],
+  drop: rideData['toAddress'],
+  rating: driverRating,
+reviews: 1,
+),
   );
 }
 if (_totalReviews > 0) {
@@ -159,7 +143,7 @@ return rides;
     const Padding(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Text(
-        "RATINGS BY RIDERS",
+        "RATINGS BY DRIVERS",
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
@@ -215,6 +199,7 @@ return rides;
               rating: ride.rating,
               reviews: ride.reviews,
               showReviews: true,
+              showReviewCount: false,
             ),
           ),
         ),

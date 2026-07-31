@@ -2,10 +2,17 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'ratings_by_riders_page.dart';
 import 'ratings_by_you_page.dart';
+import 'package:acepool/core/enums/ride_mode.dart';
+import 'review_your_riders_page.dart';
+import 'ratings_by_drivers_page.dart';
 
 class RideStatisticsPage extends StatefulWidget {
-  const RideStatisticsPage({super.key});
+  final RideMode mode;
 
+  const RideStatisticsPage({
+    super.key,
+    required this.mode,
+  });
   @override
   State<RideStatisticsPage> createState() => _RideStatisticsPageState();
 }
@@ -37,31 +44,64 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
 
         child: Column(
           children: [
-            _menuTile(
-              title: "Ratings by you",
-              subtitle: "Ratings given by you to your riders",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RatingsByYouPage()),
-                );
-              },
-            ),
+if (widget.mode == RideMode.takeRide) ...[
+  _menuTile(
+    title: "Ratings by You",
+    subtitle: "Ratings given by you to your drivers",
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RatingsByYouPage(),
+        ),
+      );
+    },
+  ),
+   Divider(color: AppColors.grey200),
 
-            Divider(color: AppColors.grey200),
+  _menuTile(
+    title: "Ratings by Drivers",
+    subtitle: "Ratings given by drivers to you",
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RatingsByDriversPage(),
+        ),
+      );
+    },
+  ),
+],
 
-            _menuTile(
-              title: "Ratings by riders",
-              subtitle: "Ratings given by riders to you",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RatingsByRidersPage(),
-                  ),
-                );
-              },
-            ),
+if (widget.mode == RideMode.offerRide) ...[
+  _menuTile(
+    title: "Ratings by You",
+    subtitle: "Ratings given by you to your riders",
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ReviewYourRidersPage(),
+        ),
+      );
+    },
+  ),
+
+  Divider(color: AppColors.grey200),
+
+  _menuTile(
+    title: "Ratings by Riders",
+    subtitle: "Ratings given by riders to you",
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RatingsByRidersPage(),
+        ),
+      );
+    },
+  ),
+],
 
             Divider(color: AppColors.grey200),
           ],

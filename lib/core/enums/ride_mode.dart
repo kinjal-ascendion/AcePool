@@ -1,0 +1,4 @@
+enum RideMode {
+  takeRide,
+  offerRide,
+}

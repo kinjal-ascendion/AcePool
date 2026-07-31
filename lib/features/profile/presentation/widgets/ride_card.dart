@@ -11,6 +11,7 @@ class RideCard extends StatelessWidget {
   final bool showReviews;
   final Widget? trailing;
   final VoidCallback? onReview;
+  final bool showReviewCount;
 
   const RideCard({
     super.key,
@@ -23,6 +24,7 @@ class RideCard extends StatelessWidget {
     this.showReviews = true,
     this.trailing,
     this.onReview,
+    this.showReviewCount = true,
   });
   @override
   Widget build(BuildContext context) {
@@ -88,6 +90,7 @@ class RideCard extends StatelessWidget {
 ),
                         if (showReviews && reviews > 0) ...[
   const SizedBox(height: 4),
+  if (showReviewCount)
   Text(
     "$reviews review${reviews == 1 ? '' : 's'}",
     style: TextStyle(

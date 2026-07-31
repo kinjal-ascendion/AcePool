@@ -167,8 +167,8 @@ rides.add(
       foregroundColor: Colors.white,
       elevation: 0,
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 10,
+        horizontal: 10,
+        vertical: 6,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
@@ -176,11 +176,12 @@ rides.add(
     ),
     icon: const Icon(
       Icons.add,
-      size: 16,
+      size: 14,
     ),
     label: const Text(
       "Review your Driver",
       style: TextStyle(
+        fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -208,17 +209,31 @@ rides.add(
 
     if (!mounted) return;
 
-    setState(() {
-      _expandedRideId = null;
-      _selectedRating = 0;
-      _ridesFuture = _fetchCompletedRides();
-    });
+    final rides = await _ridesFuture;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Rating submitted"),
-      ),
-    );
+final index = rides.indexWhere(
+  (r) => r.requestId == ride.requestId,
+);
+
+if (index != -1) {
+  rides[index] = RatedRide(
+    requestId: rides[index].requestId,
+    rideId: rides[index].rideId,
+    driverId: rides[index].driverId,
+    date: rides[index].date,
+    time: rides[index].time,
+    pickup: rides[index].pickup,
+    drop: rides[index].drop,
+    riderRating: _selectedRating,
+  );
+}
+
+setState(() {
+  _expandedRideId = null;
+  _selectedRating = 0;
+  _ridesFuture = Future.value(rides);
+});
+
   } catch (e) {
     if (!mounted) return;
 
