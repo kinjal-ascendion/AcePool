@@ -1,6 +1,9 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/presentation/pages/security_page.dart';
+import 'package:acepool/features/profile/presentation/pages/route_matching_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -214,7 +217,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         _riderPickupLatLng = LatLng(projected['latitude']!, projected['longitude']!);
         
         // Only use generic "Main Road" if we don't already have a specific landmark
-        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near")) {
+        if (_riderPickupPoint.isEmpty || _riderPickupPoint.contains("Main Road") || _riderPickupPoint.startsWith("Road near") || _riderPickupPoint == "Pick Up Point") {
            _riderPickupPoint = getMainRoadName(r.fromAddress);
         }
       }
@@ -364,39 +367,44 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
-
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+          Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 20,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.white,
+                            radius: 20,
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      _buildTopRouteCard(r),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildTopRouteCard(r),
-                ],
+                ),
               ),
-            ),
-          ),
-
-          DraggableScrollableSheet(
-            initialChildSize: 0.45,
-            minChildSize: 0.15,
-            maxChildSize: 0.9,
-            builder: (context, scrollController) {
-              return _buildBottomSheet(context, scrollController, walkToPickupKm, walkFromDropKm, sameAsDriverEnd, totalJourneyMin, arrivalTimeLabel, journeyRangeLabel);
-            },
+              Expanded(
+                child: DraggableScrollableSheet(
+                  initialChildSize: 0.5,
+                  minChildSize: 0.2,
+                  maxChildSize: 1.0,
+                  builder: (context, scrollController) {
+                    return _buildBottomSheet(context, scrollController, walkToPickupKm, walkFromDropKm, sameAsDriverEnd, totalJourneyMin, arrivalTimeLabel, journeyRangeLabel);
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -409,20 +417,88 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildRouteItem(r.fromAddress, isStart: true),
-          Padding(
-            padding: const EdgeInsets.only(left: 7),
-            child: Container(height: 16, width: 1, color: AppColors.grey300),
+          // Source
+          Row(
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primaryGreen, width: 2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  r.fromAddress,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.map_outlined, size: 16, color: AppColors.black26),
+            ],
           ),
-          _buildRouteItem(r.toAddress, isStart: false),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.black12),
-          const SizedBox(height: 12),
+          
+          // Divider Row with Vertical line connection
+          Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 20,
+                child: Center(
+                  child: VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: AppColors.grey300,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.black12,
+                ),
+              ),
+            ],
+          ),
+
+          // Destination
+          Row(
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryGreen,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  r.toAddress,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.map_outlined, size: 16, color: AppColors.black26),
+            ],
+          ),
+          
+          const Divider(height: 24, thickness: 1, color: AppColors.black12),
+          
           Row(
             children: [
               Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.grey600),
@@ -430,13 +506,21 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
               Text(r.dateLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             ],
           ),
-          const SizedBox(height: 8),
+          
+          const Divider(height: 24, thickness: 1, color: AppColors.black12),
+
           Row(
             children: [
               Icon(Icons.access_time, size: 16, color: AppColors.grey600),
               const SizedBox(width: 8),
               Text(r.timeLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
               const Spacer(),
+              Container(
+                width: 1,
+                height: 20,
+                color: AppColors.black12,
+              ),
+              const SizedBox(width: 12),
               _buildSeatsChip(r),
             ],
           ),
@@ -511,7 +595,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           _buildWalkSegment('Walk ${RideMatcher.formatDistance(walkToPickup)} (${(walkToPickup * 12).round()} min)'),
           
           _buildTimelineItem(
-            title: _riderPickupPoint.split(',')[0],
+            title: _riderPickupPoint.isNotEmpty ? _riderPickupPoint.split(',')[0] : 'Pick Up Point',
             subtitle: 'Pick Up Point',
             time: r.timeLabel,
             icon: Icons.directions_car,
@@ -570,7 +654,10 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           child: const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 24),
         ),
         const SizedBox(width: 16),
-        const Icon(Icons.share_outlined, size: 22),
+        GestureDetector(
+          onTap: () => LocationShareHelper.shareCurrentLocation(context),
+          child: const Icon(Icons.share_outlined, size: 22),
+        ),
         const SizedBox(width: 16),
         IconButton(
           padding: EdgeInsets.zero,
@@ -582,16 +669,16 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     );
   }
 
-  void _showSOSDialog(BuildContext context) {
+  void _showSOSDialog(BuildContext pageContext) {
     showDialog(
-      context: context,
-      builder: (context) => Dialog(
+      context: pageContext,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,58 +697,59 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                   const SizedBox(width: 12),
                   const Text(
                     'Emergency SOS',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.red),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.red),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: AppColors.black54),
-                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 18, color: AppColors.black54),
+                    onPressed: () => Navigator.pop(dialogContext),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
               const Padding(
-                padding: EdgeInsets.only(left: 44, right: 8),
+                padding: EdgeInsets.only(left: 42, right: 12),
                 child: Text(
                   'Are you sure you want send an Emergency SOS alert?',
-                  style: TextStyle(fontSize: 14, color: AppColors.black87, fontWeight: FontWeight.w500, height: 1.4),
+                  style: TextStyle(fontSize: 13.5, color: AppColors.black54, fontWeight: FontWeight.w500, height: 1.1),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 6),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 0),
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(dialogContext),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          side: BorderSide(color: AppColors.grey300),
+                          side: BorderSide(color: AppColors.grey200),
                         ),
-                        child: const Text('Cancel', style: TextStyle(color: AppColors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.black87, fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('SOS alert sent successfully')),
+                          Navigator.pop(dialogContext);
+                          if (!pageContext.mounted) return;
+                          Navigator.push(
+                            pageContext,
+                            MaterialPageRoute(builder: (_) => const SecurityPage()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.black,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: AppColors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 0,
                         ),
-                        child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ),
                   ],
@@ -721,7 +809,11 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
 
   Widget _buildAdjustRadiusButton() {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const RouteMatchingPage()),
+        );
+      },
       icon: const Icon(Icons.location_searching, size: 18),
       label: const Text('Adjust Radius'),
       style: OutlinedButton.styleFrom(

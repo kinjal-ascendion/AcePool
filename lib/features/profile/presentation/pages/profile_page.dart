@@ -10,6 +10,7 @@ import 'vehicle_info_page.dart';
 import 'ride_statistics_page.dart';
 import 'route_matching_page.dart';
 import 'package:acepool/core/enums/ride_mode.dart';
+import 'ride_history_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -93,6 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
             final data = snapshot.data;
             final fullName = data?['fullName'] as String? ?? '';
             final employeeId = data?['employeeId'] as String? ?? '';
+            final phone = data?['phone'] as String?;
             final licenceVerified = data?['licenceVerified'] as bool?;
             final licenceNumber = data?['licenceNumber'] as String?;
 
@@ -164,12 +166,17 @@ const SizedBox(height: 24),
                           builder: (_) => AccountSettingsPage(
                             fullName: fullName,
                             employeeId: employeeId,
+                            phone: phone,
                             licenceVerified: licenceVerified,
                             licenceNumber: licenceNumber,
                           ),
                         ),
                       ).then((_) {
-                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                    if (mounted) {
+                      setState(() {
+                        _userDataFuture = _fetchUserData();
+                      });
+                    }
                   }),
                       child: Stack(
                         children: [
@@ -241,12 +248,17 @@ const SizedBox(height: 24),
                       builder: (_) => AccountSettingsPage(
                         fullName: fullName,
                         employeeId: employeeId,
+                        phone: phone,
                         licenceVerified: licenceVerified,
                         licenceNumber: licenceNumber,
                       ),
                     ),
                   ).then((_) {
-                    if (mounted) setState(() => _userDataFuture = _fetchUserData());
+                    if (mounted) {
+                      setState(() {
+                        _userDataFuture = _fetchUserData();
+                      });
+                    }
                   }),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
@@ -260,15 +272,26 @@ const SizedBox(height: 24),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
-  title: 'Route matching',
-  subtitle: 'Routes & Radius settings',
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const RouteMatchingPage(),
-    ),
-  ),
-),
+                  title: 'Route matching',
+                  subtitle: 'Routes & Radius settings',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RouteMatchingPage(),
+                    ),
+                  ),
+                ),
+                Divider(color: AppColors.grey200, height: 1),
+                _settingsRow(
+                  title: 'Ride History',
+                  subtitle: 'Past Rides & Receipts',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RideHistoryPage(),
+                    ),
+                  ),
+                ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
                   title: 'Pricing',

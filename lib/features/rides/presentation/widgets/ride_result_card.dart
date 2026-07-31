@@ -1,5 +1,9 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/chat/domain/entities/chat_message.dart';
+import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -134,11 +138,32 @@ class _RideResultCardState extends State<RideResultCard> {
       batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
       await batch.commit();
 
+      // Also send a chat message if there's a message entered
+      final messageText = _messageController.text.trim();
+      if (messageText.isNotEmpty) {
+        final ids = [uid, widget.result.driverId]..sort();
+        final chatId = ids.join('_');
+        
+        await sl<ChatRepository>().sendMessage(
+          chatId,
+          ChatMessage(
+            id: '',
+            senderId: uid,
+            receiverId: widget.result.driverId,
+            text: messageText,
+            timestamp: DateTime.now(),
+          ),
+          riderName,
+          widget.result.driverName,
+        );
+      }
+
       if (mounted) {
         setState(() {
           _justRequested = true;
           _submitting = false;
         });
+        _messageController.clear();
         widget.onRequested();
       }
     } catch (e) {
@@ -190,61 +215,58 @@ class _RideResultCardState extends State<RideResultCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top banner + match% overlay (pinned to extreme corners) ──
-            SizedBox(
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: ColoredBox(
-                      color: AppColors.primaryGreen,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.person_outline,
-                                color: AppColors.white, size: 15),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
+            // ── Top row: seats-filled chip pinned to corner + match% ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_outline,
+                              color: AppColors.white, size: 15),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${r.matchPercent}% Match',
-                          style: const TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: const TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
             Padding(
@@ -300,10 +322,93 @@ class _RideResultCardState extends State<RideResultCard> {
 
                   const SizedBox(height: 2),
 
-                  // ── Row 4: time ─────────────────────────────────────────
-                  Text(
-                    r.timeLabel,
-                    style: const TextStyle(color: AppColors.black45, fontSize: 12),
+                  // ── Row 4: time + vehicle pill ───────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.timeLabel,
+                        style: const TextStyle(
+                            color: AppColors.black45, fontSize: 12),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.grey300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.black87,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: AppColors.black12),
+                  const SizedBox(height: 8),
+
+                  // ── Driver info ─────────────────────────────────────────
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.grey200,
+                        backgroundImage: (r.driverPhotoUrl?.isNotEmpty ?? false)
+                            ? NetworkImage(r.driverPhotoUrl!)
+                            : null,
+                        child: (r.driverPhotoUrl?.isNotEmpty ?? false)
+                            ? null
+                            : Icon(Icons.person, color: AppColors.grey400),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.driverName.isNotEmpty ? r.driverName : 'Driver',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Verified ID',
+                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: (r.driverPhone?.isNotEmpty ?? false)
+                            ? () => LocationShareHelper.launchDialer(r.driverPhone!)
+                            : null,
+                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
+                      ),
+                      const SizedBox(width: 2),
+                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 6),
@@ -404,12 +509,11 @@ class _RideResultCardState extends State<RideResultCard> {
                         Expanded(
                           child: TextField(
                             controller: _messageController,
-                            enabled: !requested && !_submitting,
+                            enabled: !_submitting,
                             style: const TextStyle(fontSize: 13),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              hintText: requested
-                                  ? 'Request sent'
-                                  : 'Share message with driver',
+                              hintText: 'Share message with driver',
                               hintStyle: TextStyle(
                                   fontSize: 13, color: AppColors.grey400),
                               border: InputBorder.none,
@@ -421,14 +525,15 @@ class _RideResultCardState extends State<RideResultCard> {
                         ),
                         const SizedBox(width: 6),
                         GestureDetector(
-                          onTap: requested || _submitting ? null : _requestRide,
+                          onTap: _submitting ? null : _requestRide,
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
-                              color: requested
+                              color: (requested && _messageController.text.trim().isEmpty)
                                   ? AppColors.grey400
                                   : AppColors.primaryGreen,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(30),
                             ),
                             child: _submitting
                                 ? const SizedBox(
@@ -437,10 +542,13 @@ class _RideResultCardState extends State<RideResultCard> {
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: AppColors.white),
                                   )
-                                : Icon(
-                                    requested ? Icons.check : Icons.send_rounded,
-                                    color: AppColors.white,
-                                    size: 16,
+                                : Text(
+                                    (requested && _messageController.text.trim().isNotEmpty) ? 'Send' : (requested ? 'Requested' : 'Request ride'),
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                           ),
                         ),

@@ -11,6 +11,7 @@ class PricingState extends Equatable {
   final int seatCount;
   final String vehicleType;
   final FareBreakdown? fare;
+  final List<VehicleOption> vehicles;
   final String? errorMessage;
 
   const PricingState({
@@ -22,8 +23,12 @@ class PricingState extends Equatable {
     this.seatCount = 1,
     this.vehicleType = 'car',
     this.fare,
+    this.vehicles = const [],
     this.errorMessage,
   });
+
+  bool get isFormValid =>
+      fare != null && fare!.vehicleId != null && fare!.ratePerKm > 0;
 
   PricingState copyWith({
     PricingStatus? status,
@@ -34,6 +39,7 @@ class PricingState extends Equatable {
     int? seatCount,
     String? vehicleType,
     FareBreakdown? fare,
+    List<VehicleOption>? vehicles,
     String? errorMessage,
   }) {
     return PricingState(
@@ -45,6 +51,7 @@ class PricingState extends Equatable {
       seatCount: seatCount ?? this.seatCount,
       vehicleType: vehicleType ?? this.vehicleType,
       fare: fare ?? this.fare,
+      vehicles: vehicles ?? this.vehicles,
       errorMessage: errorMessage,
     );
   }
@@ -59,6 +66,7 @@ class PricingState extends Equatable {
     seatCount,
     vehicleType,
     fare,
+    vehicles,
     errorMessage,
   ];
 }

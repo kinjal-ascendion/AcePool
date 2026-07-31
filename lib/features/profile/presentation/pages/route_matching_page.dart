@@ -1,3 +1,4 @@
+import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,7 +12,10 @@ class RouteMatchingPage extends StatefulWidget {
 }
 
 class _RouteMatchingPageState extends State<RouteMatchingPage> {
-  double radius = 5;
+  double radius = 0.0;
+  late final TextEditingController _radiusController;
+  bool _isSaving = false;
+  
   static final _db = FirebaseFirestore.instanceFor(
   app: Firebase.app(),
   databaseId: 'acepool',
@@ -30,7 +34,14 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
 @override
 void initState() {
   super.initState();
+  _radiusController = TextEditingController(text: "0.0");
   _loadRadius();
+}
+
+@override
+void dispose() {
+  _radiusController.dispose();
+  super.dispose();
 }
 
 Future<void> _loadRadius() async {
@@ -39,13 +50,20 @@ Future<void> _loadRadius() async {
   final doc =
       await _db.collection('users').doc(uid).get();
 
-  if (!doc.exists) return;
+  if (!doc.exists) {
+    setState(() {
+      radius = 0.0;
+      _radiusController.text = "0.0";
+    });
+    return;
+  }
 
   final data = doc.data();
 
   setState(() {
     radius =
-        (data?['routeMatchingRadius'] as num?)?.toDouble() ?? 5;
+        (data?['routeMatchingRadius'] as num?)?.toDouble() ?? 0.0;
+    _radiusController.text = radius.toStringAsFixed(1);
   });
 }
 
@@ -75,6 +93,7 @@ Future<void> _loadRadius() async {
         ),
       ),
 
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -128,93 +147,106 @@ Future<void> _loadRadius() async {
         const SizedBox(height: 12),
 
         const Text(
-          "Accept drives within a set radius from the route of the driver.",
+          "Accept riders within a set radius from your location.",
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 14,
+            color: Colors.black87,
             height: 1.4,
           ),
         ),
 
-        const SizedBox(height: 28),
-
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(
-              enabledThumbRadius: 10,
-            ),
-          ),
-          child: Slider(
-            value: radius,
-            min: 5,
-            max: 10,
-            divisions: 5,
-            activeColor: Colors.black,
-            inactiveColor: Colors.grey.shade300,
-            label: "${radius.round()} km",
-            onChanged: (value) {
-              setState(() {
-                radius = value;
-              });
-            },
-          ),
-        ),
+        const SizedBox(height: 20),
 
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text(
-              "5 km",
-              style: TextStyle(fontWeight: FontWeight.w500),
+          children: [
+            const Text(
+              "0 km",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
-            Text(
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 6,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 9,
+                  ),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                ),
+                child: Slider(
+                  value: radius,
+                  min: 0.0,
+                  max: 10,
+                  divisions: 20,
+                  activeColor: AppColors.primaryGreen,
+                  inactiveColor: AppColors.grey200,
+                  onChanged: (value) {
+                    setState(() {
+                      radius = value;
+                      _radiusController.text = radius.toStringAsFixed(1);
+                    });
+                  },
+                ),
+              ),
+            ),
+            const Text(
               "10 km",
-              style: TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ],
         ),
 
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
         Row(
           children: [
-            Expanded(
-              child: const Text(
-                "Set a radius from your location",
-                style: TextStyle(
-                  fontSize: 15,
-                ),
-              ),
-            ),
-
             Container(
-              width: 90,
-              height: 46,
+              width: 100,
+              height: 40,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: Colors.grey.shade300,
+                  color: AppColors.grey200,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   Expanded(
-                    child: Center(
-                      child: Text(
-                        "${radius.round()} km",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    child: TextField(
+                      controller: _radiusController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.only(right: 4),
+                      ),
+                      onChanged: (val) {
+                        final parsed = double.tryParse(val);
+                        if (parsed != null) {
+                          setState(() {
+                            radius = parsed.clamp(0.0, 10.0);
+                          });
+                        }
+                      },
                     ),
                   ),
-
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: Text(
+                      "km",
+                      style: TextStyle(fontSize: 13, color: AppColors.black54),
+                    ),
+                  ),
                   Container(
-                    width: 32,
+                    width: 24,
                     decoration: BoxDecoration(
                       border: Border(
                         left: BorderSide(
-                          color: Colors.grey.shade300,
+                          color: AppColors.grey200,
                         ),
                       ),
                     ),
@@ -225,29 +257,31 @@ Future<void> _loadRadius() async {
                             onTap: () {
                               if (radius < 10) {
                                 setState(() {
-                                  radius++;
+                                  radius = (radius + 0.5).clamp(0.0, 10.0);
+                                  _radiusController.text = radius.toStringAsFixed(1);
                                 });
                               }
                             },
                             child: const Icon(
                               Icons.keyboard_arrow_up,
-                              size: 18,
+                              size: 14,
                             ),
                           ),
                         ),
-                        Divider(height: 1),
+                        Divider(height: 1, color: AppColors.grey200),
                         Expanded(
                           child: InkWell(
                             onTap: () {
-                              if (radius > 5) {
+                              if (radius > 0) {
                                 setState(() {
-                                  radius--;
+                                  radius = (radius - 0.5).clamp(0.0, 10.0);
+                                  _radiusController.text = radius.toStringAsFixed(1);
                                 });
                               }
                             },
                             child: const Icon(
                               Icons.keyboard_arrow_down,
-                              size: 18,
+                              size: 14,
                             ),
                           ),
                         ),
@@ -255,6 +289,16 @@ Future<void> _loadRadius() async {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                "Set a radius from your location",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.black54,
+                ),
               ),
             ),
           ],
@@ -324,7 +368,7 @@ Widget buildButtons() {
         child: SizedBox(
           height: 52,
           child: OutlinedButton(
-            onPressed: () {
+            onPressed: _isSaving ? null : () {
               Navigator.pop(context);
             },
             style: OutlinedButton.styleFrom(
@@ -343,21 +387,36 @@ Widget buildButtons() {
         child: SizedBox(
           height: 52,
           child: ElevatedButton(
-            onPressed: () async {
-  await _saveRadius();
+            onPressed: _isSaving ? null : () async {
+              setState(() {
+                _isSaving = true;
+              });
 
-  if (!mounted) return;
+              try {
+                await _saveRadius();
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        "Radius saved: ${radius.round()} km",
-      ),
-    ),
-  );
+                if (!mounted) return;
 
-  Navigator.pop(context, radius);
-},
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Radius saved: ${radius < 1 ? (radius * 1000).round().toString() + ' m' : radius.toStringAsFixed(1) + ' km'}",
+                    ),
+                  ),
+                );
+
+                Navigator.pop(context, radius);
+              } catch (e) {
+                if (mounted) {
+                  setState(() {
+                    _isSaving = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to save: $e")),
+                  );
+                }
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,
@@ -365,7 +424,13 @@ Widget buildButtons() {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text("Save Changes"),
+            child: _isSaving 
+              ? const SizedBox(
+                  height: 20, 
+                  width: 20, 
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                )
+              : const Text("Save Changes"),
           ),
         ),
       ),

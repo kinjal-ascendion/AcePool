@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:acepool/core/constants/fare_constants.dart';
 import 'package:acepool/features/home/domain/entities/fare_breakdown.dart';
+import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
 import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
 
@@ -20,8 +23,6 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
   String _vehicleType = 'car';
   String _rideMode = 'offer';
 
-  int get _maxSeats => _vehicleType == 'bike' ? 1 : 4;
-
   PricingBloc({
     required EstimateRouteUseCase estimateRoute,
     required ScheduleRideUseCase scheduleRide,
@@ -29,12 +30,39 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
         _scheduleRide = scheduleRide,
         super(const PricingState()) {
     on<PricingStarted>(_onPricingStarted);
-    on<TollsIncludedToggled>(_onTollsIncludedToggled);
-    on<DistanceCostChanged>(_onDistanceCostChanged);
-    on<TollCostChanged>(_onTollCostChanged);
-    on<DetourCostChanged>(_onDetourCostChanged);
-    on<RiderCountChanged>(_onRiderCountChanged);
+    on<VehicleSelected>(_onVehicleSelected);
+    on<RatePerKmChanged>(_onRatePerKmChanged);
+    on<VehiclesRefreshRequested>(_onVehiclesRefreshRequested);
     on<PublishRideRequested>(_onPublishRideRequested);
+  }
+
+  Future<List<VehicleOption>> _fetchVehicles(String vehicleType) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const [];
+
+    final db = FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: 'acepool',
+    );
+    final expectedType = vehicleType == 'bike' ? 'two_wheeler' : 'four_wheeler';
+    final snapshot = await db
+        .collection('users')
+        .doc(uid)
+        .collection('vehicles')
+        .where('type', isEqualTo: expectedType)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      final brand = data['brand'] as String? ?? '';
+      final model = data['model'] as String? ?? '';
+      final label = [brand, model].where((s) => s.isNotEmpty).join(' ');
+      return VehicleOption(
+        id: doc.id,
+        label: label.isNotEmpty ? label : 'Vehicle',
+        type: data['type'] as String? ?? expectedType,
+      );
+    }).toList();
   }
 
   Future<void> _onPricingStarted(
@@ -71,58 +99,39 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       durationMinutes = route.durationMinutes;
     }
 
-    final distanceCost = (distanceKm * FareConstants.ratePerKm).roundToDouble();
-    final detourCost = (distanceCost * FareConstants.detourRateMultiplier).roundToDouble();
+    final vehicles = await _fetchVehicles(_vehicleType);
 
     emit(state.copyWith(
       status: PricingStatus.ready,
       fare: FareBreakdown(
         distanceKm: distanceKm,
         durationMinutes: durationMinutes,
-        distanceCost: distanceCost,
-        tollCost: 0,
-        includeTolls: false,
-        detourCost: detourCost,
-        riderCount: FareBreakdown.clampRiderCount(event.seatCount, maxCount: _maxSeats),
+        ratePerKm: 0,
       ),
+      vehicles: vehicles,
     ));
   }
 
-  void _onTollsIncludedToggled(
-    TollsIncludedToggled event,
-    Emitter<PricingState> emit,
-  ) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(fare: fare.copyWith(includeTolls: event.includeTolls)));
-  }
-
-  void _onDistanceCostChanged(DistanceCostChanged event, Emitter<PricingState> emit) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(fare: fare.copyWith(distanceCost: event.value)));
-  }
-
-  void _onTollCostChanged(TollCostChanged event, Emitter<PricingState> emit) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(fare: fare.copyWith(tollCost: event.value)));
-  }
-
-  void _onDetourCostChanged(DetourCostChanged event, Emitter<PricingState> emit) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(fare: fare.copyWith(detourCost: event.value)));
-  }
-
-  void _onRiderCountChanged(RiderCountChanged event, Emitter<PricingState> emit) {
+  void _onVehicleSelected(VehicleSelected event, Emitter<PricingState> emit) {
     final fare = state.fare;
     if (fare == null) return;
     emit(state.copyWith(
-      fare: fare.copyWith(
-        riderCount: FareBreakdown.clampRiderCount(event.riderCount, maxCount: _maxSeats),
-      ),
+      fare: fare.copyWith(vehicleId: event.vehicleId, vehicleLabel: event.label),
     ));
+  }
+
+  void _onRatePerKmChanged(RatePerKmChanged event, Emitter<PricingState> emit) {
+    final fare = state.fare;
+    if (fare == null) return;
+    emit(state.copyWith(fare: fare.copyWith(ratePerKm: event.value)));
+  }
+
+  Future<void> _onVehiclesRefreshRequested(
+    VehiclesRefreshRequested event,
+    Emitter<PricingState> emit,
+  ) async {
+    final vehicles = await _fetchVehicles(_vehicleType);
+    emit(state.copyWith(vehicles: vehicles));
   }
 
   Future<void> _onPublishRideRequested(
@@ -130,10 +139,18 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
     Emitter<PricingState> emit,
   ) async {
     final fare = state.fare;
-    if (fare == null || state.date == null || state.time == null) return;
+    if (fare == null ||
+        state.date == null ||
+        state.time == null ||
+        fare.vehicleId == null ||
+        fare.ratePerKm <= 0) {
+      return;
+    }
 
     emit(state.copyWith(status: PricingStatus.publishing));
     try {
+      final farePerSeat = fare.totalCost / state.seatCount;
+      final driverEarnings = fare.totalCost;
       await _scheduleRide(
         rideMode: _rideMode,
         vehicleType: _vehicleType,
@@ -145,17 +162,16 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
         toLng: _toLng,
         date: state.date!,
         time: state.time!,
-        seatCount: fare.riderCount,
+        seatCount: state.seatCount,
         routeDistanceKm: fare.distanceKm,
         routeDurationMinutes: fare.durationMinutes,
         fare: {
-          'distanceCost': fare.distanceCost,
-          'tollCost': fare.tollCost,
-          'includeTolls': fare.includeTolls,
-          'detourCost': fare.detourCost,
-          'totalSharedCost': fare.totalSharedCost,
-          'farePerSeat': fare.farePerSeat,
-          'driverEarnings': fare.driverEarnings,
+          'vehicleId': fare.vehicleId,
+          'vehicleLabel': fare.vehicleLabel,
+          'ratePerKm': fare.ratePerKm,
+          'totalCost': fare.totalCost,
+          'farePerSeat': farePerSeat,
+          'driverEarnings': driverEarnings,
         },
       );
       emit(state.copyWith(status: PricingStatus.published));

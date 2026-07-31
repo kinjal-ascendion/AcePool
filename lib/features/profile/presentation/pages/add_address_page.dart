@@ -9,6 +9,7 @@ import 'package:acepool/features/home/presentation/pages/location_search_page.da
 class AddAddressPage extends StatefulWidget {
   final PickedLocation location;
   final String category;
+  final String landmark;
 
   final bool isEdit;
   final String? docId;
@@ -17,6 +18,7 @@ class AddAddressPage extends StatefulWidget {
     super.key,
     required this.location,
     required this.category,
+    this.landmark = '',
     this.isEdit = false,
     this.docId,
   });
@@ -29,10 +31,11 @@ class AddAddressPage extends StatefulWidget {
 class _AddAddressPageState extends State<AddAddressPage> {
   late PickedLocation _selectedLocation;
   late final TextEditingController _addressController;
-  final TextEditingController _landmarkController = TextEditingController();
+  late final TextEditingController _landmarkController;
   late TextEditingController _saveAsController;
 
   String _selectedType = "Home";
+  bool _saving = false;
 
   static final _db = FirebaseFirestore.instanceFor(
     app: Firebase.app(),
@@ -57,6 +60,9 @@ class _AddAddressPageState extends State<AddAddressPage> {
     _addressController = TextEditingController(
       text: widget.location.address,
     );
+    _landmarkController = TextEditingController(
+      text: widget.landmark,
+    );
   }
 
   @override
@@ -66,29 +72,42 @@ class _AddAddressPageState extends State<AddAddressPage> {
     super.dispose();
   }
 Future<void> _saveAddress() async {
+  if (_saving) return;
+  if (_addressController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Address is required"),
+      ),
+    );
+    return;
+  }
+
+  setState(() => _saving = true);
   try {
-    if (_addressController.text.trim().isEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text("Address is required"),
-    ),
-  );
-  return;
-}
     final ref = _addressesRef();
 
     final category = _selectedType == "Other"
         ? _saveAsController.text.trim()
         : _selectedType;
+    final categoryKey = category.toLowerCase();
+
+    bool isFirstInCategory = false;
+    if (!widget.isEdit) {
+      final existing = await ref
+          .where('category', isEqualTo: categoryKey)
+          .limit(1)
+          .get();
+      isFirstInCategory = existing.docs.isEmpty;
+    }
 
     final data = {
-      'category': category.toLowerCase(),
+      'category': categoryKey,
       'label': category,
       'address': _addressController.text.trim(),
       'landmark': _landmarkController.text.trim(),
       'lat': _selectedLocation.lat,
       'lng': _selectedLocation.lng,
-      'isDefault': true,
+      if (!widget.isEdit) 'isDefault': isFirstInCategory,
     };
 
     if (widget.isEdit) {
@@ -104,8 +123,31 @@ Future<void> _saveAddress() async {
     Navigator.pop(context, true);
   } catch (e) {
     debugPrint("SAVE ERROR: $e");
+    if (mounted) setState(() => _saving = false);
   }
 }
+InputDecoration _fieldDecoration(String hint) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: Colors.grey),
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Colors.black, width: 1.5),
+    ),
+  );
+}
+
 Widget _categoryChip({
   required IconData icon,
   required String label,
@@ -119,13 +161,13 @@ Widget _categoryChip({
     avatar: Icon(
       icon,
       size: 18,
-      color: selected ? Colors.black : Colors.grey,
+      color: selected ? Colors.black : Colors.grey.shade600,
     ),
 
     label: Text(
       label,
       style: TextStyle(
-        color: selected ? Colors.black : Colors.grey,
+        color: selected ? Colors.black : Colors.grey.shade600,
         fontWeight: selected
             ? FontWeight.w600
             : FontWeight.w500,
@@ -134,6 +176,8 @@ Widget _categoryChip({
 
     backgroundColor: Colors.white,
     selectedColor: Colors.white,
+    surfaceTintColor: Colors.transparent,
+    color: WidgetStateProperty.all(Colors.white),
 
     elevation: 0,
     pressElevation: 0,
@@ -141,8 +185,8 @@ Widget _categoryChip({
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(25),
       side: BorderSide(
-  color: selected ? Colors.black : Colors.grey,
-  width: selected ? 1 : 1,
+  color: selected ? Colors.black : Colors.grey.shade300,
+  width: selected ? 1.5 : 1,
 ),
     ),
 
@@ -166,7 +210,9 @@ debugPrint("Longitude: ${widget.location.lng}");
 
     appBar: AppBar(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: true,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -263,45 +309,41 @@ GestureDetector(
   ),
 ),
 
-                  Positioned(
-                    top: 18,
-                    left: 30,
-                    right: 30,
-
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                          )
-                        ],
-                      ),
-
-                      child: const Text(
-                        "Drag the map to adjust the pin",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 8,
+                              )
+                            ],
+                          ),
+                          child: const Text(
+                            "Drag the map to adjust the pin",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                                    const Positioned(
-                    top: 105,
-                    left: 0,
-                    right: 0,
-                    child: Icon(
-                      Icons.location_pin,
-                      color: Colors.red,
-                      size: 42,
+                        const SizedBox(height: 6),
+                        const Icon(
+                          Icons.location_pin,
+                          color: Colors.black,
+                          size: 42,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -310,13 +352,21 @@ GestureDetector(
 
             const SizedBox(height: 28),
 
-            const Text(
-              "ADDRESS",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
+            const Text.rich(
+              TextSpan(
+                text: "ADDRESS ",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+                children: [
+                  TextSpan(
+                    text: "*",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
               ),
             ),
 
@@ -325,24 +375,13 @@ GestureDetector(
             TextField(
               controller: _addressController,
               maxLines: 2,
-              decoration: InputDecoration(
-                hintText: "Enter address",
-                hintStyle: TextStyle(
-                  color: Colors.grey,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(18),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
+              decoration: _fieldDecoration("Enter address"),
             ),
 
             const SizedBox(height: 20),
 
             const Text(
-              "LANDMARK (OPTIONAL)",
+              "FLAT, FLOOR, LANDMARK (OPTIONAL)",
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.black,
@@ -355,18 +394,7 @@ GestureDetector(
 
             TextField(
               controller: _landmarkController,
-              decoration: InputDecoration(
-                hintText: "Enter landmark",
-                hintStyle: TextStyle(
-                  color: Colors.grey,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(18),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
+              decoration: _fieldDecoration("Enter landmark"),
             ),
 
             const SizedBox(height: 20),
@@ -410,17 +438,7 @@ if (_selectedType == "Other") ...[
 
   TextField(
     controller: _saveAsController,
-    decoration: InputDecoration(
-      hintText: "Enter category name",
-      hintStyle: TextStyle(
-                  color: Colors.grey,
-                ),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ),
+    decoration: _fieldDecoration("Enter category name"),
   ),
 
   const SizedBox(height: 20),
@@ -432,22 +450,32 @@ SizedBox(
   width: double.infinity,
   height: 56,
   child: ElevatedButton(
-    onPressed: _saveAddress,
+    onPressed: _saving ? null : _saveAddress,
     style: ElevatedButton.styleFrom(
       backgroundColor: Colors.black,
+      disabledBackgroundColor: Colors.black,
       foregroundColor: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(12),
       ),
     ),
-    child: const Text(
-      "Save Address",
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
+    child: _saving
+        ? const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: Colors.white,
+            ),
+          )
+        : const Text(
+            "Save Address",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
   ),
 ),
 

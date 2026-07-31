@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -28,6 +29,7 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final _fullNameController = TextEditingController();
   final _employeeIdController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailUsernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -38,6 +40,7 @@ class _SignupPageState extends State<SignupPage> {
 
   String? _fullNameError;
   String? _employeeIdError;
+  String? _phoneError;
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
@@ -60,6 +63,7 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _validate() {
     final password = _passwordController.text;
+    final phone = _phoneController.text.trim();
 
     setState(() {
       _fullNameError = _fullNameController.text.trim().isEmpty
@@ -67,6 +71,11 @@ class _SignupPageState extends State<SignupPage> {
           : null;
       _employeeIdError = _employeeIdController.text.trim().isEmpty
           ? 'Employee ID is required'
+          : null;
+      _phoneError = phone.isEmpty
+          ? 'Phone number is required'
+          : phone.length != 10
+          ? 'Enter a valid 10-digit phone number'
           : null;
       _emailError = _emailUsernameController.text.trim().isEmpty
           ? 'Work email username is required'
@@ -85,6 +94,7 @@ class _SignupPageState extends State<SignupPage> {
 
     return _fullNameError == null &&
         _employeeIdError == null &&
+        _phoneError == null &&
         _emailError == null &&
         _passwordError == null &&
         _confirmPasswordError == null;
@@ -94,6 +104,7 @@ class _SignupPageState extends State<SignupPage> {
   void dispose() {
     _fullNameController.dispose();
     _employeeIdController.dispose();
+    _phoneController.dispose();
     _emailUsernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -163,6 +174,7 @@ class _SignupPageState extends State<SignupPage> {
       final userData = <String, dynamic>{
         'fullName': fullName,
         'employeeId': _employeeIdController.text.trim(),
+        'phone': _phoneController.text.trim(),
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
       };
@@ -224,6 +236,7 @@ class _SignupPageState extends State<SignupPage> {
   void _onFieldChanged(String _) => setState(() {
     _fullNameError = null;
     _employeeIdError = null;
+    _phoneError = null;
     _emailError = null;
     _passwordError = null;
     _confirmPasswordError = null;
@@ -308,6 +321,20 @@ class _SignupPageState extends State<SignupPage> {
                 hintText: 'e.g. ASC12345',
                 onChanged: _onFieldChanged,
                 errorText: _employeeIdError,
+              ),
+              const SizedBox(height: 16),
+
+              AuthTextField(
+                label: 'Phone Number',
+                controller: _phoneController,
+                hintText: '10-digit mobile number',
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                onChanged: _onFieldChanged,
+                errorText: _phoneError,
               ),
               const SizedBox(height: 16),
 

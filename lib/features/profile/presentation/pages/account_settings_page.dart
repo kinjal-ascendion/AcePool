@@ -7,11 +7,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   final String fullName;
   final String employeeId;
+  final String? phone;
   final bool? licenceVerified;
   final String? licenceNumber;
 
@@ -19,6 +21,7 @@ class AccountSettingsPage extends StatefulWidget {
     super.key,
     required this.fullName,
     required this.employeeId,
+    this.phone,
     required this.licenceVerified,
     this.licenceNumber,
   });
@@ -30,6 +33,7 @@ class AccountSettingsPage extends StatefulWidget {
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
   late final TextEditingController _fullNameController;
   late final TextEditingController _employeeIdController;
+  late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
 
   final _imagePicker = ImagePicker();
@@ -60,6 +64,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     _fullNameController = TextEditingController(text: widget.fullName);
     _employeeIdController = TextEditingController(text: widget.employeeId);
+    _phoneController = TextEditingController(text: widget.phone ?? '');
     _licenseNumber = widget.licenceNumber;
 
     _emailController = TextEditingController(
@@ -71,6 +76,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   void dispose() {
     _fullNameController.dispose();
     _employeeIdController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -116,6 +122,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> _saveProfile() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isNotEmpty && phone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid 10-digit phone number')),
+      );
+      return;
+    }
+
     try {
       setState(() => _isSaving = true);
 
@@ -124,6 +138,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
       final data = <String, dynamic>{
         'fullName': newFullName,
+        'phone': phone,
         'email': _emailController.text.trim(),
       };
 
@@ -264,6 +279,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       label: 'Asc ID',
                       controller: _employeeIdController,
                       enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+                    _SettingsField(
+                      label: 'Phone Number',
+                      controller: _phoneController,
+                      enabled: true,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _SettingsField(
@@ -461,11 +487,15 @@ class _SettingsField extends StatefulWidget {
     required this.label,
     required this.controller,
     required this.enabled,
+    this.keyboardType,
+    this.inputFormatters,
   });
 
   final String label;
   final TextEditingController controller;
   final bool enabled;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   State<_SettingsField> createState() => _SettingsFieldState();
@@ -520,6 +550,8 @@ class _SettingsFieldState extends State<_SettingsField> {
                   controller: widget.controller,
                   focusNode: _focusNode,
                   enabled: widget.enabled,
+                  keyboardType: widget.keyboardType,
+                  inputFormatters: widget.inputFormatters,
                   style: TextStyle(
                     color: widget.enabled
                         ? AppColors.black87

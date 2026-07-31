@@ -14,10 +14,18 @@ class LocationResult {
 }
 
 class LocationSearchPage extends StatefulWidget {
-  const LocationSearchPage({super.key, required this.title, this.initialValue});
+  const LocationSearchPage({
+    super.key,
+    required this.title,
+    this.initialValue,
+    this.biasLat,
+    this.biasLng,
+  });
 
   final String title;
   final String? initialValue;
+  final double? biasLat;
+  final double? biasLng;
 
   @override
   State<LocationSearchPage> createState() => _LocationSearchPageState();
@@ -73,16 +81,23 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
       _error = null;
     });
     try {
-      final results = await _places.autocomplete(query, sessionToken: _sessionToken);
+      final results = await _places.autocomplete(
+        query,
+        sessionToken: _sessionToken,
+        biasLat: widget.biasLat,
+        biasLng: widget.biasLng,
+      );
       if (!mounted) return;
       setState(() {
         _predictions = results
-            .map((r) => _PlacePrediction(
-                  placeId: r.placeId,
-                  mainText: r.mainText,
-                  secondaryText: r.secondaryText,
-                  fullText: r.description,
-                ))
+            .map(
+              (r) => _PlacePrediction(
+                placeId: r.placeId,
+                mainText: r.mainText,
+                secondaryText: r.secondaryText,
+                fullText: r.description,
+              ),
+            )
             .toList();
       });
     } finally {
@@ -100,7 +115,9 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     setState(() => _isResolvingSelection = false);
 
     if (details == null) {
-      setState(() => _error = 'Could not resolve that location. Please try again.');
+      setState(
+        () => _error = 'Could not resolve that location. Please try again.',
+      );
       return;
     }
 
@@ -255,7 +272,10 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                 return InkWell(
                   onTap: _isResolvingSelection ? null : () => _select(p),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [

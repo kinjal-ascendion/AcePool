@@ -9,6 +9,7 @@ class RideMatch {
     required this.driverId,
     required this.driverName,
     this.driverPhotoUrl,
+    this.driverPhone,
     required this.date,
     required this.time,
     required this.fromAddress,
@@ -30,6 +31,7 @@ class RideMatch {
   final String driverId;
   final String driverName;
   final String? driverPhotoUrl;
+  final String? driverPhone;
   final DateTime date;
   final TimeOfDay time;
   final String fromAddress;
