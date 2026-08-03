@@ -32,17 +32,53 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
     if (uid == null) return [];
 
     try {
-      // Query rides where user is the creator (driver or rider who scheduled)
-      final snapshot = await _db
+      // 1. Fetch rides where user was the DRIVER (creator)
+      final driverSnap = await _db
           .collection('rides')
           .where('uid', isEqualTo: uid)
-          .orderBy('date', descending: true)
           .get();
-
-      return snapshot.docs
+      
+      final driverRides = driverSnap.docs
           .where((doc) => doc.data()['status'] == 'completed')
           .map((doc) => {'id': doc.id, ...doc.data()})
           .toList();
+
+      // 2. Fetch rides where user was a RIDER
+      final riderSnap = await _db
+          .collection('ride_requests')
+          .where('riderId', isEqualTo: uid)
+          .where('status', isEqualTo: 'completed')
+          .get();
+
+      final riderRides = <Map<String, dynamic>>[];
+      for (var doc in riderSnap.docs) {
+        final requestData = doc.data();
+        final rideId = requestData['rideId'] as String;
+        
+        // Fetch full ride details to get price, vehicle info etc.
+        final rideDoc = await _db.collection('rides').doc(rideId).get();
+        if (rideDoc.exists) {
+          final rideData = rideDoc.data()!;
+          riderRides.add({
+            'id': rideId,
+            ...rideData,
+            'rideMode': 'find', // Force 'find' mode for history display
+            'fromAddress': requestData['pickupPoint'] ?? rideData['fromAddress'],
+            'toAddress': requestData['dropOffPoint'] ?? rideData['toAddress'],
+          });
+        }
+      }
+
+      // Combine and sort by date descending
+      final allRides = [...driverRides, ...riderRides];
+      allRides.sort((a, b) {
+        final timestampA = a['date'] as Timestamp?;
+        final timestampB = b['date'] as Timestamp?;
+        if (timestampA == null || timestampB == null) return 0;
+        return timestampB.compareTo(timestampA);
+      });
+
+      return allRides;
     } catch (e) {
       debugPrint('Error fetching ride history: $e');
       return [];
@@ -54,6 +90,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
       'TODAY': [],
       'YESTERDAY': [],
       'THIS MONTH': [],
+      'OLDER RIDES': [],
     };
 
     final now = DateTime.now();
@@ -74,6 +111,8 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
         groups['YESTERDAY']!.add(ride);
       } else if (rideDay.isAfter(firstOfThisMonth.subtract(const Duration(seconds: 1)))) {
         groups['THIS MONTH']!.add(ride);
+      } else {
+        groups['OLDER RIDES']!.add(ride);
       }
     }
     return groups;
@@ -137,6 +176,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   ..._buildGroup('TODAY', groups['TODAY']!),
                   ..._buildGroup('YESTERDAY', groups['YESTERDAY']!),
                   ..._buildGroup('THIS MONTH', groups['THIS MONTH']!),
+                  ..._buildGroup('OLDER RIDES', groups['OLDER RIDES']!),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Center(

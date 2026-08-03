@@ -4,6 +4,7 @@ import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/security_page.dart';
 import 'package:acepool/features/profile/presentation/pages/route_matching_page.dart';
+import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -396,7 +397,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
               ),
               Expanded(
                 child: DraggableScrollableSheet(
-                  initialChildSize: 0.5,
+                  initialChildSize: 0.4,
                   minChildSize: 0.2,
                   maxChildSize: 1.0,
                   builder: (context, scrollController) {
@@ -559,89 +560,230 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
       ),
       child: ListView(
         controller: scrollController,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: EdgeInsets.zero,
         children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.grey300, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          _buildTransportDetailsHeader(context),
-          const SizedBox(height: 16),
-          _buildJourneySummaryIcons(walkToPickup, walkFromDrop, totalJourneyMin),
-          const SizedBox(height: 8),
-          _buildPriceAndArrival(r, journeyRangeLabel),
-          const SizedBox(height: 12),
-          Text('*Actual arrival time may vary due to traffic and road conditions', style: TextStyle(fontSize: 11, color: AppColors.grey400)),
-          const SizedBox(height: 24),
-          _buildPickupPointsHeader(),
-          const SizedBox(height: 16),
-          
-          // Journey Timeline
-          _buildTimelineItem(
-            title: _riderStartAddress.isNotEmpty ? _riderStartAddress.split(',')[0] : 'Current Location',
-            subtitle: 'Your Current Location',
-            time: 'Now',
-            icon: Icons.location_on_outlined,
-            iconColor: AppColors.grey400,
-          ),
-          
-          if (_pinnedLatLng != null)
-            _buildTimelineItem(
-              title: _pinnedName ?? 'Pinned Location',
-              subtitle: 'Pinned',
-              time: '',
-              icon: Icons.location_on,
-              iconColor: AppColors.accentBlue,
+          // End Ride Section with Drag Handle
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEBF5FB),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-
-          _buildWalkSegment('Walk ${RideMatcher.formatDistance(walkToPickup)} (${(walkToPickup * 12).round()} min)'),
-          
-          _buildTimelineItem(
-            title: _riderPickupPoint.isNotEmpty ? _riderPickupPoint.split(',')[0] : 'Pick Up Point',
-            subtitle: 'Pick Up Point',
-            time: r.timeLabel,
-            icon: Icons.directions_car,
-            iconColor: AppColors.grey400,
-            isCarLeg: true,
-          ),
-          
-          _buildTimelineItem(
-            title: _riderDropPoint.split(',')[0],
-            subtitle: 'Drop Point',
-            time: arrivalTimeLabel,
-            icon: Icons.location_on_outlined,
-            iconColor: AppColors.primaryGreen,
-          ),
-          
-          if (!sameAsDriverEnd && walkFromDrop > 0.05) ...[
-            _buildWalkSegment('Walk ${RideMatcher.formatDistance(walkFromDrop)} (${(walkFromDrop * 12).round() + 1} min)'),
-            _buildTimelineItem(
-              title: _riderEndAddress.isNotEmpty ? _riderEndAddress.split(',')[0] : r.toAddress.split(',')[0],
-              subtitle: 'Final Destination',
-              description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',') 
-                  ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
-                  : (r.toAddress.contains(',') ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim() : null),
-              time: 'Arrival',
-              icon: Icons.location_on,
-              iconColor: AppColors.red,
-              isLast: true,
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your Stop',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            _riderDropPoint.isNotEmpty
+                                ? _riderDropPoint.split(',')[0]
+                                : 'Calculating...',
+                            style: TextStyle(fontSize: 13, color: AppColors.grey600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _navigateToPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.black,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'End Ride',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ] else
-            _buildTimelineItem(
-              title: _riderEndAddress.isNotEmpty ? _riderEndAddress.split(',')[0] : r.toAddress.split(',')[0],
-              subtitle: 'Final Destination',
-              description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',') 
-                  ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
-                  : (r.toAddress.contains(',') ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim() : null),
-              time: 'Arrival',
-              icon: Icons.location_on,
-              iconColor: AppColors.red,
-              isLast: true,
+          ),
+          // Remaining content in white area
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTransportDetailsHeader(context),
+                const SizedBox(height: 16),
+                _buildJourneySummaryIcons(walkToPickup, walkFromDrop, totalJourneyMin),
+                const SizedBox(height: 8),
+                _buildPriceAndArrival(r, journeyRangeLabel),
+                const SizedBox(height: 12),
+                Text(
+                  '*Actual arrival time may vary due to traffic and road conditions',
+                  style: TextStyle(fontSize: 11, color: AppColors.grey400),
+                ),
+                const SizedBox(height: 24),
+                _buildPickupPointsHeader(),
+                const SizedBox(height: 16),
+                // Journey Timeline
+                _buildTimelineItem(
+                  title: _riderStartAddress.isNotEmpty
+                      ? _riderStartAddress.split(',')[0]
+                      : 'Current Location',
+                  subtitle: 'Your Current Location',
+                  time: 'Now',
+                  icon: Icons.location_on_outlined,
+                  iconColor: AppColors.grey400,
+                ),
+                if (_pinnedLatLng != null)
+                  _buildTimelineItem(
+                    title: _pinnedName ?? 'Pinned Location',
+                    subtitle: 'Pinned',
+                    time: '',
+                    icon: Icons.location_on,
+                    iconColor: AppColors.accentBlue,
+                  ),
+                _buildWalkSegment(
+                  'Walk ${RideMatcher.formatDistance(walkToPickup)} (${(walkToPickup * 12).round()} min)',
+                ),
+                _buildTimelineItem(
+                  title: _riderPickupPoint.isNotEmpty
+                      ? _riderPickupPoint.split(',')[0]
+                      : 'Pick Up Point',
+                  subtitle: 'Pick Up Point',
+                  time: r.timeLabel,
+                  icon: Icons.directions_car,
+                  iconColor: AppColors.grey400,
+                  isCarLeg: true,
+                ),
+                _buildTimelineItem(
+                  title: _riderDropPoint.split(',')[0],
+                  subtitle: 'Drop Point',
+                  time: arrivalTimeLabel,
+                  icon: Icons.location_on_outlined,
+                  iconColor: AppColors.primaryGreen,
+                ),
+                if (!sameAsDriverEnd && walkFromDrop > 0.05) ...[
+                  _buildWalkSegment(
+                    'Walk ${RideMatcher.formatDistance(walkFromDrop)} (${(walkFromDrop * 12).round() + 1} min)',
+                  ),
+                  _buildTimelineItem(
+                    title: _riderEndAddress.isNotEmpty
+                        ? _riderEndAddress.split(',')[0]
+                        : r.toAddress.split(',')[0],
+                    subtitle: 'Final Destination',
+                    description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',')
+                        ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
+                        : (r.toAddress.contains(',')
+                            ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim()
+                            : null),
+                    time: 'Arrival',
+                    icon: Icons.location_on,
+                    iconColor: AppColors.red,
+                    isLast: true,
+                  ),
+                ] else
+                  _buildTimelineItem(
+                    title: _riderEndAddress.isNotEmpty
+                        ? _riderEndAddress.split(',')[0]
+                        : r.toAddress.split(',')[0],
+                    subtitle: 'Final Destination',
+                    description: _riderEndAddress.isNotEmpty && _riderEndAddress.contains(',')
+                        ? _riderEndAddress.substring(_riderEndAddress.indexOf(',') + 1).trim()
+                        : (r.toAddress.contains(',')
+                            ? r.toAddress.substring(r.toAddress.indexOf(',') + 1).trim()
+                            : null),
+                    time: 'Arrival',
+                    icon: Icons.location_on,
+                    iconColor: AppColors.red,
+                    isLast: true,
+                  ),
+                const SizedBox(height: 24),
+                _buildAdjustRadiusButton(),
+              ],
             ),
-
-          const SizedBox(height: 24),
-          _buildAdjustRadiusButton(),
+          ),
         ],
       ),
     );
+  }
+
+  void _navigateToPayment() {
+    final r = widget.ride;
+    final rideData = {
+      'fromAddress': r.fromAddress,
+      'toAddress': r.toAddress,
+      'date': Timestamp.fromDate(r.date),
+      'time': {'hour': r.time.hour, 'minute': r.time.minute},
+      'fare': {
+        'farePerSeat': r.farePerSeat ?? 0.0,
+      },
+    };
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentPage(
+          rideData: rideData,
+          rideId: r.id,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateRideStatus(String status) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final requestSnap = await _db
+          .collection('ride_requests')
+          .where('rideId', isEqualTo: widget.ride.id)
+          .where('riderId', isEqualTo: uid)
+          .where('status', isEqualTo: 'accepted')
+          .limit(1)
+          .get();
+
+      if (requestSnap.docs.isNotEmpty) {
+        await requestSnap.docs.first.reference.update({'status': status});
+      }
+
+      if (mounted && status == 'completed') {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildTransportDetailsHeader(BuildContext context) {

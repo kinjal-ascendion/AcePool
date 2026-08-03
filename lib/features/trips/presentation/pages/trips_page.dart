@@ -335,6 +335,7 @@ final matchRadiusKm =
     final requests = <_RequestedRide>[];
     for (final doc in snap.docs) {
       final d = doc.data();
+      if (d['status'] == 'completed') continue;
       final rideId = d['rideId'] as String;
 
       final rideDoc = await _db.collection('rides').doc(rideId).get();
