@@ -11,6 +11,7 @@ import 'ride_statistics_page.dart';
 import 'route_matching_page.dart';
 import 'package:acepool/core/enums/ride_mode.dart';
 import 'ride_history_page.dart';
+import 'payment_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -298,6 +299,23 @@ const SizedBox(height: 24),
                   subtitle: 'Set the fare price',
                 ),
                 Divider(color: AppColors.grey200, height: 1),
+
+
+if (_selectedMode == RideMode.offerRide) ...[
+  _settingsRow(
+    title: 'Payment',
+    subtitle: 'UPI & Cash payment preferences',
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PaymentPage(),
+      ),
+    ),
+  ),
+  Divider(color: AppColors.grey200, height: 1),
+],
+
+
                 _settingsRow(
                   title: 'Addresses',
                   subtitle: 'Home, Office address',
