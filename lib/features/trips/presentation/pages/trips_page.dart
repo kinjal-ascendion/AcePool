@@ -11,11 +11,13 @@ import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
+import 'package:acepool/features/trips/presentation/widgets/cancel_ride_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
@@ -132,7 +134,7 @@ class _TripsPageState extends State<TripsPage>
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
         status: data['status'] as String? ?? 'upcoming',
       );
-    }).where((trip) => trip.status != 'completed').toList();
+    }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
   }
 
   /// [fromAddress]/[toAddress] are whatever's currently entered on Home's
@@ -335,7 +337,7 @@ final matchRadiusKm =
     final requests = <_RequestedRide>[];
     for (final doc in snap.docs) {
       final d = doc.data();
-      if (d['status'] == 'completed') continue;
+      if (d['status'] == 'completed' || d['status'] == 'cancelled') continue;
       final rideId = d['rideId'] as String;
 
       final rideDoc = await _db.collection('rides').doc(rideId).get();
@@ -451,10 +453,69 @@ final matchRadiusKm =
               onTap: () => onTap?.call(trip),
               onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
               onEndRide: () => _updateTripStatus(trip.id, 'completed'),
+              onCancel: () => _handleCancelRide(trip),
             );
           },
         );
       },
+    );
+  }
+
+  Future<void> _handleCancelRide(UpcomingTrip trip) async {
+    final tripsContext = context;
+    await showDialog<void>(
+      context: tripsContext,
+      barrierDismissible: false,
+      builder: (dialogContext) => CancelRideDialog(
+        fromAddress: trip.fromAddress,
+        toAddress: trip.toAddress,
+        coPassengersCount: trip.seatsFilled,
+        onCancelConfirmed: (reason) async {
+          try {
+            await _db.collection('rides').doc(trip.id).update({
+              'status': 'cancelled',
+              'cancellationReason': reason,
+              'cancelledAt': FieldValue.serverTimestamp(),
+            });
+
+            final requests = await _db
+                .collection('ride_requests')
+                .where('rideId', isEqualTo: trip.id)
+                .get();
+
+            final batch = _db.batch();
+            for (var doc in requests.docs) {
+              batch.update(doc.reference, {
+                'status': 'cancelled',
+                'cancellationReason': 'Driver cancelled: $reason',
+              });
+            }
+            await batch.commit();
+
+            if (mounted) {
+              Navigator.pop(dialogContext); // Close dialog
+              tripsContext.push(
+                '/ride-cancelled',
+                extra: {
+                  'fromAddress': trip.fromAddress,
+                  'toAddress': trip.toAddress,
+                },
+              );
+              setState(() {
+                _drivesFuture = _fetchTrips('offer');
+              });
+              tripsContext.read<HomeBloc>().add(const RefreshUpcomingTrips());
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(tripsContext).showSnackBar(
+                const SnackBar(
+                    content: Text('Could not cancel ride. Please try again.')),
+              );
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -1545,39 +1606,51 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
     }
   }
 
-  Future<void> _cancelRequest() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Request'),
-        content: const Text('Are you sure you want to delete this ride request?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Yes, Delete')),
-        ],
+  Future<void> _handleCancelRequest() async {
+    final r = widget.request;
+    final riderContext = context;
+    await showDialog<void>(
+      context: riderContext,
+      barrierDismissible: false,
+      builder: (dialogContext) => CancelRideDialog(
+        fromAddress: r.fromAddress,
+        toAddress: r.toAddress,
+        coPassengersCount: r.seatsFilled,
+        onCancelConfirmed: (reason) async {
+          try {
+            final batch = widget.db.batch();
+            batch.update(widget.db.collection('ride_requests').doc(r.id), {
+              'status': 'cancelled',
+              'cancellationReason': reason,
+              'cancelledAt': FieldValue.serverTimestamp(),
+            });
+            batch.update(widget.db.collection('rides').doc(r.rideId), {
+              'seatsFilled': FieldValue.increment(-1),
+            });
+            await batch.commit();
+
+            if (mounted) {
+              Navigator.pop(dialogContext); // Close dialog
+              riderContext.push(
+                '/ride-cancelled',
+                extra: {
+                  'fromAddress': r.fromAddress,
+                  'toAddress': r.toAddress,
+                },
+              );
+              widget.onCancelled();
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(riderContext).showSnackBar(
+                const SnackBar(
+                    content: Text('Could not cancel ride. Please try again.')),
+              );
+            }
+          }
+        },
       ),
     );
-
-    if (confirm != true) return;
-
-    setState(() => _cancelling = true);
-    try {
-      final batch = widget.db.batch();
-      batch.delete(widget.db.collection('ride_requests').doc(widget.request.id));
-      batch.update(widget.db.collection('rides').doc(widget.request.rideId), {
-        'seatsFilled': FieldValue.increment(-1),
-      });
-      await batch.commit();
-      widget.onCancelled();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel request: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _cancelling = false);
-    }
   }
 
   Future<void> _showDriverProfile(BuildContext context) async {
@@ -1820,17 +1893,17 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                       constraints: const BoxConstraints(),
                       icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
                       onSelected: (val) {
-                        if (val == 'delete') _cancelRequest();
+                        if (val == 'cancel') _handleCancelRequest();
                       },
                       offset: const Offset(8, 0),
                       itemBuilder: (context) => [
                         const PopupMenuItem(
-                          value: 'delete',
+                          value: 'cancel',
                           child: Row(
                             children: [
-                              Icon(Icons.delete_outline, size: 18),
+                              Icon(Icons.cancel_outlined, size: 18),
                               SizedBox(width: 8),
-                              Text('Delete Ride'),
+                              Text('Cancel Ride'),
                             ],
                           ),
                         ),
