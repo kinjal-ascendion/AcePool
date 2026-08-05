@@ -9,15 +9,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MainShellPage extends StatefulWidget {
-  const MainShellPage({super.key});
+  final int? initialIndex;
+  const MainShellPage({super.key, this.initialIndex});
 
   @override
   State<MainShellPage> createState() => _MainShellPageState();
 }
 
 class _MainShellPageState extends State<MainShellPage> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   int _tripsRefreshKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex ?? 0;
+  }
+
+  @override
+  void didUpdateWidget(MainShellPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != null &&
+        widget.initialIndex != oldWidget.initialIndex) {
+      _currentIndex = widget.initialIndex!;
+    }
+  }
 
   void _goToTrips() {
     setState(() {

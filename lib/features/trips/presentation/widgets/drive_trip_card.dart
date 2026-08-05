@@ -12,6 +12,7 @@ class DriveTripCard extends StatelessWidget {
     this.onTap,
     this.onStartRide,
     this.onEndRide,
+    this.onCancel,
   });
 
   final UpcomingTrip trip;
@@ -20,6 +21,7 @@ class DriveTripCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onStartRide;
   final VoidCallback? onEndRide;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +72,26 @@ class DriveTripCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (!isInProgress && onCancel != null)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
+                    onSelected: (val) {
+                      if (val == 'cancel') onCancel!();
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'cancel',
+                        child: Row(
+                          children: [
+                            Icon(Icons.cancel_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Cancel Ride'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 if (isInProgress)
                   Padding(
                     padding: const EdgeInsets.only(right: 16),

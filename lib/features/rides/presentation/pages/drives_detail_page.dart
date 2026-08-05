@@ -7,11 +7,13 @@ import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_map_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
+import 'package:acepool/features/trips/presentation/widgets/cancel_ride_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DrivesDetailPage extends StatefulWidget {
@@ -51,7 +53,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         setState(() {
           _currentTrip = _currentTrip.copyWith(status: status);
         });
-        if (status == 'completed') {
+        if (status == 'completed' || status == 'cancelled') {
           Navigator.of(context).pop();
         }
       }
@@ -62,6 +64,61 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         );
       }
     }
+  }
+
+  Future<void> _handleCancelRide() async {
+    final detailContext = context;
+    await showDialog<void>(
+      context: detailContext,
+      barrierDismissible: false,
+      builder: (dialogContext) => CancelRideDialog(
+        fromAddress: _currentTrip.fromAddress,
+        toAddress: _currentTrip.toAddress,
+        coPassengersCount: _currentTrip.seatsFilled,
+        onCancelConfirmed: (reason) async {
+          try {
+            await _db.collection('rides').doc(_currentTrip.id).update({
+              'status': 'cancelled',
+              'cancellationReason': reason,
+              'cancelledAt': FieldValue.serverTimestamp(),
+            });
+
+            final requests = await _db
+                .collection('ride_requests')
+                .where('rideId', isEqualTo: _currentTrip.id)
+                .get();
+
+            final batch = _db.batch();
+            for (var doc in requests.docs) {
+              batch.update(doc.reference, {
+                'status': 'cancelled',
+                'cancellationReason': 'Driver cancelled: $reason',
+              });
+            }
+            await batch.commit();
+
+            if (mounted) {
+              Navigator.pop(dialogContext); // Close dialog
+              detailContext.push(
+                '/ride-cancelled',
+                extra: {
+                  'fromAddress': _currentTrip.fromAddress,
+                  'toAddress': _currentTrip.toAddress,
+                },
+              );
+              detailContext.read<HomeBloc>().add(const RefreshUpcomingTrips());
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(detailContext).showSnackBar(
+                const SnackBar(
+                    content: Text('Could not cancel ride. Please try again.')),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
   Future<List<_RiderInfo>> _fetchRiders(String status) async {
@@ -351,6 +408,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       showViewDetails: false,
                       onStartRide: () => _updateTripStatus('in_progress'),
                       onEndRide: () => _updateTripStatus('completed'),
+                      onCancel: () => _handleCancelRide(),
                       onChatTap: () async {
                         final riders = await _ridersFuture;
                         final myId = FirebaseAuth.instance.currentUser?.uid;

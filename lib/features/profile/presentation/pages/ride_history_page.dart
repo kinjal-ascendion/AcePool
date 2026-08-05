@@ -36,10 +36,10 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
       final driverSnap = await _db
           .collection('rides')
           .where('uid', isEqualTo: uid)
+          .where('status', whereIn: ['completed', 'cancelled'])
           .get();
       
       final driverRides = driverSnap.docs
-          .where((doc) => doc.data()['status'] == 'completed')
           .map((doc) => {'id': doc.id, ...doc.data()})
           .toList();
 
@@ -47,7 +47,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
       final riderSnap = await _db
           .collection('ride_requests')
           .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'completed')
+          .where('status', whereIn: ['completed', 'cancelled'])
           .get();
 
       final riderRides = <Map<String, dynamic>>[];
@@ -62,6 +62,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
           riderRides.add({
             'id': rideId,
             ...rideData,
+            'status': requestData['status'],
             'rideMode': 'find', // Force 'find' mode for history display
             'fromAddress': requestData['pickupPoint'] ?? rideData['fromAddress'],
             'toAddress': requestData['dropOffPoint'] ?? rideData['toAddress'],
@@ -225,7 +226,9 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
             ? (fareMap?['driverEarnings'] ?? fareMap?['totalCost'] ?? 0.0)
             : (fareMap?['farePerSeat'] ?? 0.0);
             
-        final priceStatus = '₹ $price ; Completed';
+        final status = data['status'] as String? ?? 'completed';
+        final statusLabel = status == 'cancelled' ? 'Cancelled' : 'Completed';
+        final priceStatus = '₹ $price ; $statusLabel';
         
         final relativeTime = _getRelativeTimeLabel(rideDate);
 

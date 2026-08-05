@@ -65,6 +65,6 @@ class GetUpcomingTripsUseCase {
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
         status: data['status'] as String? ?? 'upcoming',
       );
-    }).where((trip) => trip.status != 'completed').toList();
+    }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
   }
 }

@@ -8,6 +8,8 @@ import 'package:acepool/features/auth/presentation/pages/signup_page.dart';
 import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
 import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
 import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
+import 'package:acepool/features/trips/presentation/pages/ride_cancelled_page.dart';
+import 'package:flutter/material.dart';
 
 class AppRouter {
   AppRouter._();
@@ -79,7 +81,23 @@ class AppRouter {
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const MainShellPage(),
+        builder: (context, state) {
+          final tabIndexStr = state.uri.queryParameters['tab'];
+          final initialIndex =
+              tabIndexStr != null ? int.tryParse(tabIndexStr) : null;
+          return MainShellPage(initialIndex: initialIndex);
+        },
+      ),
+      GoRoute(
+        path: '/ride-cancelled',
+        name: 'ride-cancelled',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return RideCancelledPage(
+            fromAddress: extra['fromAddress'] as String,
+            toAddress: extra['toAddress'] as String,
+          );
+        },
       ),
     ],
   );
