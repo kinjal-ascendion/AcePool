@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
@@ -13,6 +14,10 @@ class RideScheduleForm extends StatelessWidget {
     required this.vehicleType,
     required this.fromAddress,
     required this.toAddress,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
     required this.selectedDate,
     required this.selectedTime,
     required this.seatCount,
@@ -33,6 +38,10 @@ class RideScheduleForm extends StatelessWidget {
   final VehicleType vehicleType;
   final String? fromAddress;
   final String? toAddress;
+  final double? fromLat;
+  final double? fromLng;
+  final double? toLat;
+  final double? toLng;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
@@ -49,6 +58,12 @@ class RideScheduleForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double? distanceKm;
+    if (fromLat != null && fromLng != null && toLat != null && toLng != null) {
+      distanceKm = RideMatcher.distanceKm(fromLat!, fromLng!, toLat!, toLng!);
+    }
+    final isDistanceTooShort = distanceKm != null && distanceKm < 0.5;
+
     return GlassCard(
       borderRadius: 26,
       padding: const EdgeInsets.all(20),
@@ -79,10 +94,36 @@ class RideScheduleForm extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ScheduleRideButton(
-            onPressed: isFormValid && !isScheduling ? onSchedulePressed : null,
+            onPressed: isFormValid && !isScheduling && !isDistanceTooShort
+                ? onSchedulePressed
+                : null,
             label: rideMode == RideMode.find ? 'Find ride' : 'Schedule ride',
             isLoading: isScheduling,
           ),
+          if (isDistanceTooShort) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: Color(0xFFD97706), // amber-600 color
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'The distance between the pickup and drop-off locations must be at least 0.5 km.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: const Color(0xFFD97706),
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

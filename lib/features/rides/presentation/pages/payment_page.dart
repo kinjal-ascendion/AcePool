@@ -98,7 +98,7 @@ class _PaymentPageState extends State<PaymentPage> {
     );
 
     final fareMap = widget.rideData['fare'] as Map<String, dynamic>?;
-    final totalFare = (fareMap?['farePerSeat'] ?? 0.0);
+    final totalFare = (fareMap?['farePerSeat'] as num? ?? 0.0).toDouble();
     final shortId = widget.rideId.substring(0, 5).toUpperCase();
 
     return Scaffold(
@@ -224,15 +224,17 @@ class _PaymentPageState extends State<PaymentPage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Total fare to be paid',
-                                style: TextStyle(
-                                  color: Color(0xFF757474),
-                                  fontSize: 14,
+                              const Expanded(
+                                child: Text(
+                                  'Total fare to be paid',
+                                  style: TextStyle(
+                                    color: Color(0xFF757474),
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                               Text(
-                                '₹ $totalFare',
+                                '₹ ${totalFare.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   color: Color(0xFF0F1923),
                                   fontSize: 16,

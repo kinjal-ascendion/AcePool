@@ -12,6 +12,7 @@ import 'route_matching_page.dart';
 import 'package:acepool/core/enums/ride_mode.dart';
 import 'ride_history_page.dart';
 import 'payment_page.dart';
+import 'package:acepool/features/rides/presentation/pages/security_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -122,42 +123,6 @@ class _ProfilePageState extends State<ProfilePage> {
 ),
 
 const SizedBox(height: 20),
-Center(
-  child: Container(
-    height: 48,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: AppColors.grey300),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _modeButton(
-          title: "Take Ride",
-          selected: _selectedMode == RideMode.takeRide,
-          onTap: () {
-            setState(() {
-              _selectedMode = RideMode.takeRide;
-            });
-          },
-        ),
-
-        _modeButton(
-          title: "Offer Ride",
-          selected: _selectedMode == RideMode.offerRide,
-          onTap: () {
-            setState(() {
-              _selectedMode = RideMode.offerRide;
-            });
-          },
-        ),
-      ],
-    ),
-  ),
-),
-
-const SizedBox(height: 24),
                 Row(
                   children: [
                     GestureDetector(
@@ -338,6 +303,17 @@ if (_selectedMode == RideMode.offerRide) ...[
   ),
 ),
                 Divider(color: AppColors.grey200, height: 1),
+                _settingsRow(
+                  title: 'Security',
+                  subtitle: 'Emergency contact details',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SecurityPage(),
+                    ),
+                  ),
+                ),
+                Divider(color: AppColors.grey200, height: 1),
                 const SizedBox(height: 20),
                 InkWell(
                   onTap: () => _logout(context),
@@ -372,32 +348,4 @@ if (_selectedMode == RideMode.offerRide) ...[
       ),
     );
   }
-  Widget _modeButton({
-  required String title,
-  required bool selected,
-  required VoidCallback onTap,
-}) {
-  return InkWell(
-    borderRadius: BorderRadius.circular(24),
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 100),
-      width: 150,
-      height: 46,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: selected ? AppColors.black87 : Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-          color: selected ? Colors.white : AppColors.black87,
-        ),
-      ),
-    ),
-  );
-}
 }
