@@ -622,7 +622,7 @@ class _RiderCard extends StatelessWidget {
         : null;
 
     final distanceLabel = km != null ? RideMatcher.formatDistance(km) : '2.5 km';
-    final timeLabel = km != null ? '${(km * 2).round() + 5} mins' : '15 mins';
+    final timeLabel = km != null ? RideMatcher.formatDuration((km * 2).round() + 5) : '15 min';
 
     return Container(
       padding: const EdgeInsets.all(16),

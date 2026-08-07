@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -525,11 +526,7 @@ class _RideMapPageState extends State<RideMapPage> {
 
   String _formatDuration(int? minutes) {
     if (minutes == null || minutes <= 0) return '45 min';
-    if (minutes < 60) return '$minutes min';
-    final hours = minutes ~/ 60;
-    final mins = minutes % 60;
-    if (mins == 0) return '${hours}h';
-    return '${hours}h ${mins}m';
+    return RideMatcher.formatDuration(minutes);
   }
 
   String _getArrivalTime(TimeOfDay startTime, int? durationMinutes) {

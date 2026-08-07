@@ -790,7 +790,7 @@ class _RiderItem extends StatelessWidget {
                 children: [
                   Icon(Icons.directions_car_outlined, size: 14, color: AppColors.grey600),
                   const SizedBox(width: 4),
-                  Text('25mins >', style: TextStyle(fontSize: 11, color: AppColors.grey600, fontWeight: FontWeight.w500)),
+                  Text('${RideMatcher.formatDuration(25)} >', style: TextStyle(fontSize: 11, color: AppColors.grey600, fontWeight: FontWeight.w500)),
                   const SizedBox(width: 8),
                   Icon(Icons.location_on_outlined, size: 16, color: AppColors.grey600),
                 ],

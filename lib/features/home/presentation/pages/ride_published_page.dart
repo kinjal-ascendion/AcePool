@@ -2,6 +2,7 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
 import 'package:acepool/features/home/presentation/widgets/schedule_ride_button.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class RidePublishedPage extends StatelessWidget {
   const RidePublishedPage({
@@ -86,7 +87,9 @@ class RidePublishedPage extends StatelessWidget {
                 ),
               ),
               ScheduleRideButton(
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
                 label: 'Back to Home',
               ),
             ],

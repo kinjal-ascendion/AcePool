@@ -1,4 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/domain/entities/fare_breakdown.dart';
 import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
@@ -365,7 +366,7 @@ class _RouteSummaryCard extends StatelessWidget {
               Icon(Icons.access_time, size: 15, color: AppColors.grey600),
               const SizedBox(width: 4),
               Text(
-                '${fare.durationMinutes} mins est.',
+                '${RideMatcher.formatDuration(fare.durationMinutes)} est.',
                 style: TextStyle(fontSize: 12, color: AppColors.grey600),
               ),
             ],

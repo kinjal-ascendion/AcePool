@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
@@ -634,7 +635,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           ),
           // Remaining content in white area
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -670,7 +671,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                     iconColor: AppColors.accentBlue,
                   ),
                 _buildWalkSegment(
-                  'Walk ${RideMatcher.formatDistance(walkToPickup)} (${(walkToPickup * 12).round()} min)',
+                  'Walk ${RideMatcher.formatDistance(walkToPickup)} (${RideMatcher.formatDuration((walkToPickup * 12).round())})',
                 ),
                 _buildTimelineItem(
                   title: _riderPickupPoint.isNotEmpty
@@ -691,7 +692,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                 ),
                 if (!sameAsDriverEnd && walkFromDrop > 0.05) ...[
                   _buildWalkSegment(
-                    'Walk ${RideMatcher.formatDistance(walkFromDrop)} (${(walkFromDrop * 12).round() + 1} min)',
+                    'Walk ${RideMatcher.formatDistance(walkFromDrop)} (${RideMatcher.formatDuration((walkFromDrop * 12).round() + 1)})',
                   ),
                   _buildTimelineItem(
                     title: _riderEndAddress.isNotEmpty
@@ -919,7 +920,7 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           Text(RideMatcher.formatDistance(walkFrom), style: TextStyle(fontSize: 12, color: AppColors.grey600)),
         ],
         const Spacer(),
-        Text('$totalJourneyMin min*', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('${RideMatcher.formatDuration(totalJourneyMin)}*', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -950,19 +951,35 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
   }
 
   Widget _buildAdjustRadiusButton() {
-    return OutlinedButton.icon(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const RouteMatchingPage()),
-        );
-      },
-      icon: const Icon(Icons.location_searching, size: 18),
-      label: const Text('Adjust Radius'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.black87,
-        side: BorderSide(color: AppColors.grey300),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+    return SizedBox(
+      width: double.infinity,
+      child: CustomPaint(
+        painter: DashedBorderPainter(
+          color: AppColors.grey400,
+          dashWidth: 5,
+          dashSpace: 3,
+          borderRadius: 30,
+        ),
+        child: TextButton.icon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RouteMatchingPage()),
+            );
+          },
+          icon: Icon(Icons.location_searching, size: 18, color: AppColors.black87),
+          label: const Text(
+            'Adjust Radius',
+            style: TextStyle(
+              color: AppColors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+        ),
       ),
     );
   }
@@ -1062,4 +1079,55 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
       ),
     );
   }
+}
+
+class DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double borderRadius;
+
+  DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 1,
+    this.dashWidth = 3,
+    this.dashSpace = 3,
+    this.borderRadius = 30,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final double halfStroke = strokeWidth / 2;
+    final RRect rrect = RRect.fromLTRBR(
+      halfStroke,
+      halfStroke,
+      size.width - halfStroke,
+      size.height - halfStroke,
+      Radius.circular(borderRadius),
+    );
+
+    final Path path = Path()..addRRect(rrect);
+    final Path dashedPath = Path();
+
+    for (final PathMetric metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        dashedPath.addPath(
+          metric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

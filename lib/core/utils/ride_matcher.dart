@@ -91,6 +91,20 @@ class RideMatcher {
     return '${km.toStringAsFixed(1)} km';
   }
 
+  /// Human-friendly duration label, e.g. "45 min" / "1h 20m".
+  static String formatDuration(int minutes) {
+    if (minutes <= 0) return '0 min';
+    if (minutes < 60) {
+      return '$minutes min';
+    }
+    final int h = minutes ~/ 60;
+    final int m = minutes % 60;
+    if (m == 0) {
+      return '${h}h';
+    }
+    return '${h}h ${m}m';
+  }
+
   /// Calculates the point on the line segment AB that is closest to point P.
   /// Used to find the "on the road" drop-off/pick-up point for along-the-route
   /// matches where the driver isn't detouring to the rider's building.
