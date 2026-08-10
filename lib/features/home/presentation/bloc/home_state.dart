@@ -28,6 +28,7 @@ class HomeState extends Equatable {
   final bool hasSearchedRides;
   final double? currentLat;
   final double? currentLng;
+  final String? travelPreference;
 
   const HomeState({
     this.status = HomeStatus.initial,
@@ -49,6 +50,7 @@ class HomeState extends Equatable {
     this.hasSearchedRides = false,
     this.currentLat,
     this.currentLng,
+    this.travelPreference,
   });
 
   bool get isFormValid =>
@@ -79,6 +81,7 @@ class HomeState extends Equatable {
     bool? hasSearchedRides,
     Object? currentLat = _unset,
     Object? currentLng = _unset,
+    String? travelPreference,
   }) {
     return HomeState(
       status: status ?? this.status,
@@ -100,6 +103,7 @@ class HomeState extends Equatable {
       hasSearchedRides: hasSearchedRides ?? this.hasSearchedRides,
       currentLat: currentLat == _unset ? this.currentLat : currentLat as double?,
       currentLng: currentLng == _unset ? this.currentLng : currentLng as double?,
+      travelPreference: travelPreference ?? this.travelPreference,
     );
   }
 
@@ -159,5 +163,6 @@ class HomeState extends Equatable {
     hasSearchedRides,
     currentLat,
     currentLng,
+    travelPreference,
   ];
 }

@@ -173,13 +173,14 @@ class _HomeView extends StatelessWidget {
                           onAvatarTap: onOpenProfile,
                         ),
                         const SizedBox(height: 14),
-                        Center(
-                          child: RideModeToggle(
-                            selected: state.rideMode,
-                            onChanged: (mode) =>
-                                bloc.add(RideModeChanged(mode)),
+                        if (state.travelPreference == 'both')
+                          Center(
+                            child: RideModeToggle(
+                              selected: state.rideMode,
+                              onChanged: (mode) =>
+                                  bloc.add(RideModeChanged(mode)),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),

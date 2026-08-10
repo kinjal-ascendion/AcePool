@@ -52,10 +52,21 @@ class _TripsPageState extends State<TripsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
+    final homeState = context.read<HomeBloc>().state;
+    final pref = homeState.travelPreference;
+    int initialIdx = 0;
+    if (pref == 'drive') {
+      initialIdx = 1;
+    } else if (pref == 'ride') {
+      initialIdx = 0;
+    } else {
+      // For 'both' or null, default to current rideMode from bloc
+      initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
+    }
+
+    _tabController = TabController(length: 2, vsync: this, initialIndex: initialIdx);
     _tabController.addListener(() => setState(() {}));
 
-    final homeState = context.read<HomeBloc>().state;
     _hasCommuteLocation = (homeState.fromAddress?.trim().isNotEmpty ?? false) &&
         (homeState.toAddress?.trim().isNotEmpty ?? false);
 
@@ -605,16 +616,21 @@ final matchRadiusKm =
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-            child: _buildTabToggle(),
-          ),
-        ),
+        bottom: context.read<HomeBloc>().state.travelPreference == 'both'
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(60),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                  child: _buildTabToggle(),
+                ),
+              )
+            : null,
       ),
       body: TabBarView(
         controller: _tabController,
+        physics: context.read<HomeBloc>().state.travelPreference == 'both'
+            ? null
+            : const NeverScrollableScrollPhysics(),
         children: [
           // Find ride tab
           Column(

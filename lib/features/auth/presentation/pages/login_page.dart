@@ -1,9 +1,13 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
+import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
+import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
 
 import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
@@ -52,6 +56,18 @@ class _LoginPageState extends State<LoginPage> {
         email: email,
         password: password,
       );
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && widget.onboardingSelection != null) {
+        final db = FirebaseFirestore.instanceFor(
+          app: Firebase.app(),
+          databaseId: 'acepool',
+        );
+        await db.collection('users').doc(user.uid).set({
+          'travelPreference': widget.onboardingSelection!.travelPreference.name,
+          'vehicleType': widget.onboardingSelection!.vehicleType.name,
+        }, SetOptions(merge: true));
+      }
 
       if (mounted) context.go('/home');
     } on FirebaseAuthException catch (e) {
