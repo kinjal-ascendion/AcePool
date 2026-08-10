@@ -9,6 +9,9 @@ import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -45,7 +48,33 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     emit(state.copyWith(status: HomeStatus.loading));
     try {
       final trips = await _getUpcomingTrips();
-      emit(state.copyWith(status: HomeStatus.success, upcomingTrips: trips));
+      
+      String? pref;
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final doc = await FirebaseFirestore.instanceFor(
+          app: Firebase.app(),
+          databaseId: 'acepool',
+        ).collection('users').doc(uid).get();
+        if (doc.exists) {
+          pref = (doc.data()?['travelPreference'] as String?) ??
+                 (doc.data()?['travel_preference'] as String?);
+        }
+      }
+
+      RideMode initialMode = state.rideMode;
+      if (pref == 'ride') {
+        initialMode = RideMode.find;
+      } else if (pref == 'drive') {
+        initialMode = RideMode.offer;
+      }
+
+      emit(state.copyWith(
+        status: HomeStatus.success,
+        upcomingTrips: trips,
+        travelPreference: pref,
+        rideMode: initialMode,
+      ));
     } catch (e) {
       emit(state.copyWith(status: HomeStatus.failure, errorMessage: e.toString()));
     }

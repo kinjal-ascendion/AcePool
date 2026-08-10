@@ -27,29 +27,11 @@ class _ProfilePageState extends State<ProfilePage> {
     databaseId: 'acepool',
   );
 
-  late Future<Map<String, dynamic>?> _userDataFuture;
   RideMode _selectedMode = RideMode.takeRide;
 
   @override
   void initState() {
     super.initState();
-    _userDataFuture = _fetchUserData();
-  }
-
-  Future<Map<String, dynamic>?> _fetchUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
-    final userDocRef = _db.collection('users').doc(uid);
-    final results = await Future.wait([
-      userDocRef.get(),
-      userDocRef.collection('vehicles').limit(1).get(),
-    ]);
-    final data = (results[0] as DocumentSnapshot).data() as Map<String, dynamic>?;
-    final vehicles = results[1] as QuerySnapshot;
-    if (data != null) {
-      data['hasVehicles'] = vehicles.docs.isNotEmpty;
-    }
-    return data;
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -96,20 +78,30 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const Scaffold(body: Center(child: Text('User not logged in')));
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: FutureBuilder<Map<String, dynamic>?>(
-          future: _userDataFuture,
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: _db.collection('users').doc(uid).snapshots(),
           builder: (context, snapshot) {
-            final data = snapshot.data;
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final data = snapshot.data?.data() as Map<String, dynamic>?;
             final fullName = data?['fullName'] as String? ?? '';
             final employeeId = data?['employeeId'] as String? ?? '';
             final phone = data?['phone'] as String?;
             final licenceVerified = data?['licenceVerified'] as bool?;
             final licenceNumber = data?['licenceNumber'] as String?;
-            final travelPreference = data?['travelPreference'] as String?;
+            final travelPreference = (data?['travelPreference'] as String?) ?? (data?['travel_preference'] as String?);
+            
+            // For hasVehicles, we might still need a one-time fetch or another stream
+            // but for now let's focus on travelPreference.
             final hasVehicles = data?['hasVehicles'] as bool? ?? false;
+
             final isDriver = travelPreference == 'drive' ||
                 travelPreference == 'both' ||
                 hasVehicles;
@@ -151,13 +143,7 @@ const SizedBox(height: 20),
                             licenceNumber: licenceNumber,
                           ),
                         ),
-                      ).then((_) {
-                    if (mounted) {
-                      setState(() {
-                        _userDataFuture = _fetchUserData();
-                      });
-                    }
-                  }),
+                      ),
                       child: Stack(
                         children: [
                           CircleAvatar(
@@ -233,13 +219,7 @@ const SizedBox(height: 20),
                         licenceNumber: licenceNumber,
                       ),
                     ),
-                  ).then((_) {
-                    if (mounted) {
-                      setState(() {
-                        _userDataFuture = _fetchUserData();
-                      });
-                    }
-                  }),
+                  ),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
                 _settingsRow(
@@ -307,6 +287,7 @@ if (isDriver) ...[
     MaterialPageRoute(
       builder: (_) => RideStatisticsPage(
         mode: _selectedMode,
+        travelPreference: travelPreference,
       ),
     ),
   ),
