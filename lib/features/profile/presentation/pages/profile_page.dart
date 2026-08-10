@@ -39,8 +39,17 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<Map<String, dynamic>?> _fetchUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
-    final doc = await _db.collection('users').doc(uid).get();
-    return doc.data();
+    final userDocRef = _db.collection('users').doc(uid);
+    final results = await Future.wait([
+      userDocRef.get(),
+      userDocRef.collection('vehicles').limit(1).get(),
+    ]);
+    final data = (results[0] as DocumentSnapshot).data() as Map<String, dynamic>?;
+    final vehicles = results[1] as QuerySnapshot;
+    if (data != null) {
+      data['hasVehicles'] = vehicles.docs.isNotEmpty;
+    }
+    return data;
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -99,6 +108,11 @@ class _ProfilePageState extends State<ProfilePage> {
             final phone = data?['phone'] as String?;
             final licenceVerified = data?['licenceVerified'] as bool?;
             final licenceNumber = data?['licenceNumber'] as String?;
+            final travelPreference = data?['travelPreference'] as String?;
+            final hasVehicles = data?['hasVehicles'] as bool? ?? false;
+            final isDriver = travelPreference == 'drive' ||
+                travelPreference == 'both' ||
+                hasVehicles;
 
             final initials = fullName.trim().isNotEmpty
                 ? fullName
@@ -259,14 +273,9 @@ const SizedBox(height: 20),
                   ),
                 ),
                 Divider(color: AppColors.grey200, height: 1),
-                _settingsRow(
-                  title: 'Pricing',
-                  subtitle: 'Set the fare price',
-                ),
-                Divider(color: AppColors.grey200, height: 1),
 
 
-if (_selectedMode == RideMode.offerRide) ...[
+if (isDriver) ...[
   _settingsRow(
     title: 'Payment',
     subtitle: 'UPI & Cash payment preferences',
