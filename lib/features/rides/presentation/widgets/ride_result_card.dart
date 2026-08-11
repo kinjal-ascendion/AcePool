@@ -1,12 +1,11 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
-import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/chat/domain/entities/chat_message.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/domain/repositories/rides_repository.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -21,7 +20,6 @@ class RideResultCard extends StatefulWidget {
     this.riderToLat,
     this.riderToLng,
     required this.riderTime,
-    required this.db,
     required this.onRequested,
   });
 
@@ -33,7 +31,6 @@ class RideResultCard extends StatefulWidget {
   final double? riderToLat;
   final double? riderToLng;
   final TimeOfDay riderTime;
-  final FirebaseFirestore db;
   final VoidCallback onRequested;
 
   @override
@@ -58,85 +55,17 @@ class _RideResultCardState extends State<RideResultCard> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      String riderName = '';
-      String? riderPhotoUrl;
-      try {
-        final userDoc = await widget.db.collection('users').doc(uid).get();
-        riderName = userDoc.data()?['fullName'] as String? ?? '';
-        riderPhotoUrl = userDoc.data()?['profileImageUrl'] as String?;
-      } catch (_) {}
-
-      // Decide if we should meet at driver's endpoints (Endpoint Match) 
-      // or at rider's requested points (Detour Match).
-      bool isEndpointMatch = false;
-      if (widget.riderFromLat != null && widget.riderFromLng != null &&
-          widget.result.fromLat != null && widget.result.fromLng != null &&
-          widget.riderToLat != null && widget.riderToLng != null &&
-          widget.result.toLat != null && widget.result.toLng != null) {
-        final dFrom = RideMatcher.distanceKm(widget.riderFromLat!, widget.riderFromLng!, widget.result.fromLat!, widget.result.fromLng!);
-        final dTo = RideMatcher.distanceKm(widget.riderToLat!, widget.riderToLng!, widget.result.toLat!, widget.result.toLng!);
-        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
-      }
-
-      final pickupPoint = isEndpointMatch ? widget.result.fromAddress : widget.riderFromAddress;
-      final pickupLatLng = isEndpointMatch 
-          ? {'latitude': widget.result.fromLat, 'longitude': widget.result.fromLng}
-          : (widget.riderFromLat != null && widget.result.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.result.fromLat!, widget.result.fromLng!, widget.result.toLat!, widget.result.toLng!, widget.riderFromLat!, widget.riderFromLng!)
-              : {'latitude': widget.riderFromLat, 'longitude': widget.riderFromLng});
-
-      final dropOffPoint = isEndpointMatch ? widget.result.toAddress : widget.riderToAddress;
-      final dropOffLatLng = isEndpointMatch
-          ? {'latitude': widget.result.toLat, 'longitude': widget.result.toLng}
-          : (widget.riderToLat != null && widget.result.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.result.fromLat!, widget.result.fromLng!, widget.result.toLat!, widget.result.toLng!, widget.riderToLat!, widget.riderToLng!)
-              : {'latitude': widget.riderToLat, 'longitude': widget.riderToLng});
-
-      final requestRef = widget.db.collection('ride_requests').doc();
-      final rideRef = widget.db.collection('rides').doc(widget.result.id);
-      final batch = widget.db.batch();
-      batch.set(requestRef, {
-        'rideId': widget.result.id,
-        'riderId': uid,
-        'riderName': riderName,
-        'riderPhotoUrl': riderPhotoUrl,
-        'riderStartAddress': widget.riderFromAddress,
-        'riderEndAddress': widget.riderToAddress,
-        'riderStartLatLng': (widget.riderFromLat != null && widget.riderFromLng != null)
-            ? {
-                'latitude': widget.riderFromLat,
-                'longitude': widget.riderFromLng,
-              }
-            : null,
-        'riderEndLatLng': (widget.riderToLat != null && widget.riderToLng != null)
-            ? {
-                'latitude': widget.riderToLat,
-                'longitude': widget.riderToLng,
-              }
-            : null,
-        'pickupPoint': pickupPoint,
-        'pickupLatLng': pickupLatLng,
-        'dropOffPoint': dropOffPoint,
-        'dropOffLatLng': dropOffLatLng,
-        'pickupTime': {
-          'hour': widget.riderTime.hour,
-          'minute': widget.riderTime.minute,
-        },
-        'message': _messageController.text.trim(),
-        'status': 'accepted',
-        'createdAt': FieldValue.serverTimestamp(),
-        'rideFrom': widget.result.fromAddress,
-        'rideTo': widget.result.toAddress,
-        'rideDate': Timestamp.fromDate(widget.result.date),
-        'rideTime': {
-          'hour': widget.result.time.hour,
-          'minute': widget.result.time.minute,
-        },
-        'driverId': widget.result.driverId,
-        'driverName': widget.result.driverName,
-      });
-      batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
-      await batch.commit();
+      final riderName = await sl<RidesRepository>().requestRide(
+        ride: widget.result,
+        riderFromAddress: widget.riderFromAddress,
+        riderFromLat: widget.riderFromLat,
+        riderFromLng: widget.riderFromLng,
+        riderToAddress: widget.riderToAddress,
+        riderToLat: widget.riderToLat,
+        riderToLng: widget.riderToLng,
+        riderTime: widget.riderTime,
+        message: _messageController.text.trim(),
+      );
 
       // Also send a chat message if there's a message entered
       final messageText = _messageController.text.trim();
@@ -188,7 +117,6 @@ class _RideResultCardState extends State<RideResultCard> {
           MaterialPageRoute(
             builder: (context) => RideDetailsPage(
               ride: r,
-              db: widget.db,
               riderFromAddress: widget.riderFromAddress,
               riderFromLat: widget.riderFromLat,
               riderFromLng: widget.riderFromLng,

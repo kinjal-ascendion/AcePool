@@ -2,12 +2,13 @@ import 'dart:io';
 
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/license_scanner.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/auth/presentation/widgets/license_upload_box.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:acepool/features/profile/presentation/bloc/account_settings_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AccountSettingsPage extends StatefulWidget {
@@ -46,12 +47,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   bool? _backLicenseValid;
   String? _licenseNumber;
 
-  bool _isSaving = false;
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  late final AccountSettingsBloc _bloc;
 
   bool get _isLicenseVerified =>
       widget.licenceVerified == true ||
@@ -61,6 +57,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   @override
   void initState() {
     super.initState();
+
+    _bloc = sl<AccountSettingsBloc>();
 
     _fullNameController = TextEditingController(text: widget.fullName);
     _employeeIdController = TextEditingController(text: widget.employeeId);
@@ -78,6 +76,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _employeeIdController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _bloc.close();
     super.dispose();
   }
 
@@ -121,53 +120,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     });
   }
 
-  Future<void> _saveProfile() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isNotEmpty && phone.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid 10-digit phone number')),
-      );
-      return;
-    }
-
-    try {
-      setState(() => _isSaving = true);
-
-      final user = FirebaseAuth.instance.currentUser!;
-      final newFullName = _fullNameController.text.trim();
-
-      final data = <String, dynamic>{
-        'fullName': newFullName,
-        'phone': phone,
-        'email': _emailController.text.trim(),
-      };
-
-      if (_frontLicenseValid == true || _backLicenseValid == true) {
-        data['licenceVerified'] = true;
-        if (_licenseNumber != null) data['licenceNumber'] = _licenseNumber;
-      }
-
-      await _db.collection('users').doc(user.uid).update(data);
-
-      // Home reads FirebaseAuth's displayName, not Firestore's fullName -
-      // keep them in sync so the change shows up there too.
-      if (newFullName != user.displayName) {
-        await user.updateDisplayName(newFullName);
-        await user.reload();
-      }
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
+  void _saveProfile() {
+    _bloc.add(AccountSettingsSaveRequested(
+      fullName: _fullNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      email: _emailController.text.trim(),
+      licenceVerified: (_frontLicenseValid == true || _backLicenseValid == true) ? true : null,
+      licenceNumber: _licenseNumber,
+    ));
   }
 
   @override
@@ -182,6 +142,25 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               .join()
         : '?';
 
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocConsumer<AccountSettingsBloc, AccountSettingsState>(
+        listener: (context, state) {
+          if (state.status == AccountSettingsStatus.success) {
+            Navigator.pop(context, true);
+          } else if (state.status == AccountSettingsStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message ?? 'Failed to save profile')),
+            );
+          }
+        },
+        builder: (context, state) => _buildScaffold(context, state, initials),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, AccountSettingsState state, String initials) {
+    final isSaving = state.status == AccountSettingsStatus.saving;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -312,7 +291,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      onPressed: isSaving ? null : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: BorderSide(color: AppColors.grey300),
@@ -332,7 +311,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveProfile,
+                      onPressed: isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.black87,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -340,7 +319,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      child: _isSaving
+                      child: isSaving
                           ? const SizedBox(
                               width: 18,
                               height: 18,

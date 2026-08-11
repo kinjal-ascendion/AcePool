@@ -1,12 +1,13 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/date_time_formatter.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/rides/presentation/bloc/ride_payment_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/payment_success_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class PaymentPage extends StatefulWidget {
+class PaymentPage extends StatelessWidget {
   final Map<String, dynamic> rideData;
   final String rideId;
 
@@ -17,89 +18,57 @@ class PaymentPage extends StatefulWidget {
   });
 
   @override
-  State<PaymentPage> createState() => _PaymentPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<RidePaymentBloc>(),
+      child: _PaymentView(rideData: rideData, rideId: rideId),
+    );
+  }
 }
 
-class _PaymentPageState extends State<PaymentPage> {
+class _PaymentView extends StatelessWidget {
+  const _PaymentView({required this.rideData, required this.rideId});
+
+  final Map<String, dynamic> rideData;
+  final String rideId;
+
   static const borderColor = Color(0xFFE0E0E0);
   static const innerBgColor = Color(0xFFF7F8F9);
 
-  String _selectedMethod = 'upi';
-  bool _isSubmitting = false;
-
-  Future<void> _completeRide() async {
-    setState(() => _isSubmitting = true);
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final db = FirebaseFirestore.instanceFor(
-      app: Firebase.app(),
-      databaseId: 'acepool',
-    );
-
-    try {
-      final requestSnap = await db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: widget.rideId)
-          .where('riderId', isEqualTo: uid)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      if (requestSnap.docs.isNotEmpty) {
-        await requestSnap.docs.first.reference.update({
-          'status': 'completed',
-          'paymentMethod': _selectedMethod,
-          'completedAt': FieldValue.serverTimestamp(),
-        }).timeout(const Duration(seconds: 5));
-      }
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessPage(
-              fromAddress: widget.rideData['fromAddress'] ?? '',
-              toAddress: widget.rideData['toAddress'] ?? '',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error completing ride: $e');
-      if (mounted) {
-        // Even on error, we might want to show success to the user if the 
-        // payment was "done" locally, but let's at least stop the loading.
-        setState(() => _isSubmitting = false);
-        
-        // Show success anyway as the user tapped "Done" and we don't want 
-        // them stuck, but maybe a fallback navigate is better.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessPage(
-              fromAddress: widget.rideData['fromAddress'] ?? '',
-              toAddress: widget.rideData['toAddress'] ?? '',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final timestamp = widget.rideData['date'] as Timestamp;
+    return BlocConsumer<RidePaymentBloc, RidePaymentState>(
+      listener: (context, state) {
+        if (state.status == RidePaymentStatus.success) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentSuccessPage(
+                fromAddress: rideData['fromAddress'] ?? '',
+                toAddress: rideData['toAddress'] ?? '',
+              ),
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return _buildScaffold(context, state);
+      },
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, RidePaymentState state) {
+    final timestamp = rideData['date'] as Timestamp;
     final rideDate = timestamp.toDate();
-    final timeMap = widget.rideData['time'] as Map<String, dynamic>?;
+    final timeMap = rideData['time'] as Map<String, dynamic>?;
     final time = TimeOfDay(
       hour: timeMap?['hour'] as int? ?? 0,
       minute: timeMap?['minute'] as int? ?? 0,
     );
 
-    final fareMap = widget.rideData['fare'] as Map<String, dynamic>?;
+    final fareMap = rideData['fare'] as Map<String, dynamic>?;
     final totalFare = (fareMap?['farePerSeat'] as num? ?? 0.0).toDouble();
-    final shortId = widget.rideId.substring(0, 5).toUpperCase();
+    final shortId = rideId.substring(0, 5).toUpperCase();
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -178,9 +147,9 @@ class _PaymentPageState extends State<PaymentPage> {
                           ),
                           child: Column(
                             children: [
-                              _buildDetailRow('From', widget.rideData['fromAddress'] ?? ''),
+                              _buildDetailRow('From', rideData['fromAddress'] ?? ''),
                               const Divider(height: 1, color: borderColor),
-                              _buildDetailRow('To', widget.rideData['toAddress'] ?? ''),
+                              _buildDetailRow('To', rideData['toAddress'] ?? ''),
                               const Divider(height: 1, color: borderColor),
                               _buildDetailRow('Date & Time', DateTimeFormatter.monthDayYear(rideDate)),
                               const Divider(height: 1, color: borderColor),
@@ -277,10 +246,10 @@ class _PaymentPageState extends State<PaymentPage> {
                         ),
                         const SizedBox(height: 20),
                         // UPI Section
-                        _buildUpiSection(),
+                        _buildUpiSection(context, state),
                         const SizedBox(height: 16),
                         // Cash Section
-                        _buildCashOption(),
+                        _buildCashOption(context, state),
                       ],
                     ),
                   ),
@@ -295,7 +264,11 @@ class _PaymentPageState extends State<PaymentPage> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _completeRide,
+                onPressed: state.isSubmitting
+                    ? null
+                    : () => context
+                        .read<RidePaymentBloc>()
+                        .add(RidePaymentCompleteRequested(rideId)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.black,
                   foregroundColor: AppColors.white,
@@ -304,7 +277,7 @@ class _PaymentPageState extends State<PaymentPage> {
                   ),
                   elevation: 0,
                 ),
-                child: _isSubmitting
+                child: state.isSubmitting
                     ? const CircularProgressIndicator(color: AppColors.white)
                     : const Text(
                         'Done',
@@ -321,8 +294,8 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  Widget _buildUpiSection() {
-    final isSelected = _selectedMethod == 'upi';
+  Widget _buildUpiSection(BuildContext context, RidePaymentState state) {
+    final isSelected = state.selectedMethod == 'upi';
     return Container(
       decoration: BoxDecoration(
         color: isSelected ? const Color(0xFFF1F8F6) : Colors.transparent,
@@ -335,7 +308,9 @@ class _PaymentPageState extends State<PaymentPage> {
       child: Column(
         children: [
           ListTile(
-            onTap: () => setState(() => _selectedMethod = 'upi'),
+            onTap: () => context
+                .read<RidePaymentBloc>()
+                .add(const RidePaymentMethodSelected('upi')),
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -434,8 +409,8 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  Widget _buildCashOption() {
-    final isSelected = _selectedMethod == 'cash';
+  Widget _buildCashOption(BuildContext context, RidePaymentState state) {
+    final isSelected = state.selectedMethod == 'cash';
     return Container(
       decoration: BoxDecoration(
         color: isSelected ? const Color(0xFFF1F8F6) : Colors.transparent,
@@ -446,7 +421,9 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
       ),
       child: ListTile(
-        onTap: () => setState(() => _selectedMethod = 'cash'),
+        onTap: () => context
+            .read<RidePaymentBloc>()
+            .add(const RidePaymentMethodSelected('cash')),
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(

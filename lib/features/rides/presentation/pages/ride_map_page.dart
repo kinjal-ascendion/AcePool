@@ -3,13 +3,13 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
+import 'package:acepool/features/rides/domain/repositories/rides_repository.dart';
+import 'package:acepool/features/rides/presentation/bloc/ride_map_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class PickupPoint {
   final String location;
@@ -57,12 +57,7 @@ class _RideMapPageState extends State<RideMapPage> {
   String? _tripNote;
   bool _isDriver = false;
   final TextEditingController _noteController = TextEditingController();
-  StreamSubscription<DocumentSnapshot>? _tripSubscription;
-
-  final FirebaseFirestore _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  late final RideMapBloc _bloc;
 
   BitmapDescriptor? _selectedPickupIcon;
 
@@ -78,8 +73,18 @@ class _RideMapPageState extends State<RideMapPage> {
     super.initState();
     _tripNote = widget.trip.note;
     _noteController.text = _tripNote ?? '';
-    _checkIfDriver();
-    _listenToTripChanges();
+    _bloc = sl<RideMapBloc>()
+      ..add(RideMapStarted(rideId: widget.trip.id, initialNote: widget.trip.note))
+      ..stream.listen((state) {
+        if (!mounted) return;
+        setState(() {
+          _isDriver = state.isDriver;
+          if (_tripNote != state.tripNote) {
+            _tripNote = state.tripNote;
+            _noteController.text = state.tripNote ?? '';
+          }
+        });
+      });
     if (widget.pickupPoints != null) {
       _pickupPoints = widget.pickupPoints!;
     } else {
@@ -171,45 +176,8 @@ class _RideMapPageState extends State<RideMapPage> {
   @override
   void dispose() {
     _noteController.dispose();
-    _tripSubscription?.cancel();
+    _bloc.close();
     super.dispose();
-  }
-
-  void _listenToTripChanges() {
-    _tripSubscription = _db
-        .collection('rides')
-        .doc(widget.trip.id)
-        .snapshots()
-        .listen((snapshot) {
-      if (snapshot.exists) {
-        final data = snapshot.data() as Map<String, dynamic>;
-        if (mounted) {
-          setState(() {
-            _tripNote = data['note'] as String?;
-            if (_noteController.text != (_tripNote ?? '')) {
-              _noteController.text = _tripNote ?? '';
-            }
-          });
-        }
-      }
-    });
-  }
-
-  void _checkIfDriver() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    // In a real app, you might check if widget.trip.driverId == uid
-    // For now, let's check if the trip's UID field matches current UID
-    // We need to fetch the trip document to see who the driver is.
-    try {
-      final doc = await _db.collection('rides').doc(widget.trip.id).get();
-      if (doc.exists) {
-        setState(() {
-          _isDriver = doc.data()?['uid'] == uid;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error checking driver status: $e');
-    }
   }
 
   Future<void> _showNoteDialog() async {
@@ -235,9 +203,7 @@ class _RideMapPageState extends State<RideMapPage> {
             onPressed: () async {
               final newNote = _noteController.text.trim();
               try {
-                await _db.collection('rides').doc(widget.trip.id).update({
-                  'note': newNote,
-                });
+                await sl<RidesRepository>().updateRideNote(widget.trip.id, newNote);
                 setState(() {
                   _tripNote = newNote;
                 });

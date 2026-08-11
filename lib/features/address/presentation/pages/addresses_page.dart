@@ -1,10 +1,10 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/address/domain/repositories/address_repository.dart';
+import 'package:acepool/features/address/presentation/bloc/addresses_bloc.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'add_address_page.dart';
 
 class AddressesPage extends StatefulWidget {
@@ -15,67 +15,67 @@ class AddressesPage extends StatefulWidget {
 }
 
 class _AddressesPageState extends State<AddressesPage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  late final AddressesBloc _bloc;
 
-  static CollectionReference<Map<String, dynamic>> _addressesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    return _db.collection('users').doc(uid).collection('addresses');
+  @override
+  void initState() {
+    super.initState();
+    _bloc = sl<AddressesBloc>()..add(const AddressesStarted());
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> _fetchAddresses() {
-    return _addressesRef().get();
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
   }
 
-Future<void> _addAddress(String category, String label) async {
-  final saved = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => AddAddressPage(
-        location: PickedLocation(
-          address: "",
-          lat: null,
-          lng: null,
+  Future<void> _addAddress(String category, String label) async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddAddressPage(
+          location: PickedLocation(
+            address: "",
+            lat: null,
+            lng: null,
+          ),
+          category: category,
         ),
-        category: category,
       ),
-    ),
-  );
+    );
 
-  if (saved == true && mounted) {
-    setState(() {});
+    if (saved == true && mounted) {
+      _bloc.add(const AddressesStarted());
+    }
   }
-}
 
   Future<void> _editAddress(
-  String docId,
-  String label,
-  String currentAddress,
-  String currentLandmark,
-) async {
-  final result = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => AddAddressPage(
-        docId: docId,
-        isEdit: true,
-        location: PickedLocation(
-          address: currentAddress,
-          lat: null,
-          lng: null,
+    String docId,
+    String label,
+    String currentAddress,
+    String currentLandmark,
+  ) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddAddressPage(
+          docId: docId,
+          isEdit: true,
+          location: PickedLocation(
+            address: currentAddress,
+            lat: null,
+            lng: null,
+          ),
+          category: label,
+          landmark: currentLandmark,
         ),
-        category: label,
-        landmark: currentLandmark,
       ),
-    ),
-  );
+    );
 
-  if (result == true && mounted) {
-    setState(() {});
+    if (result == true && mounted) {
+      _bloc.add(const AddressesStarted());
+    }
   }
-}
 
   Future<void> _deleteAddress(
       String docId, String category, bool wasDefault) async {
@@ -89,19 +89,11 @@ Future<void> _addAddress(String category, String label) async {
           Future<void> handleRemove() async {
             setDialogState(() => removing = true);
             try {
-              final ref = _addressesRef();
-              await ref.doc(docId).delete();
-
-              if (wasDefault) {
-                final remaining = await ref
-                    .where('category', isEqualTo: category)
-                    .limit(1)
-                    .get();
-                if (remaining.docs.isNotEmpty) {
-                  await remaining.docs.first.reference
-                      .update({'isDefault': true});
-                }
-              }
+              await sl<AddressRepository>().deleteAddress(
+                docId: docId,
+                category: category,
+                wasDefault: wasDefault,
+              );
 
               if (ctx.mounted) Navigator.pop(ctx, true);
             } catch (e) {
@@ -206,7 +198,9 @@ Future<void> _addAddress(String category, String label) async {
       },
     );
 
-    if (confirmed == true && mounted) setState(() {});
+    if (confirmed == true && mounted) {
+      _bloc.add(const AddressesStarted());
+    }
   }
 
   Widget _sectionHeader(String label, VoidCallback? onAdd) {
@@ -477,33 +471,28 @@ Future<void> _addAddress(String category, String label) async {
         title: const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
       body: SafeArea(
-        child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          future: _fetchAddresses(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: BlocProvider.value(
+          value: _bloc,
+          child: BlocBuilder<AddressesBloc, AddressesState>(
+          builder: (context, state) {
+            if (state.status == AddressesStatus.initial ||
+                state.status == AddressesStatus.loading) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final docs = [...snapshot.data?.docs ?? []]..sort((a, b) {
-              final ta = a.data()['createdAt'] as Timestamp?;
-              final tb = b.data()['createdAt'] as Timestamp?;
-              if (ta == null || tb == null) return 0;
-              return ta.compareTo(tb);
-            });
+            final docs = state.addresses;
             final homeDocs =
-                docs.where((d) => d.data()['category'] == 'home').toList();
+                docs.where((d) => d.category == 'home').toList();
             final officeDocs =
-                docs.where((d) => d.data()['category'] == 'office').toList();
-                final otherDocs = docs.where((d) {
-  final category =
-      (d.data()['category'] as String?)?.toLowerCase() ?? "";
-  return category != "home" && category != "office";
-}).toList();
+                docs.where((d) => d.category == 'office').toList();
+            final otherDocs = docs.where((d) {
+              final category = d.category.toLowerCase();
+              return category != "home" && category != "office";
+            }).toList();
             final seenOtherCategories = <String>{};
             String? firstHomeOrOfficeId;
             for (final d in docs) {
-              final cat = d.data()['category'] as String?;
-              if (cat == 'home' || cat == 'office') {
+              if (d.category == 'home' || d.category == 'office') {
                 firstHomeOrOfficeId = d.id;
                 break;
               }
@@ -523,8 +512,8 @@ Future<void> _addAddress(String category, String label) async {
                     docId: homeDocs[i].id,
                     label: 'Home',
                     icon: Icons.home_outlined,
-                    address: homeDocs[i].data()['address'] as String? ?? '',
-                    landmark: homeDocs[i].data()['landmark'] as String? ?? '',
+                    address: homeDocs[i].address,
+                    landmark: homeDocs[i].landmark,
                     isDefault: homeDocs[i].id == firstHomeOrOfficeId,
                     category: 'home',
                   ),
@@ -539,8 +528,8 @@ Future<void> _addAddress(String category, String label) async {
                     docId: officeDocs[i].id,
                     label: 'Office',
                     icon: Icons.apartment_outlined,
-                    address: officeDocs[i].data()['address'] as String? ?? '',
-                    landmark: officeDocs[i].data()['landmark'] as String? ?? '',
+                    address: officeDocs[i].address,
+                    landmark: officeDocs[i].landmark,
                     isDefault: officeDocs[i].id == firstHomeOrOfficeId,
                     category: 'office',
                   ),
@@ -551,18 +540,19 @@ if (otherDocs.isNotEmpty) ...[
   for (final doc in otherDocs)
     _addressCard(
       docId: doc.id,
-      label: doc.data()['label'] as String? ?? 'Saved',
+      label: doc.label.isNotEmpty ? doc.label : 'Saved',
       icon: Icons.bookmark_border,
-      address: doc.data()['address'] as String? ?? '',
-      landmark: doc.data()['landmark'] as String? ?? '',
-      isDefault: seenOtherCategories.add(doc.data()['category'] as String? ?? ''),
-      category: doc.data()['category'] as String? ?? '',
+      address: doc.address,
+      landmark: doc.landmark,
+      isDefault: seenOtherCategories.add(doc.category),
+      category: doc.category,
     ),
 ],
                 const SizedBox(height: 20),
               ],
             );
           },
+          ),
         ),
       ),
     );

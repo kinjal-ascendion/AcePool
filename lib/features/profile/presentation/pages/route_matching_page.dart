@@ -1,8 +1,8 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/presentation/bloc/route_matching_bloc.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class RouteMatchingPage extends StatefulWidget {
   const RouteMatchingPage({super.key});
@@ -14,106 +14,108 @@ class RouteMatchingPage extends StatefulWidget {
 class _RouteMatchingPageState extends State<RouteMatchingPage> {
   double radius = 0.0;
   late final TextEditingController _radiusController;
-  bool _isSaving = false;
-  
-  static final _db = FirebaseFirestore.instanceFor(
-  app: Firebase.app(),
-  databaseId: 'acepool',
-);
+  late final RouteMatchingBloc _bloc;
+  int _lastSavedTick = 0;
 
-  Future<void> _saveRadius() async {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-
-  await _db.collection('users').doc(uid).set(
-    {
-      'routeMatchingRadius': radius,
-    },
-    SetOptions(merge: true),
-  );
-}
-@override
-void initState() {
-  super.initState();
-  _radiusController = TextEditingController(text: "0.0");
-  _loadRadius();
-}
-
-@override
-void dispose() {
-  _radiusController.dispose();
-  super.dispose();
-}
-
-Future<void> _loadRadius() async {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-
-  final doc =
-      await _db.collection('users').doc(uid).get();
-
-  if (!doc.exists) {
-    setState(() {
-      radius = 0.0;
-      _radiusController.text = "0.0";
-    });
-    return;
+  @override
+  void initState() {
+    super.initState();
+    _radiusController = TextEditingController(text: "0.0");
+    _bloc = sl<RouteMatchingBloc>()..add(const RouteMatchingStarted());
   }
 
-  final data = doc.data();
-
-  setState(() {
-    radius =
-        (data?['routeMatchingRadius'] as num?)?.toDouble() ?? 0.0;
-    _radiusController.text = radius.toStringAsFixed(1);
-  });
-}
+  @override
+  void dispose() {
+    _radiusController.dispose();
+    _bloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocConsumer<RouteMatchingBloc, RouteMatchingState>(
+        listenWhen: (previous, current) =>
+            (previous.status != current.status &&
+                current.status == RouteMatchingStatus.loaded) ||
+            previous.savedTick != current.savedTick ||
+            previous.saveError != current.saveError,
+        listener: (context, state) {
+          if (state.status == RouteMatchingStatus.loaded &&
+              state.savedTick == 0 &&
+              state.saveError == null) {
+            setState(() {
+              radius = state.radius;
+              _radiusController.text = radius.toStringAsFixed(1);
+            });
+          }
+          if (state.savedTick != _lastSavedTick) {
+            _lastSavedTick = state.savedTick;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "Radius saved: ${radius < 1 ? '${(radius * 1000).round()} m' : '${radius.toStringAsFixed(1)} km'}",
+                ),
+              ),
+            );
+            Navigator.pop(context, radius);
+          }
+          if (state.saveError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Failed to save: ${state.saveError}")),
+            );
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF8F8F8),
 
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.black,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Route Matching",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-            fontSize: 22,
-          ),
-        ),
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.black,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text(
+                "Route Matching",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                ),
+              ),
+            ),
+
+            resizeToAvoidBottomInset: false,
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+
+                    buildRadiusCard(),
+
+                    const Spacer(),
+
+                    buildNoRideCard(),
+
+                    const SizedBox(height: 20),
+
+                    buildButtons(state),
+                  ],
+                ),
+              ),
+            ),
+
+          );
+        },
       ),
-
-      resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            children: [
-
-              buildRadiusCard(),
-
-              const Spacer(),
-
-              buildNoRideCard(),
-
-              const SizedBox(height: 20),
-
-              buildButtons(),
-            ],
-          ),
-        ),
-      ),
-      
     );
   }
     Widget buildRadiusCard() {
@@ -361,14 +363,14 @@ Widget buildNoRideCard() {
   );
 }
 
-Widget buildButtons() {
+Widget buildButtons(RouteMatchingState state) {
   return Row(
     children: [
       Expanded(
         child: SizedBox(
           height: 52,
           child: OutlinedButton(
-            onPressed: _isSaving ? null : () {
+            onPressed: state.isSaving ? null : () {
               Navigator.pop(context);
             },
             style: OutlinedButton.styleFrom(
@@ -387,36 +389,9 @@ Widget buildButtons() {
         child: SizedBox(
           height: 52,
           child: ElevatedButton(
-            onPressed: _isSaving ? null : () async {
-              setState(() {
-                _isSaving = true;
-              });
-
-              try {
-                await _saveRadius();
-
-                if (!mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      "Radius saved: ${radius < 1 ? (radius * 1000).round().toString() + ' m' : radius.toStringAsFixed(1) + ' km'}",
-                    ),
-                  ),
-                );
-
-                Navigator.pop(context, radius);
-              } catch (e) {
-                if (mounted) {
-                  setState(() {
-                    _isSaving = false;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to save: $e")),
-                  );
-                }
-              }
-            },
+            onPressed: state.isSaving
+                ? null
+                : () => _bloc.add(RouteMatchingSaveRequested(radius)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,
@@ -424,10 +399,10 @@ Widget buildButtons() {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: _isSaving 
+            child: state.isSaving
               ? const SizedBox(
-                  height: 20, 
-                  width: 20, 
+                  height: 20,
+                  width: 20,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                 )
               : const Text("Save Changes"),

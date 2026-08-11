@@ -2,21 +2,18 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/chat/domain/entities/chat_message.dart';
-import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/domain/entities/ride_rider.dart';
+import 'package:acepool/features/rides/presentation/bloc/ride_details_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/track_route_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class RideDetailsPage extends StatefulWidget {
   const RideDetailsPage({
     super.key,
     required this.ride,
-    required this.db,
     this.riderFromAddress,
     this.riderFromLat,
     this.riderFromLng,
@@ -26,7 +23,6 @@ class RideDetailsPage extends StatefulWidget {
   });
 
   final RideMatch ride;
-  final FirebaseFirestore db;
   final String? riderFromAddress;
   final double? riderFromLat;
   final double? riderFromLng;
@@ -39,74 +35,30 @@ class RideDetailsPage extends StatefulWidget {
 }
 
 class _RideDetailsPageState extends State<RideDetailsPage> {
-  late Future<List<_RiderInfo>> _ridersFuture;
   final _messageController = TextEditingController();
-  bool _submitting = false;
-  bool _justRequested = false;
+  late final RideDetailsBloc _bloc;
+  int _lastClearTick = 0;
 
   @override
   void initState() {
     super.initState();
-    _ridersFuture = _fetchRiders();
-    _justRequested = widget.ride.alreadyRequested;
+    _bloc = sl<RideDetailsBloc>()
+      ..add(RideDetailsStarted(
+        ride: widget.ride,
+        riderFromAddress: widget.riderFromAddress,
+        riderFromLat: widget.riderFromLat,
+        riderFromLng: widget.riderFromLng,
+        riderToAddress: widget.riderToAddress,
+        riderToLat: widget.riderToLat,
+        riderToLng: widget.riderToLng,
+      ));
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _bloc.close();
     super.dispose();
-  }
-
-  Future<List<_RiderInfo>> _fetchRiders() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final snap = await widget.db
-        .collection('ride_requests')
-        .where('rideId', isEqualTo: widget.ride.id)
-        .where('status', isEqualTo: 'accepted')
-        .get();
-
-    final riders = <_RiderInfo>[];
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      final riderId = d['riderId'] as String? ?? '';
-      
-      if (riderId == uid) continue;
-      
-      String employeeId = 'AE2610002'; // Default placeholder
-      try {
-        final userDoc = await widget.db
-            .collection('users')
-            .doc(riderId)
-            .get();
-        employeeId = userDoc.data()?['employeeId'] as String? ?? 'AE2610002';
-      } catch (_) {}
-
-      final pickupTimeMap =
-          d['pickupTime'] as Map<String, dynamic>? ?? {'hour': 0, 'minute': 0};
-
-      LatLng? position;
-      if (d['pickupLatLng'] != null) {
-        final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
-        position = LatLng(
-          (latLngMap['latitude'] as num).toDouble(),
-          (latLngMap['longitude'] as num).toDouble(),
-        );
-      }
-
-      riders.add(_RiderInfo(
-        riderId: riderId,
-        riderName: d['riderName'] as String? ?? '',
-        riderPhotoUrl: d['riderPhotoUrl'] as String?,
-        employeeId: employeeId,
-        pickupPoint: d['pickupPoint'] as String? ?? '',
-        position: position,
-        pickupTime: TimeOfDay(
-          hour: (pickupTimeMap['hour'] as num).toInt(),
-          minute: (pickupTimeMap['minute'] as num).toInt(),
-        ),
-      ));
-    }
-    return riders;
   }
 
   void _openMap() {
@@ -126,307 +78,163 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
     );
   }
 
-  Future<void> _requestRide() async {
-    final messageText = _messageController.text.trim();
-    if (_submitting) return;
-
-    if (_justRequested) {
-      if (messageText.isEmpty) return;
-      setState(() => _submitting = true);
-      try {
-        await _sendMessage(messageText);
-        if (mounted) {
-          _messageController.clear();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message sent to driver')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send message: $e')),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _submitting = false);
-      }
-      return;
-    }
-
-    setState(() => _submitting = true);
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      String riderName = '';
-      String? riderPhotoUrl;
-      try {
-        final userDoc = await widget.db.collection('users').doc(uid).get();
-        riderName = userDoc.data()?['fullName'] as String? ?? '';
-        riderPhotoUrl = userDoc.data()?['profileImageUrl'] as String?;
-      } catch (_) {}
-
-      // Decide if we should meet at driver's endpoints (Endpoint Match) 
-      // or at rider's requested points (Detour Match).
-      bool isEndpointMatch = false;
-      if (widget.riderFromLat != null && widget.riderFromLng != null &&
-          widget.ride.fromLat != null && widget.ride.fromLng != null &&
-          widget.riderToLat != null && widget.riderToLng != null &&
-          widget.ride.toLat != null && widget.ride.toLng != null) {
-        final dFrom = RideMatcher.distanceKm(widget.riderFromLat!, widget.riderFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
-        final dTo = RideMatcher.distanceKm(widget.riderToLat!, widget.riderToLng!, widget.ride.toLat!, widget.ride.toLng!);
-        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
-      }
-
-      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : (widget.riderFromAddress ?? widget.ride.fromAddress);
-      final pickupLatLng = isEndpointMatch 
-          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
-          : (widget.riderFromLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.riderFromLat!, widget.riderFromLng!)
-              : {'latitude': widget.riderFromLat ?? widget.ride.fromLat, 'longitude': widget.riderFromLng ?? widget.ride.fromLng});
-
-      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : (widget.riderToAddress ?? widget.ride.toAddress);
-      final dropOffLatLng = isEndpointMatch
-          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
-          : (widget.riderToLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.riderToLat!, widget.riderToLng!)
-              : {'latitude': widget.riderToLat ?? widget.ride.toLat, 'longitude': widget.riderToLng ?? widget.ride.toLng});
-
-      final requestRef = widget.db.collection('ride_requests').doc();
-      final rideRef = widget.db.collection('rides').doc(widget.ride.id);
-      
-      final batch = widget.db.batch();
-      batch.set(requestRef, {
-        'rideId': widget.ride.id,
-        'riderId': uid,
-        'riderName': riderName,
-        'riderPhotoUrl': riderPhotoUrl,
-        'riderStartAddress': widget.riderFromAddress ?? widget.ride.fromAddress,
-        'riderEndAddress': widget.riderToAddress ?? widget.ride.toAddress,
-        'riderStartLatLng': (widget.riderFromLat != null && widget.riderFromLng != null)
-            ? {'latitude': widget.riderFromLat, 'longitude': widget.riderFromLng}
-            : null,
-        'riderEndLatLng': (widget.riderToLat != null && widget.riderToLng != null)
-            ? {'latitude': widget.riderToLat, 'longitude': widget.riderToLng}
-            : null,
-        'pickupPoint': pickupPoint,
-        'pickupLatLng': pickupLatLng,
-        'dropOffPoint': dropOffPoint,
-        'dropOffLatLng': dropOffLatLng,
-        'pickupTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'message': messageText,
-        'status': 'accepted',
-        'createdAt': FieldValue.serverTimestamp(),
-        'rideFrom': widget.ride.fromAddress,
-        'rideTo': widget.ride.toAddress,
-        'rideDate': Timestamp.fromDate(widget.ride.date),
-        'rideTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'driverId': widget.ride.driverId,
-        'driverName': widget.ride.driverName,
-      });
-      batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
-      await batch.commit();
-
-      if (messageText.isNotEmpty) {
-        await _sendMessage(messageText);
-      }
-
-      if (mounted) {
-        setState(() {
-          _justRequested = true;
-          _submitting = false;
-        });
-        _messageController.clear();
-        _ridersFuture = _fetchRiders();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not request ride: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _sendMessage(String text) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    String senderName = '';
-    try {
-      final userDoc = await widget.db.collection('users').doc(uid).get();
-      senderName = userDoc.data()?['fullName'] as String? ?? 'User';
-    } catch (_) {}
-
-    final ids = [uid, widget.ride.driverId]..sort();
-    final chatId = ids.join('_');
-
-    await sl<ChatRepository>().sendMessage(
-      chatId,
-      ChatMessage(
-        id: '',
-        senderId: uid,
-        receiverId: widget.ride.driverId,
-        text: text,
-        timestamp: DateTime.now(),
-      ),
-      senderName,
-      widget.ride.driverName,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final r = widget.ride;
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Ride Details',
-          style: TextStyle(
-            color: AppColors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_none_outlined, color: AppColors.black, size: 28),
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                )
-              ],
-            ),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: FutureBuilder<List<_RiderInfo>>(
-        future: _ridersFuture,
-        builder: (context, snapshot) {
-          final riders = snapshot.data ?? [];
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildRideMainCard(r),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocConsumer<RideDetailsBloc, RideDetailsState>(
+        listener: (context, state) {
+          if (state.clearMessageTextTick != _lastClearTick) {
+            _lastClearTick = state.clearMessageTextTick;
+            _messageController.clear();
+          }
+          if (state.snackbarMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.snackbarMessage!)),
+            );
+          }
+        },
+        builder: (context, state) {
+          final r = widget.ride;
+          return Scaffold(
+            backgroundColor: AppColors.white,
+            appBar: AppBar(
+              backgroundColor: AppColors.white,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text(
+                'Ride Details',
+                style: TextStyle(
+                  color: AppColors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: Stack(
                     children: [
-                      const Text(
-                        'OTHER RIDERS',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF666666),
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _openMap,
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'View On Map',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.black54,
-                            decoration: TextDecoration.underline,
-                            fontWeight: FontWeight.w600,
+                      const Icon(Icons.notifications_none_outlined, color: AppColors.black, size: 28),
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.red,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
+                      )
                     ],
                   ),
+                  onPressed: () {},
                 ),
-                const SizedBox(height: 4),
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: CircularProgressIndicator(),
-                  ))
-                else if (snapshot.hasError)
-                  Center(child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Text('Error loading riders: ${snapshot.error}', style: const TextStyle(color: AppColors.red)),
-                  ))
-                else if (riders.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: Text('No other riders yet'),
-                  )
-                else
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.grey200),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: riders.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.black12),
-                      itemBuilder: (context, index) => _RiderItem(rider: riders[index]),
-                    ),
-                  ),
-                const SizedBox(height: 100),
+                const SizedBox(width: 8),
               ],
             ),
+            body: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildRideMainCard(r, state),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'OTHER RIDERS',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF666666),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _openMap,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'View On Map',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.black54,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (state.ridersStatus == RideDetailsRidersStatus.initial ||
+                      state.ridersStatus == RideDetailsRidersStatus.loading)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
+                    ))
+                  else if (state.ridersStatus == RideDetailsRidersStatus.error)
+                    Center(child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text('Error loading riders: ${state.ridersError}', style: const TextStyle(color: AppColors.red)),
+                    ))
+                  else if (state.riders.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Text('No other riders yet'),
+                    )
+                  else
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.grey200),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: state.riders.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.black12),
+                        itemBuilder: (context, index) => _RiderItem(rider: state.riders[index]),
+                      ),
+                    ),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+            extendBody: true,
+            bottomNavigationBar: HomeBottomNavBar(
+              currentIndex: 1,
+              onTap: (index) {
+                // Typically handles jumping back to shell and changing tabs.
+                // For now just pops if Home or Profile is clicked to keep user flow.
+                if (index != 1) Navigator.of(context).pop();
+              },
+            ),
           );
-        },
-      ),
-      extendBody: true,
-      bottomNavigationBar: HomeBottomNavBar(
-        currentIndex: 1,
-        onTap: (index) {
-          // Typically handles jumping back to shell and changing tabs.
-          // For now just pops if Home or Profile is clicked to keep user flow.
-          if (index != 1) Navigator.of(context).pop();
         },
       ),
     );
   }
 
-  Widget _buildRideMainCard(RideMatch r) {
+  Widget _buildRideMainCard(RideMatch r, RideDetailsState state) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-// ... (rest of the code)
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
@@ -456,7 +264,7 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                     Text(
                       '${r.seatsFilled} /${r.seatsTotal} seats filled',
                       style: const TextStyle(
-                        color: AppColors.white, 
+                        color: AppColors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -633,14 +441,14 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: _requestRide,
+                        onTap: () => _bloc.add(RideDetailsSubmitted(_messageController.text)),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: const BoxDecoration(
                             color: AppColors.primaryGreen,
                             shape: BoxShape.circle,
                           ),
-                          child: _submitting
+                          child: state.submitting
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
                             : const Icon(Icons.send, color: AppColors.white, size: 18),
                         ),
@@ -722,36 +530,9 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
   }
 }
 
-class _RiderInfo {
-  const _RiderInfo({
-    required this.riderId,
-    required this.riderName,
-    this.riderPhotoUrl,
-    required this.employeeId,
-    required this.pickupPoint,
-    this.position,
-    required this.pickupTime,
-  });
-
-  final String riderId;
-  final String riderName;
-  final String? riderPhotoUrl;
-  final String employeeId;
-  final String pickupPoint;
-  final LatLng? position;
-  final TimeOfDay pickupTime;
-
-  String get pickupTimeLabel {
-    final h = pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
-    final m = pickupTime.minute.toString().padLeft(2, '0');
-    final period = pickupTime.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $period';
-  }
-}
-
 class _RiderItem extends StatelessWidget {
   const _RiderItem({required this.rider});
-  final _RiderInfo rider;
+  final RideRider rider;
 
   @override
   Widget build(BuildContext context) {

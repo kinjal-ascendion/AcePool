@@ -1,16 +1,18 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-class OnboardingPrefs {
-  OnboardingPrefs._();
+import '../../domain/repositories/onboarding_repository.dart';
 
+class OnboardingRepositoryImpl implements OnboardingRepository {
   static const _hasCompletedKey = 'has_completed_onboarding';
 
-  static Future<bool> hasCompletedOnboarding() async {
+  @override
+  Future<bool> hasCompletedOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_hasCompletedKey) ?? false;
   }
 
-  static Future<void> markOnboardingCompleted() async {
+  @override
+  Future<void> markOnboardingCompleted() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_hasCompletedKey, true);
   }

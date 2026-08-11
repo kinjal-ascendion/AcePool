@@ -2,7 +2,6 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/widgets/ride_result_card.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FindRideResultsSection extends StatelessWidget {
@@ -14,7 +13,6 @@ class FindRideResultsSection extends StatelessWidget {
     required this.riderFromAddress,
     required this.riderToAddress,
     required this.riderTime,
-    required this.db,
     required this.onRequested,
     this.onViewAll,
     this.riderFromLat,
@@ -31,7 +29,6 @@ class FindRideResultsSection extends StatelessWidget {
   final String riderFromAddress;
   final String riderToAddress;
   final TimeOfDay riderTime;
-  final FirebaseFirestore db;
   final VoidCallback onRequested;
   final VoidCallback? onViewAll;
   final double? riderFromLat;
@@ -115,7 +112,6 @@ class FindRideResultsSection extends StatelessWidget {
               riderToLat: riderToLat,
               riderToLng: riderToLng,
               riderTime: riderTime,
-              db: db,
               onRequested: onRequested,
             ),
             const SizedBox(height: 12),

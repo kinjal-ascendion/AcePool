@@ -1,154 +1,145 @@
 import 'package:acepool/core/theme/app_colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
-import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
-import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
 
+import '../bloc/login_bloc.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
 import '../widgets/signup_text.dart';
 import '../widgets/auth_text_field.dart';
 
-
-class LoginPage extends StatefulWidget {
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key, this.onboardingSelection});
 
   final OnboardingSelection? onboardingSelection;
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<LoginBloc>(),
+      child: _LoginView(onboardingSelection: onboardingSelection),
+    );
+  }
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginView extends StatefulWidget {
+  const _LoginView({this.onboardingSelection});
+
+  final OnboardingSelection? onboardingSelection;
+
+  @override
+  State<_LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<_LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  String? _emailError;
-  String? _passwordError;
 
-  Future<void> login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
-    setState(() {
-      _emailError = email.isEmpty ? 'Username is required' : null;
-      _passwordError = password.isEmpty
-          ? 'Password is required'
-          : password.length < 6
-              ? 'Password must be at least 6 characters'
-              : null;
-    });
-
-    if (_emailError != null || _passwordError != null) return;
-
-    try {
-      setState(() => _isLoading = true);
-
-      final email = '${_emailController.text.trim()}@ascendion.com';
-      final password = _passwordController.text.trim();
-
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && widget.onboardingSelection != null) {
-        final db = FirebaseFirestore.instanceFor(
-          app: Firebase.app(),
-          databaseId: 'acepool',
+  void _login() {
+    context.read<LoginBloc>().add(
+          LoginSubmitted(
+            username: _emailController.text.trim(),
+            password: _passwordController.text,
+            onboardingSelection: widget.onboardingSelection,
+          ),
         );
-        await db.collection('users').doc(user.uid).set({
-          'travelPreference': widget.onboardingSelection!.travelPreference.name,
-          'vehicleType': widget.onboardingSelection!.vehicleType.name,
-        }, SetOptions(merge: true));
-      }
-
-      if (mounted) context.go('/home');
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'invalid-credential':
-          errorMessage = 'Invalid username or password';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Please enter a valid email';
-          break;
-        default:
-          errorMessage = 'Login failed. Please try again.';
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(errorMessage)));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 80),
-              const LoginHeader(),
-              const SizedBox(height: 40),
-              AuthTextField(
-               label: 'Work Email',
-               controller: _emailController,
-               hintText: 'Username',
-               errorText: _emailError,
-               onChanged: (_) => setState(() => _emailError = null),
-               suffixWidget: const Padding(
-                 padding: EdgeInsets.only(right: 16),
-                 child: Text(
-                  '@ascendion.com',
-                   style: TextStyle(
-                     color: AppColors.black54,
+    return BlocConsumer<LoginBloc, LoginState>(
+      listener: (context, state) {
+        if (state is LoginSuccess) {
+          context.go('/home');
+        } else if (state is LoginFailure) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(state.message)));
+        }
+      },
+      builder: (context, state) {
+        final isLoading = state is LoginInProgress;
+        final emailError =
+            state is LoginFieldErrors ? state.emailError : null;
+        final passwordError =
+            state is LoginFieldErrors ? state.passwordError : null;
+
+        return Scaffold(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 80),
+                  const LoginHeader(),
+                  const SizedBox(height: 40),
+                  AuthTextField(
+                    label: 'Work Email',
+                    controller: _emailController,
+                    hintText: 'Username',
+                    errorText: emailError,
+                    onChanged: (_) => context
+                        .read<LoginBloc>()
+                        .add(const LoginFieldEdited(LoginField.email)),
+                    suffixWidget: const Padding(
+                      padding: EdgeInsets.only(right: 16),
+                      child: Text(
+                        '@ascendion.com',
+                        style: TextStyle(
+                          color: AppColors.black54,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              AuthTextField(
-               label: 'Password',
-               controller: _passwordController,
-               hintText: 'Minimum 6 characters',
-               obscureText: true,
-               errorText: _passwordError,
-               onChanged: (_) => setState(() => _passwordError = null),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coming soon')),
+                  const SizedBox(height: 16),
+                  AuthTextField(
+                    label: 'Password',
+                    controller: _passwordController,
+                    hintText: 'Minimum 6 characters',
+                    obscureText: true,
+                    errorText: passwordError,
+                    onChanged: (_) => context
+                        .read<LoginBloc>()
+                        .add(const LoginFieldEdited(LoginField.password)),
                   ),
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(fontSize: 14, color: AppColors.black87),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Coming soon')),
+                      ),
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(fontSize: 14, color: AppColors.black87),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  AuthButton(
+                    onPressed: _login,
+                    isLoading: isLoading,
+                    label: 'Log In',
+                  ),
+                  const SizedBox(height: 12),
+                  SignupText(onboardingSelection: widget.onboardingSelection),
+                ],
               ),
-              const SizedBox(height: 24),
-              AuthButton(onPressed: login, isLoading: _isLoading, label: 'Log In'),
-              const SizedBox(height: 12),
-              SignupText(onboardingSelection: widget.onboardingSelection),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

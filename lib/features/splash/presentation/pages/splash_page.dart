@@ -1,13 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/onboarding/data/onboarding_prefs.dart';
+import 'package:acepool/features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
+import 'package:acepool/features/onboarding/domain/usecases/get_onboarding_status_usecase.dart';
 import 'package:acepool/features/splash/presentation/bloc/splash_bloc.dart';
 import 'package:acepool/features/splash/presentation/widgets/loading_dots.dart';
 import 'package:acepool/features/splash/presentation/widgets/splash_logo.dart';
 import 'package:acepool/features/splash/presentation/widgets/splash_text.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 class SplashPage extends StatelessWidget {
   const SplashPage({super.key});
@@ -51,21 +52,21 @@ class _SplashViewState extends State<_SplashView>
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    _logoSlide = Tween<Offset>(
-      begin: const Offset(0, 0.4),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _mainController,
-      curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic),
-    ));
+    _logoSlide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _mainController,
+            curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic),
+          ),
+        );
 
-    _textSlide = Tween<Offset>(
-      begin: const Offset(0, -0.4),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _mainController,
-      curve: const Interval(0.2, 0.85, curve: Curves.easeOutCubic),
-    ));
+    _textSlide = Tween<Offset>(begin: const Offset(0, -0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _mainController,
+            curve: const Interval(0.2, 0.85, curve: Curves.easeOutCubic),
+          ),
+        );
 
     _textFade = CurvedAnimation(
       parent: _mainController,
@@ -93,10 +94,10 @@ class _SplashViewState extends State<_SplashView>
         if (state is SplashComplete) {
           final isLoggedIn = FirebaseAuth.instance.currentUser != null;
           if (isLoggedIn) {
-            await OnboardingPrefs.markOnboardingCompleted();
+            await sl<CompleteOnboardingUseCase>()();
             if (context.mounted) context.go('/home');
           } else {
-            final seenOnboarding = await OnboardingPrefs.hasCompletedOnboarding();
+            final seenOnboarding = await sl<GetOnboardingStatusUseCase>()();
             if (context.mounted) {
               context.go(
                 seenOnboarding ? '/login' : '/onboarding/travel-preference',
@@ -104,9 +105,9 @@ class _SplashViewState extends State<_SplashView>
             }
           }
         } else if (state is SplashError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       child: Scaffold(

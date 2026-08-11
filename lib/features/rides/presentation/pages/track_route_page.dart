@@ -2,13 +2,13 @@ import 'dart:ui';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/presentation/bloc/track_route_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/security_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:acepool/features/profile/presentation/pages/route_matching_page.dart';
 import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -38,10 +38,7 @@ class TrackRoutePage extends StatefulWidget {
 }
 
 class _TrackRoutePageState extends State<TrackRoutePage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  final _bloc = sl<TrackRouteBloc>();
 
   late GoogleMapController _mapController;
   Position? _currentPosition;
@@ -78,90 +75,56 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     _fetchJourneyData();
   }
 
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
+
   Future<void> _fetchJourneyData() async {
     if (!mounted) return;
     setState(() => _loadingData = true);
-    
+
     // 1. Determine Current Location
     await _determinePosition();
 
-    // 2. Fetch User's Ride Request
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final requestSnap = await _db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: widget.ride.id)
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .limit(1)
-          .get();
+    // 2+3. Fetch rider's pickup/drop-off (or driver's endpoints as fallback)
+    // plus the driver's pinned location/route duration.
+    _bloc.add(TrackRouteStarted(
+      ride: widget.ride,
+      riderFromAddress: widget.riderFromAddress,
+      riderFromLat: widget.riderFromLat,
+      riderFromLng: widget.riderFromLng,
+      riderToAddress: widget.riderToAddress,
+      riderToLat: widget.riderToLat,
+      riderToLng: widget.riderToLng,
+    ));
+    final trackState =
+        await _bloc.stream.firstWhere((s) => s.status != TrackRouteStatus.loading);
+    final journey = trackState.journey;
+    if (journey != null) {
+      _riderPickupPoint = journey.pickupPoint;
+      _riderDropPoint = journey.dropOffPoint;
+      _riderStartAddress = journey.riderStartAddress;
+      _riderEndAddress = journey.riderEndAddress;
 
-      if (requestSnap.docs.isNotEmpty) {
-        final d = requestSnap.docs.first.data();
-        _riderPickupPoint = d['pickupPoint'] as String? ?? '';
-        _riderDropPoint = d['dropOffPoint'] as String? ?? '';
-        
-        // Only overwrite if not provided via constructor
-        if (_riderStartAddress.isEmpty) {
-          _riderStartAddress = d['riderStartAddress'] as String? ?? '';
-        }
-        if (_riderEndAddress.isEmpty) {
-          _riderEndAddress = d['riderEndAddress'] as String? ?? '';
-        }
-        
-        if (d['pickupLatLng'] != null) {
-          final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
-          _riderPickupLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-        
-        if (d['dropOffLatLng'] != null) {
-          final latLngMap = d['dropOffLatLng'] as Map<String, dynamic>;
-          _riderDropLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-
-        if (_riderStartLatLng == null && d['riderStartLatLng'] != null) {
-          final latLngMap = d['riderStartLatLng'] as Map<String, dynamic>;
-          _riderStartLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-
-        if (_riderEndLatLng == null && d['riderEndLatLng'] != null) {
-          final latLngMap = d['riderEndLatLng'] as Map<String, dynamic>;
-          _riderEndLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-      } else {
-        // If no accepted request, use driver's start/end as default pickup/drop-off for visualization
-        _riderPickupPoint = widget.ride.fromAddress;
-        _riderDropPoint = widget.ride.toAddress;
+      if (journey.pickupLat != null && journey.pickupLng != null) {
+        _riderPickupLatLng = LatLng(journey.pickupLat!, journey.pickupLng!);
       }
-    }
-
-    // 3. Fetch Pinned location and route info from Driver's Ride
-    final rideDoc = await _db.collection('rides').doc(widget.ride.id).get();
-    if (rideDoc.exists) {
-      final d = rideDoc.data();
-      if (d?['pinnedLatLng'] != null) {
-        final latLngMap = d!['pinnedLatLng'] as Map<String, dynamic>;
-        _pinnedLatLng = LatLng(
-          (latLngMap['latitude'] as num).toDouble(),
-          (latLngMap['longitude'] as num).toDouble(),
-        );
-        _pinnedName = d['pinnedName'] as String?;
+      if (journey.dropOffLat != null && journey.dropOffLng != null) {
+        _riderDropLatLng = LatLng(journey.dropOffLat!, journey.dropOffLng!);
       }
-      if (d?['routeDurationMinutes'] != null) {
-        _driveDurationMinutes = (d!['routeDurationMinutes'] as num).toInt();
+      if (journey.riderStartLat != null && journey.riderStartLng != null) {
+        _riderStartLatLng = LatLng(journey.riderStartLat!, journey.riderStartLng!);
       }
+      if (journey.riderEndLat != null && journey.riderEndLng != null) {
+        _riderEndLatLng = LatLng(journey.riderEndLat!, journey.riderEndLng!);
+      }
+      if (journey.pinnedLat != null && journey.pinnedLng != null) {
+        _pinnedLatLng = LatLng(journey.pinnedLat!, journey.pinnedLng!);
+        _pinnedName = journey.pinnedName;
+      }
+      _driveDurationMinutes = journey.driveDurationMinutes;
     }
 
     _calculateRoadsidePoints();
@@ -756,35 +719,6 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
         ),
       ),
     );
-  }
-
-  Future<void> _updateRideStatus(String status) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    try {
-      final requestSnap = await _db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: widget.ride.id)
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .limit(1)
-          .get();
-
-      if (requestSnap.docs.isNotEmpty) {
-        await requestSnap.docs.first.reference.update({'status': status});
-      }
-
-      if (mounted && status == 'completed') {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
-      }
-    }
   }
 
   Widget _buildTransportDetailsHeader(BuildContext context) {

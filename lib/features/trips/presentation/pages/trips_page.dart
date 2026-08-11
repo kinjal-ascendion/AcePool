@@ -1,24 +1,24 @@
-import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/chat/domain/entities/chat_message.dart';
-import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/domain/repositories/rides_repository.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
+import 'package:acepool/features/trips/domain/entities/available_ride.dart';
+import 'package:acepool/features/trips/domain/entities/driver_profile_stats.dart';
+import 'package:acepool/features/trips/domain/entities/requested_ride.dart';
+import 'package:acepool/features/trips/domain/repositories/trips_repository.dart';
+import 'package:acepool/features/trips/presentation/bloc/trips_bloc.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:acepool/features/trips/presentation/widgets/cancel_ride_dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
   const TripsPage({super.key, this.onBack});
@@ -32,10 +32,8 @@ class TripsPage extends StatefulWidget {
 class _TripsPageState extends State<TripsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final TripsBloc _bloc;
 
-  late Future<List<_AvailableRide>> _ridesFuture;
-  late Future<List<UpcomingTrip>> _drivesFuture;
-  late Future<List<_RequestedRide>> _requestsFuture;
   bool _hasCommuteLocation = false;
 
   late String _findRideFilter;
@@ -43,15 +41,10 @@ class _TripsPageState extends State<TripsPage>
 
   static const _tabs = ['Find ride', 'Offer ride'];
 
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
-  static final _directions = DirectionsService();
-
   @override
   void initState() {
     super.initState();
+    _bloc = sl<TripsBloc>();
     final homeState = context.read<HomeBloc>().state;
     final pref = homeState.travelPreference;
     int initialIdx = 0;
@@ -72,401 +65,84 @@ class _TripsPageState extends State<TripsPage>
 
     _findRideFilter = _hasCommuteLocation ? 'Suggested Rides' : 'Ride Requests';
 
-    _ridesFuture = _fetchAvailableRidesFromHomeState();
-    _drivesFuture = _fetchTrips('offer');
-    _requestsFuture = _fetchRideRequests();
+    _requestAvailableRidesFromHomeState();
+    _bloc.add(const TripsDrivesRequested());
+    _requestRideRequestsFromHomeState();
   }
 
   /// Re-reads whatever's currently on Home's Find-ride form (shared
   /// `HomeBloc`) and fetches matches for it — blank form means no rides.
-  Future<List<_AvailableRide>> _fetchAvailableRidesFromHomeState() {
+  void _requestAvailableRidesFromHomeState() {
     final homeState = context.read<HomeBloc>().state;
-    return _fetchAvailableRides(
+    _bloc.add(TripsAvailableRidesRequested(
       fromAddress: homeState.fromAddress,
       toAddress: homeState.toAddress,
       fromLat: homeState.fromLat,
       fromLng: homeState.fromLng,
       toLat: homeState.toLat,
       toLng: homeState.toLng,
-    );
+    ));
+  }
+
+  void _requestRideRequestsFromHomeState() {
+    final homeState = context.read<HomeBloc>().state;
+    _bloc.add(TripsRequestedRidesRequested(
+      homeFromAddress: homeState.fromAddress,
+      homeToAddress: homeState.toAddress,
+      homeFromLat: homeState.fromLat,
+      homeFromLng: homeState.fromLng,
+      homeToLat: homeState.toLat,
+      homeToLng: homeState.toLng,
+    ));
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _bloc.close();
     super.dispose();
   }
 
-  Future<List<UpcomingTrip>> _fetchTrips(String rideMode) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-
-    final snapshot = await _db
-        .collection('rides')
-        .where('uid', isEqualTo: uid)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-        .orderBy('date')
-        .get();
-
-    return snapshot.docs
-        .where((doc) => doc.data()['rideMode'] == rideMode)
-        .map((doc) {
-      final data = doc.data();
-      final date = (data['date'] as Timestamp).toDate();
-      final timeMap = data['time'] as Map<String, dynamic>;
-      
-      final fromLat = (data['fromLat'] as num?)?.toDouble();
-      final fromLng = (data['fromLng'] as num?)?.toDouble();
-      final toLat = (data['toLat'] as num?)?.toDouble();
-      final toLng = (data['toLng'] as num?)?.toDouble();
-
-      final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
-      final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
-
-      return UpcomingTrip(
-        id: doc.id,
-        date: DateTime(date.year, date.month, date.day),
-        time: TimeOfDay(
-          hour: timeMap['hour'] as int,
-          minute: timeMap['minute'] as int,
-        ),
-        fromAddress: data['fromAddress'] as String,
-        toAddress: data['toAddress'] as String,
-        fromLat: fromLat ?? (fromLatLngMap?['latitude'] as num?)?.toDouble(),
-        fromLng: fromLng ?? (fromLatLngMap?['longitude'] as num?)?.toDouble(),
-        toLat: toLat ?? (toLatLngMap?['latitude'] as num?)?.toDouble(),
-        toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
-        seatsFilled: (data['seatsFilled'] as int?) ?? 0,
-        seatsTotal: data['seatCount'] as int,
-        note: data['note'] as String?,
-        durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
-        status: data['status'] as String? ?? 'upcoming',
-      );
-    }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
-  }
-
-  /// [fromAddress]/[toAddress] are whatever's currently entered on Home's
-  /// Find-ride form (shared `HomeBloc`, see [_currentFindRideState]) — this
-  /// tab only shows matches once that form actually has both set, and
-  /// re-reads it fresh every time this future is (re)built.
-  Future<List<_AvailableRide>> _fetchAvailableRides({
-    String? fromAddress,
-    String? toAddress,
-    double? fromLat,
-    double? fromLng,
-    double? toLat,
-    double? toLng,
-  }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-    final userDoc = await _db.collection('users').doc(uid).get();
-
-final matchRadiusKm =
-    (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
-
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-
-    _hasCommuteLocation = (fromAddress?.trim().isNotEmpty ?? false) &&
-        (toAddress?.trim().isNotEmpty ?? false);
-    if (!_hasCommuteLocation) return [];
-
-    final userHomeAddress = fromAddress!;
-    final userOfficeAddress = toAddress!;
-    final userHomeLat = fromLat;
-    final userHomeLng = fromLng;
-    final userOfficeLat = toLat;
-    final userOfficeLng = toLng;
-
-    final snap = await _db
-        .collection('rides')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-        .get();
-
-    Set<String> requestedRideIds = {};
-    try {
-      final myRequestsSnap = await _db
-          .collection('ride_requests')
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .get();
-      requestedRideIds = myRequestsSnap.docs
-          .map((d) => d.data()['rideId'] as String)
-          .toSet();
-    } catch (_) {}
-
-    final rides = <_AvailableRide>[];
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      if (d['rideMode'] != 'offer') continue;
-      if (d['uid'] == uid) continue;
-      final seatCount = d['seatCount'] as int;
-      final seatsFilled = (d['seatsFilled'] as int?) ?? 0;
-      if (seatsFilled >= seatCount) continue;
-
-      String driverName = '';
-      String driverPhotoUrl = '';
-      String driverPhone = '';
-      try {
-        final driverDoc =
-            await _db.collection('users').doc(d['uid'] as String).get();
-        driverName = driverDoc.data()?['fullName'] as String? ?? '';
-        driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
-        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
-      } catch (_) {}
-      if (driverName.isEmpty) driverName = 'Driver';
-
-      final date = (d['date'] as Timestamp).toDate();
-      final timeMap = d['time'] as Map<String, dynamic>;
-      final rideFrom = d['fromAddress'] as String;
-      final rideTo = d['toAddress'] as String;
-      final rideFromLat = (d['fromLat'] as num?)?.toDouble() ?? 
-          (d['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideFromLng = (d['fromLng'] as num?)?.toDouble() ?? 
-          (d['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideToLat = (d['toLat'] as num?)?.toDouble() ?? 
-          (d['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideToLng = (d['toLng'] as num?)?.toDouble() ?? 
-          (d['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
-      final fareMap = d['fare'] as Map<String, dynamic>?;
-      final farePerSeat = (fareMap?['farePerSeat'] as num?)?.toDouble();
-
-      // Only worth a live Google Directions call when the user's commute
-      // points aren't already close to the ride's own endpoints — that case
-      // is already a match without needing a real-route detour check.
-      double? liveDetourKm;
-      final haveUserCoords = userHomeLat != null &&
-          userHomeLng != null &&
-          userOfficeLat != null &&
-          userOfficeLng != null;
-      final haveRideCoords = rideFromLat != null &&
-          rideFromLng != null &&
-          rideToLat != null &&
-          rideToLng != null;
-      if (haveUserCoords && haveRideCoords && rideRouteDistanceKm != null) {
-        final endpointsClose =
-            RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
-                    matchRadiusKm &&
-                RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng) <=
-                    matchRadiusKm;
-        if (!endpointsClose) {
-          final viaDistanceKm = await _directions.fetchRouteDistanceKm(
-            originLat: rideFromLat,
-            originLng: rideFromLng,
-            destLat: rideToLat,
-            destLng: rideToLng,
-            waypoints: [
-              [userHomeLat, userHomeLng],
-              [userOfficeLat, userOfficeLng],
-            ],
-          );
-          if (viaDistanceKm != null) {
-            liveDetourKm = viaDistanceKm - rideRouteDistanceKm;
-          }
-        }
-      }
-
-      final match = RideMatcher.computeMatch(
-        userFromAddress: userHomeAddress,
-        userToAddress: userOfficeAddress,
-        userFromLat: userHomeLat,
-        userFromLng: userHomeLng,
-        userToLat: userOfficeLat,
-        userToLng: userOfficeLng,
-        rideFromAddress: rideFrom,
-        rideToAddress: rideTo,
-        rideFromLat: rideFromLat,
-        rideFromLng: rideFromLng,
-        rideToLat: rideToLat,
-        rideToLng: rideToLng,
-        liveDetourKm: liveDetourKm,
-        matchRadiusKm: matchRadiusKm,
-      );
-      if (!match.isMatch) continue;
-
-      final endpointsClose =
-          userHomeLat != null && userHomeLng != null &&
-          rideFromLat != null && rideFromLng != null &&
-          RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
-                  RideMatcher.maxMatchDistanceKm;
-
-      rides.add(_AvailableRide(
-        id: doc.id,
-        driverId: d['uid'] as String,
-        driverName: driverName,
-        driverPhotoUrl: driverPhotoUrl,
-        driverPhone: driverPhone,
-        date: date,
-        time: TimeOfDay(
-            hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
-        fromAddress: rideFrom,
-        toAddress: rideTo,
-        fromLat: rideFromLat,
-        fromLng: rideFromLng,
-        toLat: rideToLat,
-        toLng: rideToLng,
-        seatsFilled: seatsFilled,
-        seatsTotal: seatCount,
-        vehicleType: d['vehicleType'] as String? ?? 'car',
-        alreadyRequested: requestedRideIds.contains(doc.id),
-        matchPercent: match.matchPercent,
-        distanceKm: match.distanceKm,
-        defaultPickupPoint:
-            userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
-        farePerSeat: farePerSeat,
-        userFromAddress: userHomeAddress,
-        userToAddress: userOfficeAddress,
-        userFromLat: userHomeLat,
-        userFromLng: userHomeLng,
-        userToLat: userOfficeLat,
-        userToLng: userOfficeLng,
-      ));
-    }
-
-    rides.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
-    return rides;
-  }
-
-  Future<List<_RequestedRide>> _fetchRideRequests() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    final homeState = context.read<HomeBloc>().state;
-    final userDoc = await _db.collection('users').doc(uid).get();
-    final matchRadiusKm = (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
-
-    final snap = await _db
-        .collection('ride_requests')
-        .where('riderId', isEqualTo: uid)
-        .orderBy('rideDate', descending: true)
-        .get();
-
-    final requests = <_RequestedRide>[];
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      if (d['status'] == 'completed' || d['status'] == 'cancelled') continue;
-      final rideId = d['rideId'] as String;
-
-      final rideDoc = await _db.collection('rides').doc(rideId).get();
-      final rideData = rideDoc.data();
-      if (rideData == null) continue;
-
-      String driverPhotoUrl = '';
-      String driverPhone = '';
-      try {
-        final driverDoc =
-            await _db.collection('users').doc(d['driverId'] as String).get();
-        driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
-        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
-      } catch (_) {}
-
-      final rideTime = d['rideTime'] as Map<String, dynamic>;
-      final storedDriverName = d['driverName'] as String?;
-
-      final rideFromLat = (rideData['fromLat'] as num?)?.toDouble() ?? 
-          (rideData['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideFromLng = (rideData['fromLng'] as num?)?.toDouble() ?? 
-          (rideData['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideToLat = (rideData['toLat'] as num?)?.toDouble() ?? 
-          (rideData['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideToLng = (rideData['toLng'] as num?)?.toDouble() ?? 
-          (rideData['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-
-      final match = RideMatcher.computeMatch(
-        userFromAddress: homeState.fromAddress ?? '',
-        userToAddress: homeState.toAddress ?? '',
-        userFromLat: homeState.fromLat,
-        userFromLng: homeState.fromLng,
-        userToLat: homeState.toLat,
-        userToLng: homeState.toLng,
-        rideFromAddress: rideData['fromAddress'] as String? ?? '',
-        rideToAddress: rideData['toAddress'] as String? ?? '',
-        rideFromLat: rideFromLat,
-        rideFromLng: rideFromLng,
-        rideToLat: rideToLat,
-        rideToLng: rideToLng,
-        matchRadiusKm: matchRadiusKm,
-      );
-
-      requests.add(_RequestedRide(
-        id: doc.id,
-        rideId: rideId,
-        driverId: d['driverId'] as String? ?? '',
-        driverName: (storedDriverName != null && storedDriverName.isNotEmpty)
-            ? storedDriverName
-            : 'Driver',
-        driverPhotoUrl: driverPhotoUrl,
-        driverPhone: driverPhone,
-        date: (d['rideDate'] as Timestamp).toDate(),
-        time: TimeOfDay(
-          hour: rideTime['hour'] as int,
-          minute: rideTime['minute'] as int,
-        ),
-        fromAddress: d['rideFrom'] as String,
-        toAddress: d['rideTo'] as String,
-        riderStartAddress: d['riderStartAddress'] as String? ?? '',
-        riderEndAddress: d['riderEndAddress'] as String? ?? '',
-        seatsFilled: rideData['seatsFilled'] as int? ?? 0,
-        seatsTotal: rideData['seatCount'] as int? ?? 0,
-        status: d['status'] as String? ?? 'pending',
-        farePerSeat: (rideData['fare'] as Map?)?['farePerSeat'] as double?,
-        vehicleType: rideData['vehicleType'] as String? ?? 'car',
-        matchPercent: match.matchPercent,
-        distanceKm: match.distanceKm,
-      ));
-    }
-    return requests;
-  }
-
   Widget _buildList(
-    Future<List<UpcomingTrip>> future,
+    TripsSectionStatus status,
+    List<UpcomingTrip> trips,
     String emptyLabel, {
     void Function(UpcomingTrip)? onTap,
   }) {
-    return FutureBuilder<List<UpcomingTrip>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final trips = snapshot.data ?? [];
-        if (trips.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.directions_car_outlined,
-                  size: 64,
-                  color: AppColors.grey300,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  emptyLabel,
-                  style: TextStyle(color: AppColors.grey500, fontSize: 16),
-                ),
-              ],
+    if (status == TripsSectionStatus.initial || status == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (trips.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.directions_car_outlined,
+              size: 64,
+              color: AppColors.grey300,
             ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          itemCount: trips.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final trip = trips[index];
-            return DriveTripCard(
-              trip: trip,
-              onTap: () => onTap?.call(trip),
-              onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
-              onEndRide: () => _updateTripStatus(trip.id, 'completed'),
-              onCancel: () => _handleCancelRide(trip),
-            );
-          },
+            const SizedBox(height: 16),
+            Text(
+              emptyLabel,
+              style: TextStyle(color: AppColors.grey500, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      itemCount: trips.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final trip = trips[index];
+        return DriveTripCard(
+          trip: trip,
+          onTap: () => onTap?.call(trip),
+          onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
+          onEndRide: () => _updateTripStatus(trip.id, 'completed'),
+          onCancel: () => _handleCancelRide(trip),
         );
       },
     );
@@ -483,25 +159,7 @@ final matchRadiusKm =
         coPassengersCount: trip.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            await _db.collection('rides').doc(trip.id).update({
-              'status': 'cancelled',
-              'cancellationReason': reason,
-              'cancelledAt': FieldValue.serverTimestamp(),
-            });
-
-            final requests = await _db
-                .collection('ride_requests')
-                .where('rideId', isEqualTo: trip.id)
-                .get();
-
-            final batch = _db.batch();
-            for (var doc in requests.docs) {
-              batch.update(doc.reference, {
-                'status': 'cancelled',
-                'cancellationReason': 'Driver cancelled: $reason',
-              });
-            }
-            await batch.commit();
+            await sl<TripsRepository>().cancelOfferedRide(trip.id, reason: reason);
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
@@ -512,9 +170,7 @@ final matchRadiusKm =
                   'toAddress': trip.toAddress,
                 },
               );
-              setState(() {
-                _drivesFuture = _fetchTrips('offer');
-              });
+              _bloc.add(const TripsDrivesRequested());
               tripsContext.read<HomeBloc>().add(const RefreshUpcomingTrips());
             }
           } catch (e) {
@@ -532,13 +188,11 @@ final matchRadiusKm =
 
   Future<void> _updateTripStatus(String tripId, String status) async {
     try {
-      await _db.collection('rides').doc(tripId).update({'status': status});
+      await sl<TripsRepository>().updateTripStatus(tripId, status);
       if (mounted) {
         context.read<HomeBloc>().add(const RefreshUpcomingTrips());
       }
-      setState(() {
-        _drivesFuture = _fetchTrips('offer');
-      });
+      _bloc.add(const TripsDrivesRequested());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -603,6 +257,15 @@ final matchRadiusKm =
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocBuilder<TripsBloc, TripsState>(
+        builder: (context, tripsState) => _buildScaffold(context, tripsState),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, TripsState tripsState) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -676,117 +339,16 @@ final matchRadiusKm =
               ),
               Expanded(
                 child: _findRideFilter == 'Suggested Rides'
-                    ? FutureBuilder<List<_AvailableRide>>(
-                        future: _ridesFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          final rides = snapshot.data ?? [];
-                          if (!_hasCommuteLocation) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(32.0),
-                                child: Text(
-                                  'Enter your commute details on the Home tab to find matching rides.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      color: AppColors.grey600, fontSize: 16),
-                                ),
-                              ),
-                            );
-                          }
-                          if (rides.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'No matching rides found for your commute.',
-                                style: TextStyle(
-                                    color: AppColors.grey500, fontSize: 16),
-                              ),
-                            );
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              setState(() {
-                                _ridesFuture =
-                                    _fetchAvailableRidesFromHomeState();
-                              });
-                            },
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 16),
-                              itemCount: rides.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 14),
-                              itemBuilder: (context, index) =>
-                                  _AvailableRideCard(
-                                ride: rides[index],
-                                db: _db,
-                                onRequested: () {
-                                  setState(() {
-                                    _ridesFuture =
-                                        _fetchAvailableRidesFromHomeState();
-                                    _requestsFuture = _fetchRideRequests();
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    : FutureBuilder<List<_RequestedRide>>(
-                        future: _requestsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          final requests = snapshot.data ?? [];
-                          if (requests.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'You haven\'t requested any rides yet.',
-                                style: TextStyle(
-                                    color: AppColors.grey500, fontSize: 16),
-                              ),
-                            );
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              setState(() {
-                                _requestsFuture = _fetchRideRequests();
-                              });
-                            },
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 16),
-                              itemCount: requests.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 14),
-                              itemBuilder: (context, index) =>
-                                  _RequestedRideCard(
-                                request: requests[index],
-                                db: _db,
-                                onCancelled: () {
-                                  setState(() {
-                                    _requestsFuture = _fetchRideRequests();
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    ? _buildAvailableRidesSection(tripsState)
+                    : _buildRequestedRidesSection(tripsState),
               ),
             ],
           ),
 
           // Offer ride tab
           _buildList(
-            _drivesFuture,
+            tripsState.drivesStatus,
+            tripsState.drives,
             'You haven\'t offered any rides yet.',
             onTap: (trip) {
               final homeBloc = context.read<HomeBloc>();
@@ -804,95 +366,86 @@ final matchRadiusKm =
       ),
     );
   }
-}
 
-class _AvailableRide {
-  const _AvailableRide({
-    required this.id,
-    required this.driverId,
-    required this.driverName,
-    this.driverPhotoUrl = '',
-    this.driverPhone = '',
-    required this.date,
-    required this.time,
-    required this.fromAddress,
-    required this.toAddress,
-    this.fromLat,
-    this.fromLng,
-    this.toLat,
-    this.toLng,
-    required this.seatsFilled,
-    required this.seatsTotal,
-    required this.vehicleType,
-    required this.alreadyRequested,
-    required this.matchPercent,
-    required this.defaultPickupPoint,
-    required this.distanceKm,
-    this.farePerSeat,
-    this.userFromAddress = '',
-    this.userToAddress = '',
-    this.userFromLat,
-    this.userFromLng,
-    this.userToLat,
-    this.userToLng,
-  });
-
-  final String id;
-  final String driverId;
-  final String driverName;
-  final String driverPhotoUrl;
-  final String driverPhone;
-  final DateTime date;
-  final TimeOfDay time;
-  final String fromAddress;
-  final String toAddress;
-  final double? fromLat;
-  final double? fromLng;
-  final double? toLat;
-  final double? toLng;
-  final int seatsFilled;
-  final int seatsTotal;
-  final String vehicleType;
-  final bool alreadyRequested;
-  final int matchPercent;
-  final String defaultPickupPoint;
-  final double? distanceKm;
-  final double? farePerSeat;
-  final String userFromAddress;
-  final String userToAddress;
-  final double? userFromLat;
-  final double? userFromLng;
-  final double? userToLat;
-  final double? userToLng;
-
-  String? get distanceLabel =>
-      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
-
-  String get timeLabel {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final m = time.minute.toString().padLeft(2, '0');
-    final p = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
+  Widget _buildAvailableRidesSection(TripsState tripsState) {
+    if (tripsState.availableRidesStatus == TripsSectionStatus.initial ||
+        tripsState.availableRidesStatus == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!tripsState.hasCommuteLocation) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            'Enter your commute details on the Home tab to find matching rides.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.grey600, fontSize: 16),
+          ),
+        ),
+      );
+    }
+    final rides = tripsState.availableRides;
+    if (rides.isEmpty) {
+      return Center(
+        child: Text(
+          'No matching rides found for your commute.',
+          style: TextStyle(color: AppColors.grey500, fontSize: 16),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => _requestAvailableRidesFromHomeState(),
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        itemCount: rides.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) => _AvailableRideCard(
+          ride: rides[index],
+          onRequested: () {
+            _requestAvailableRidesFromHomeState();
+            _requestRideRequestsFromHomeState();
+          },
+        ),
+      ),
+    );
   }
 
-  String get dateLabel {
-    const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month]} ${date.day}, ${date.year}';
+  Widget _buildRequestedRidesSection(TripsState tripsState) {
+    if (tripsState.requestedRidesStatus == TripsSectionStatus.initial ||
+        tripsState.requestedRidesStatus == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final requests = tripsState.requestedRides;
+    if (requests.isEmpty) {
+      return Center(
+        child: Text(
+          'You haven\'t requested any rides yet.',
+          style: TextStyle(color: AppColors.grey500, fontSize: 16),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => _requestRideRequestsFromHomeState(),
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        itemCount: requests.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) => _RequestedRideCard(
+          request: requests[index],
+          onCancelled: () => _requestRideRequestsFromHomeState(),
+        ),
+      ),
+    );
   }
 }
 
 class _AvailableRideCard extends StatefulWidget {
   const _AvailableRideCard({
     required this.ride,
-    required this.db,
     required this.onRequested,
   });
 
-  final _AvailableRide ride;
-  final FirebaseFirestore db;
+  final AvailableRide ride;
   final VoidCallback onRequested;
 
   @override
@@ -945,84 +498,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      String riderName = '';
-      String? riderPhotoUrl;
-      try {
-        final userDoc =
-            await widget.db.collection('users').doc(uid).get();
-        riderName = userDoc.data()?['fullName'] as String? ?? '';
-        riderPhotoUrl =
-            userDoc.data()?['profileImageUrl'] as String?;
-      } catch (_) {}
-
-      // Decide if we should meet at driver's endpoints (Endpoint Match) 
-      // or at rider's requested points (Detour Match).
-      bool isEndpointMatch = false;
-      if (widget.ride.userFromLat != null && widget.ride.userFromLng != null &&
-          widget.ride.fromLat != null && widget.ride.fromLng != null &&
-          widget.ride.userToLat != null && widget.ride.userToLng != null &&
-          widget.ride.toLat != null && widget.ride.toLng != null) {
-        final dFrom = RideMatcher.distanceKm(widget.ride.userFromLat!, widget.ride.userFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
-        final dTo = RideMatcher.distanceKm(widget.ride.userToLat!, widget.ride.userToLng!, widget.ride.toLat!, widget.ride.toLng!);
-        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
-      }
-
-      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : 'Pick Up Point';
-      final pickupLatLng = isEndpointMatch 
-          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
-          : (widget.ride.userFromLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userFromLat!, widget.ride.userFromLng!)
-              : {'latitude': widget.ride.userFromLat, 'longitude': widget.ride.userFromLng});
-
-      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : 'Drop Point';
-      final dropOffLatLng = isEndpointMatch
-          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
-          : (widget.ride.userToLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userToLat!, widget.ride.userToLng!)
-              : {'latitude': widget.ride.userToLat, 'longitude': widget.ride.userToLng});
-
-      final requestRef = widget.db.collection('ride_requests').doc();
-      final rideRef = widget.db.collection('rides').doc(widget.ride.id);
-      final batch = widget.db.batch();
-
-      batch.set(requestRef, {
-        'rideId': widget.ride.id,
-        'riderId': uid,
-        'riderName': riderName,
-        'riderPhotoUrl': riderPhotoUrl,
-        'riderStartAddress': widget.ride.userFromAddress,
-        'riderEndAddress': widget.ride.userToAddress,
-        'riderStartLatLng': (widget.ride.userFromLat != null && widget.ride.userFromLng != null) ? {
-          'latitude': widget.ride.userFromLat,
-          'longitude': widget.ride.userFromLng,
-        } : null,
-        'riderEndLatLng': (widget.ride.userToLat != null && widget.ride.userToLng != null) ? {
-          'latitude': widget.ride.userToLat,
-          'longitude': widget.ride.toLng,
-        } : null,
-        'pickupPoint': pickupPoint,
-        'pickupLatLng': pickupLatLng,
-        'dropOffPoint': dropOffPoint,
-        'dropOffLatLng': dropOffLatLng,
-        'pickupTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'message': messageText,
-        'status': 'accepted',
-        'createdAt': FieldValue.serverTimestamp(),
-        'rideFrom': widget.ride.fromAddress,
-        'rideTo': widget.ride.toAddress,
-        'rideDate': Timestamp.fromDate(widget.ride.date),
-        'rideTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'driverId': widget.ride.driverId,
-        'driverName': widget.ride.driverName,
-      });
-      batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
-      await batch.commit();
+      await sl<TripsRepository>().requestAvailableRide(
+        ride: widget.ride,
+        message: messageText,
+      );
 
       if (messageText.isNotEmpty) {
         await _sendMessage(messageText);
@@ -1047,29 +526,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
   }
 
   Future<void> _sendMessage(String text) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    String senderName = '';
-    try {
-      final userDoc = await widget.db.collection('users').doc(uid).get();
-      senderName = userDoc.data()?['fullName'] as String? ?? 'User';
-    } catch (_) {}
-
-    final ids = [uid, widget.ride.driverId]..sort();
-    final chatId = ids.join('_');
-
-    await sl<ChatRepository>().sendMessage(
-      chatId,
-      ChatMessage(
-        id: '',
-        senderId: uid,
-        receiverId: widget.ride.driverId,
-        text: text,
-        timestamp: DateTime.now(),
-      ),
-      senderName,
-      widget.ride.driverName,
+    await sl<RidesRepository>().sendRideChatMessage(
+      driverId: widget.ride.driverId,
+      driverName: widget.ride.driverName,
+      text: text,
     );
   }
 
@@ -1104,7 +564,6 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                 toLat: r.toLat,
                 toLng: r.toLng,
               ),
-              db: widget.db,
               riderFromAddress: r.userFromAddress,
               riderFromLat: r.userFromLat,
               riderFromLng: r.userFromLng,
@@ -1486,77 +945,13 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
   }
 }
 
-class _RequestedRide {
-  final String id;
-  final String rideId;
-  final String driverId;
-  final String driverName;
-  final String driverPhotoUrl;
-  final String driverPhone;
-  final DateTime date;
-  final TimeOfDay time;
-  final String fromAddress;
-  final String toAddress;
-  final String riderStartAddress;
-  final String riderEndAddress;
-  final int seatsFilled;
-  final int seatsTotal;
-  final String status;
-  final double? farePerSeat;
-  final String vehicleType;
-  final int matchPercent;
-  final double? distanceKm;
-
-  _RequestedRide({
-    required this.id,
-    required this.rideId,
-    required this.driverId,
-    required this.driverName,
-    required this.driverPhotoUrl,
-    this.driverPhone = '',
-    required this.date,
-    required this.time,
-    required this.fromAddress,
-    required this.toAddress,
-    required this.riderStartAddress,
-    required this.riderEndAddress,
-    required this.seatsFilled,
-    required this.seatsTotal,
-    required this.status,
-    this.farePerSeat,
-    required this.vehicleType,
-    required this.matchPercent,
-    this.distanceKm,
-  });
-
-  String? get distanceLabel =>
-      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
-
-  String get timeLabel {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final m = time.minute.toString().padLeft(2, '0');
-    final p = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
-
-  String get dateLabel {
-    const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month]} ${date.day}, ${date.year}';
-  }
-}
-
 class _RequestedRideCard extends StatefulWidget {
   const _RequestedRideCard({
     required this.request,
-    required this.db,
     required this.onCancelled,
   });
 
-  final _RequestedRide request;
-  final FirebaseFirestore db;
+  final RequestedRide request;
   final VoidCallback onCancelled;
 
   @override
@@ -1564,7 +959,6 @@ class _RequestedRideCard extends StatefulWidget {
 }
 
 class _RequestedRideCardState extends State<_RequestedRideCard> {
-  bool _cancelling = false;
   final _messageController = TextEditingController();
   bool _submitting = false;
 
@@ -1580,29 +974,10 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
 
     setState(() => _submitting = true);
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      String senderName = '';
-      try {
-        final userDoc = await widget.db.collection('users').doc(uid).get();
-        senderName = userDoc.data()?['fullName'] as String? ?? 'User';
-      } catch (_) {}
-
-      final ids = [uid, widget.request.driverId]..sort();
-      final chatId = ids.join('_');
-
-      await sl<ChatRepository>().sendMessage(
-        chatId,
-        ChatMessage(
-          id: '',
-          senderId: uid,
-          receiverId: widget.request.driverId,
-          text: text,
-          timestamp: DateTime.now(),
-        ),
-        senderName,
-        widget.request.driverName,
+      await sl<RidesRepository>().sendRideChatMessage(
+        driverId: widget.request.driverId,
+        driverName: widget.request.driverName,
+        text: text,
       );
 
       if (mounted) {
@@ -1634,16 +1009,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
         coPassengersCount: r.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            final batch = widget.db.batch();
-            batch.update(widget.db.collection('ride_requests').doc(r.id), {
-              'status': 'cancelled',
-              'cancellationReason': reason,
-              'cancelledAt': FieldValue.serverTimestamp(),
-            });
-            batch.update(widget.db.collection('rides').doc(r.rideId), {
-              'seatsFilled': FieldValue.increment(-1),
-            });
-            await batch.commit();
+            await sl<TripsRepository>().cancelRideRequest(
+              requestId: r.id,
+              rideId: r.rideId,
+              reason: reason,
+            );
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
@@ -1676,8 +1046,8 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: FutureBuilder<DocumentSnapshot>(
-          future: widget.db.collection('users').doc(r.driverId).get(),
+        child: FutureBuilder<DriverProfileStats>(
+          future: sl<TripsRepository>().getDriverProfileStats(r.driverId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -1685,12 +1055,12 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 child: Center(child: CircularProgressIndicator()),
               );
             }
-            
-            final userData = snapshot.data?.data() as Map<String, dynamic>?;
-            final employeeId = userData?['employeeId'] as String? ?? 'ASC 2001922';
-            final completedRides = userData?['completedRidesCount'] as int? ?? 30;
-            final rating = (userData?['rating'] as num?)?.toDouble() ?? 4.72;
-            final ratingCount = userData?['ratingCount'] as int? ?? 15;
+
+            final stats = snapshot.data ?? const DriverProfileStats();
+            final employeeId = stats.employeeId;
+            final completedRides = stats.completedRidesCount;
+            final rating = stats.rating;
+            final ratingCount = stats.ratingCount;
 
             return Container(
               padding: const EdgeInsets.all(20),
@@ -1836,7 +1206,6 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 matchPercent: 100,
                 farePerSeat: r.farePerSeat,
               ),
-              db: widget.db,
               riderFromAddress: r.riderStartAddress,
               riderToAddress: r.riderEndAddress,
             ),

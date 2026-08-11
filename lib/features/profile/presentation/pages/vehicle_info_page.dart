@@ -1,8 +1,10 @@
 import 'package:acepool/core/theme/app_colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/domain/entities/vehicle.dart';
+import 'package:acepool/features/profile/domain/repositories/vehicle_repository.dart';
+import 'package:acepool/features/profile/presentation/bloc/vehicle_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/core/theme/app_theme.dart';
 
 class VehicleInfoPage extends StatefulWidget {
@@ -13,26 +15,22 @@ class VehicleInfoPage extends StatefulWidget {
 }
 
 class _VehicleInfoPageState extends State<VehicleInfoPage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
-
-  static CollectionReference<Map<String, dynamic>> _vehiclesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    return _db.collection('users').doc(uid).collection('vehicles');
-  }
-
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _vehiclesStream;
+  late final VehicleBloc _bloc;
 
   @override
   void initState() {
     super.initState();
-    _vehiclesStream = _vehiclesRef().snapshots();
+    _bloc = sl<VehicleBloc>()..add(const VehicleListStarted());
+  }
+
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
   }
 
   Future<void> _deleteVehicle(String vehicleId) async {
-    await _vehiclesRef().doc(vehicleId).delete();
+    await sl<VehicleRepository>().deleteVehicle(vehicleId);
   }
 
   Future<void> _confirmDelete(String vehicleId, String name) async {
@@ -80,17 +78,14 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     );
   }
 
-  Widget _vehicleCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    final isFourWheeler = data['type'] == 'four_wheeler';
-    final brand = data['brand'] as String? ?? '';
-    final model = data['model'] as String? ?? '';
-    final number = data['number'] as String? ?? '';
-    final seats = data['seats'];
-    final name = [brand, model].where((s) => s.isNotEmpty).join(' ');
+  Widget _vehicleCard(Vehicle vehicle) {
+    final isFourWheeler = vehicle.isFourWheeler;
+    final number = vehicle.number;
+    final seats = vehicle.seats;
+    final name = vehicle.displayName;
 
     return GestureDetector(
-      onLongPress: () => _confirmDelete(doc.id, name.isNotEmpty ? name : number),
+      onLongPress: () => _confirmDelete(vehicle.id, name.isNotEmpty ? name : number),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -154,18 +149,20 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
         ),
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _vehiclesStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: BlocProvider.value(
+          value: _bloc,
+          child: BlocBuilder<VehicleBloc, VehicleState>(
+          builder: (context, state) {
+            if (state.status == VehicleListStatus.initial ||
+                state.status == VehicleListStatus.loading) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
+            if (state.status == VehicleListStatus.error) {
+              return Center(child: Text('Error: ${state.errorMessage}'));
             }
 
-            final vehicles = snapshot.data?.docs ?? [];
+            final vehicles = state.vehicles;
 
             return ListView(
               padding: const EdgeInsets.all(20),
@@ -209,6 +206,7 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
               ],
             );
           },
+          ),
         ),
       ),
     );
@@ -275,33 +273,14 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
     setState(() => _isSaving = true);
 
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final db = FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: 'acepool',
+      await sl<VehicleRepository>().addVehicle(
+        type: _type,
+        number: number,
+        brand: brand,
+        model: model,
+        seats: _seats,
+        isDefault: _isDefault,
       );
-      final ref = db.collection('users').doc(uid).collection('vehicles');
-
-      if (_isDefault) {
-        final existing = await ref.get();
-        final batch = db.batch();
-        for (final doc in existing.docs) {
-          batch.update(doc.reference, {'isDefault': false});
-        }
-        await batch.commit();
-      }
-
-      final vehicleData = {
-        'type': _type,
-        'number': number,
-        'brand': brand,
-        'model': model,
-        'seats': _seats,
-        'isDefault': _isDefault,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await ref.add(vehicleData);
 
       if (mounted) {
         Navigator.pop(context, true);

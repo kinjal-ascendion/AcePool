@@ -9,9 +9,7 @@ import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart
 import 'package:acepool/features/home/presentation/widgets/ride_schedule_form.dart';
 import 'package:acepool/features/home/presentation/widgets/upcoming_trips_section.dart';
 import 'package:acepool/features/rides/presentation/pages/find_ride_results_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
@@ -38,11 +36,6 @@ class _HomeView extends StatelessWidget {
 
   final VoidCallback? onViewAllTrips;
   final VoidCallback? onOpenProfile;
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
 
   Future<void> _pickDate(BuildContext context) async {
     final picked = await showDatePicker(
@@ -295,7 +288,6 @@ class _HomeView extends StatelessWidget {
                               riderTime: state.selectedTime ?? TimeOfDay.now(),
                               currentLat: state.currentLat,
                               currentLng: state.currentLng,
-                              db: _db,
                               onRequested: () => _handleFindRide(context, bloc),
                               onViewAll: () => Navigator.of(context).push(
                                 MaterialPageRoute(

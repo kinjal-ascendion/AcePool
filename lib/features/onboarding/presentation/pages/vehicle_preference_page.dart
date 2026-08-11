@@ -1,33 +1,43 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/entities/travel_preference.dart';
+import '../../domain/entities/vehicle_preference.dart';
 import '../../domain/onboarding_selection.dart';
+import '../bloc/vehicle_preference_bloc.dart';
 import '../widgets/onboarding_next_button.dart';
 import '../widgets/onboarding_option_tile.dart';
 import '../widgets/onboarding_progress_bar.dart';
-import 'travel_preference_page.dart';
 
-enum VehiclePreference { car, bike, both }
-
-class VehiclePreferencePage extends StatefulWidget {
+class VehiclePreferencePage extends StatelessWidget {
   const VehiclePreferencePage({super.key, required this.travelPreference});
 
   final TravelPreference travelPreference;
 
   @override
-  State<VehiclePreferencePage> createState() => _VehiclePreferencePageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<VehiclePreferenceBloc>(),
+      child: _VehiclePreferenceView(travelPreference: travelPreference),
+    );
+  }
 }
 
-class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
-  VehiclePreference _selected = VehiclePreference.car;
+class _VehiclePreferenceView extends StatelessWidget {
+  const _VehiclePreferenceView({required this.travelPreference});
 
-  void _onNext() {
+  final TravelPreference travelPreference;
+
+  void _onNext(BuildContext context) {
+    final selected = context.read<VehiclePreferenceBloc>().state.selected;
     context.go(
       '/login',
       extra: OnboardingSelection(
-        travelPreference: widget.travelPreference,
-        vehicleType: _selected,
+        travelPreference: travelPreference,
+        vehicleType: selected,
       ),
     );
   }
@@ -58,36 +68,66 @@ class _VehiclePreferencePageState extends State<VehiclePreferencePage> {
                         ),
                       ),
                       const SizedBox(height: 28),
-                      OnboardingOptionTile(
-                        label: 'Car',
-                        selected: _selected == VehiclePreference.car,
-                        onTap: () =>
-                            setState(() => _selected = VehiclePreference.car),
-                      ),
-                      const SizedBox(height: 12),
-                      OnboardingOptionTile(
-                        label: 'Bike/ Scooty',
-                        selected: _selected == VehiclePreference.bike,
-                        onTap: () =>
-                            setState(() => _selected = VehiclePreference.bike),
-                      ),
-                      const SizedBox(height: 12),
-                      OnboardingOptionTile(
-                        label: 'Both',
-                        selected: _selected == VehiclePreference.both,
-                        onTap: () =>
-                            setState(() => _selected = VehiclePreference.both),
+                      BlocBuilder<
+                        VehiclePreferenceBloc,
+                        VehiclePreferenceState
+                      >(
+                        builder: (context, state) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              OnboardingOptionTile(
+                                label: 'Car',
+                                selected:
+                                    state.selected == VehiclePreference.car,
+                                onTap: () =>
+                                    context.read<VehiclePreferenceBloc>().add(
+                                      const VehicleOptionSelected(
+                                        VehiclePreference.car,
+                                      ),
+                                    ),
+                              ),
+                              const SizedBox(height: 12),
+                              OnboardingOptionTile(
+                                label: 'Bike/ Scooty',
+                                selected:
+                                    state.selected == VehiclePreference.bike,
+                                onTap: () =>
+                                    context.read<VehiclePreferenceBloc>().add(
+                                      const VehicleOptionSelected(
+                                        VehiclePreference.bike,
+                                      ),
+                                    ),
+                              ),
+                              const SizedBox(height: 12),
+                              OnboardingOptionTile(
+                                label: 'Both',
+                                selected:
+                                    state.selected == VehiclePreference.both,
+                                onTap: () =>
+                                    context.read<VehiclePreferenceBloc>().add(
+                                      const VehicleOptionSelected(
+                                        VehiclePreference.both,
+                                      ),
+                                    ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 10),
                       const Text(
                         'Note: Helmet is mandatory if you choose a 2-wheeler',
-                        style: TextStyle(fontSize: 12, color: AppColors.black45),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.black45,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              OnboardingNextButton(onPressed: _onNext),
+              OnboardingNextButton(onPressed: () => _onNext(context)),
             ],
           ),
         ),
