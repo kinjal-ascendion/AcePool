@@ -6,17 +6,19 @@ import 'package:acepool/features/address/domain/entities/address_record.dart';
 import 'package:acepool/features/address/domain/repositories/address_repository.dart';
 
 class AddressRepositoryImpl implements AddressRepository {
-  AddressRepositoryImpl({FirebaseFirestore? db})
+  AddressRepositoryImpl({FirebaseFirestore? db, FirebaseAuth? firebaseAuth})
       : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
-            );
+            ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   CollectionReference<Map<String, dynamic>> _addressesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = _auth.currentUser!.uid;
     return _db.collection('users').doc(uid).collection('addresses');
   }
 

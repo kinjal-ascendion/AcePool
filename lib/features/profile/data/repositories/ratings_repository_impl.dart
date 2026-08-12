@@ -10,18 +10,20 @@ import 'package:acepool/features/profile/domain/entities/rider_review.dart';
 import 'package:acepool/features/profile/domain/repositories/ratings_repository.dart';
 
 class RatingsRepositoryImpl implements RatingsRepository {
-  RatingsRepositoryImpl({FirebaseFirestore? db})
+  RatingsRepositoryImpl({FirebaseFirestore? db, FirebaseAuth? firebaseAuth})
       : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
-            );
+            ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   @override
   Future<RatingsSummary> getRatingsReceivedFromDrivers() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) {
       return const RatingsSummary(averageRating: 0, totalReviews: 0, ratingCounts: {}, rides: []);
     }
@@ -83,7 +85,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
 
   @override
   Future<RatingsSummary> getRatingsReceivedFromRiders() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) {
       return const RatingsSummary(averageRating: 0, totalReviews: 0, ratingCounts: {}, rides: []);
     }
@@ -165,7 +167,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
 
   @override
   Future<List<RiderRatableRide>> getMyCompletedRidesToRate() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     final requestSnapshot = await _db
@@ -250,7 +252,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
 
   @override
   Future<List<DriverRatableRide>> getMyCompletedRidesAsDriver() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     final rideSnapshot = await _db

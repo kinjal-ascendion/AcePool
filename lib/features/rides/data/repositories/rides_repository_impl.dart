@@ -16,6 +16,7 @@ class RidesRepositoryImpl implements RidesRepository {
   RidesRepositoryImpl({
     required ChatRepository chatRepository,
     FirebaseFirestore? db,
+    FirebaseAuth? firebaseAuth,
     DirectionsService? directions,
   })  : _chatRepository = chatRepository,
         _db = db ??
@@ -23,10 +24,12 @@ class RidesRepositoryImpl implements RidesRepository {
               app: Firebase.app(),
               databaseId: 'acepool',
             ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance,
         _directions = directions ?? DirectionsService();
 
   final ChatRepository _chatRepository;
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
   final DirectionsService _directions;
 
   @override
@@ -41,7 +44,7 @@ class RidesRepositoryImpl implements RidesRepository {
     required TimeOfDay time,
     required String vehicleType,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     // Kick off the independent reads together instead of awaiting them one
@@ -222,7 +225,7 @@ class RidesRepositoryImpl implements RidesRepository {
     required TimeOfDay riderTime,
     String message = '',
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
 
     String riderName = '';
@@ -375,7 +378,7 @@ class RidesRepositoryImpl implements RidesRepository {
 
   @override
   Future<List<RideRider>> getOtherRiders(String rideId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     final snap = await _db
         .collection('ride_requests')
         .where('rideId', isEqualTo: rideId)
@@ -435,7 +438,7 @@ class RidesRepositoryImpl implements RidesRepository {
     double? riderToLng,
     String message = '',
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
 
     String riderName = '';
@@ -532,7 +535,7 @@ class RidesRepositoryImpl implements RidesRepository {
     required String rideId,
     String status = 'accepted',
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
     return getAcceptedRiders(rideId: rideId, driverId: uid, status: status);
   }
@@ -592,7 +595,7 @@ class RidesRepositoryImpl implements RidesRepository {
 
   @override
   Future<bool> isRideOwnedByCurrentUser(String rideId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     final doc = await _db.collection('rides').doc(rideId).get();
     if (!doc.exists) return false;
     return doc.data()?['uid'] == uid;
@@ -635,7 +638,7 @@ class RidesRepositoryImpl implements RidesRepository {
     double? dropOffLat;
     double? dropOffLng;
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid != null) {
       final requestSnap = await _db
           .collection('ride_requests')
@@ -729,7 +732,7 @@ class RidesRepositoryImpl implements RidesRepository {
     required String rideId,
     required String paymentMethod,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
     final requestSnap = await _db
@@ -755,7 +758,7 @@ class RidesRepositoryImpl implements RidesRepository {
     required String driverName,
     required String text,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
     String senderName = '';

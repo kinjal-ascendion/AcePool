@@ -8,12 +8,16 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
-  final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  ChatRepositoryImpl({FirebaseFirestore? db, FirebaseStorage? storage})
+      : _db = db ??
+            FirebaseFirestore.instanceFor(
+              app: Firebase.app(),
+              databaseId: 'acepool',
+            ),
+        _storage = storage ?? FirebaseStorage.instance;
 
-  final _storage = FirebaseStorage.instance;
+  final FirebaseFirestore _db;
+  final FirebaseStorage _storage;
 
   @override
   Stream<List<ChatRoom>> getChatRooms(String userId) {

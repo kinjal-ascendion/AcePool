@@ -16,6 +16,10 @@ class RouteDetails {
 /// ride matching can reason about actual route distance/detours instead of
 /// straight-line geometry.
 class DirectionsService {
+  DirectionsService({http.Client? httpClient}) : _client = httpClient ?? http.Client();
+
+  final http.Client _client;
+
   static const _baseUrl = 'https://maps.googleapis.com/maps/api/directions/json';
 
   /// Total driving distance (km) from (originLat, originLng) to
@@ -45,7 +49,7 @@ class DirectionsService {
       }
 
       final uri = Uri.parse(_baseUrl).replace(queryParameters: params);
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      final response = await _client.get(uri).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -84,7 +88,7 @@ class DirectionsService {
       };
 
       final uri = Uri.parse(_baseUrl).replace(queryParameters: params);
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      final response = await _client.get(uri).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;

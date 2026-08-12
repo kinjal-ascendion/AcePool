@@ -6,18 +6,20 @@ import 'package:acepool/features/profile/domain/entities/profile_summary.dart';
 import 'package:acepool/features/profile/domain/repositories/profile_repository.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository {
-  ProfileRepositoryImpl({FirebaseFirestore? db})
+  ProfileRepositoryImpl({FirebaseFirestore? db, FirebaseAuth? firebaseAuth})
       : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
-            );
+            ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   @override
   Stream<ProfileSummary> watchProfile() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) {
       return const Stream.empty();
     }
@@ -45,7 +47,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     bool? licenceVerified,
     String? licenceNumber,
   }) async {
-    final user = FirebaseAuth.instance.currentUser!;
+    final user = _auth.currentUser!;
 
     final data = <String, dynamic>{
       'fullName': fullName,
@@ -69,7 +71,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<double> getRouteMatchingRadius() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = _auth.currentUser!.uid;
     final doc = await _db.collection('users').doc(uid).get();
     if (!doc.exists) return 0.0;
     return (doc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 0.0;
@@ -77,7 +79,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<void> saveRouteMatchingRadius(double radius) async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = _auth.currentUser!.uid;
     await _db.collection('users').doc(uid).set(
       {'routeMatchingRadius': radius},
       SetOptions(merge: true),
@@ -86,7 +88,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<void> logout() async {
-    await FirebaseAuth.instance.signOut();
+    await _auth.signOut();
   }
 
   @override
@@ -95,7 +97,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     required String upiId,
     required String upiPhone,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
     await _db.collection('users').doc(uid).update({
@@ -107,7 +109,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<({String method, String upiId, String upiPhone})> getPaymentDetails() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return (method: 'UPI', upiId: '', upiPhone: '');
 
     final doc = await _db.collection('users').doc(uid).get();

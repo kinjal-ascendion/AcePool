@@ -12,20 +12,25 @@ import 'package:acepool/features/trips/domain/entities/requested_ride.dart';
 import 'package:acepool/features/trips/domain/repositories/trips_repository.dart';
 
 class TripsRepositoryImpl implements TripsRepository {
-  TripsRepositoryImpl({FirebaseFirestore? db, DirectionsService? directions})
-      : _db = db ??
+  TripsRepositoryImpl({
+    FirebaseFirestore? db,
+    FirebaseAuth? firebaseAuth,
+    DirectionsService? directions,
+  })  : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
             ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance,
         _directions = directions ?? DirectionsService();
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
   final DirectionsService _directions;
 
   @override
   Future<List<UpcomingTrip>> getTrips(String rideMode) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     final today = DateTime.now();
@@ -84,7 +89,7 @@ class TripsRepositoryImpl implements TripsRepository {
     double? toLat,
     double? toLng,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
     final userDoc = await _db.collection('users').doc(uid).get();
 
@@ -252,7 +257,7 @@ class TripsRepositoryImpl implements TripsRepository {
     double? homeToLat,
     double? homeToLng,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     final userDoc = await _db.collection('users').doc(uid).get();
@@ -368,7 +373,7 @@ class TripsRepositoryImpl implements TripsRepository {
     required AvailableRide ride,
     String message = '',
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
 
     String riderName = '';

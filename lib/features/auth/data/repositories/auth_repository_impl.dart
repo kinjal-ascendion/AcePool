@@ -17,10 +17,21 @@ import '../../domain/repositories/auth_repository.dart';
 import 'auth_error_mapper.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  FirebaseFirestore get _db => FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  AuthRepositoryImpl({
+    FirebaseFirestore? db,
+    FirebaseAuth? firebaseAuth,
+    http.Client? httpClient,
+  })  : _db = db ??
+            FirebaseFirestore.instanceFor(
+              app: Firebase.app(),
+              databaseId: 'acepool',
+            ),
+        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _httpClient = httpClient ?? http.Client();
+
+  final FirebaseFirestore _db;
+  final FirebaseAuth _firebaseAuth;
+  final http.Client _httpClient;
 
   String _toWorkEmail(String username) => '$username@ascendion.com';
 
@@ -31,7 +42,7 @@ class AuthRepositoryImpl implements AuthRepository {
     OnboardingSelection? onboardingSelection,
   }) async {
     try {
-      final credential = await FirebaseAuth.instance
+      final credential = await _firebaseAuth
           .signInWithEmailAndPassword(
             email: _toWorkEmail(username),
             password: password,
@@ -61,7 +72,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthUser> signUp(SignupDetails details) async {
     try {
       final email = _toWorkEmail(details.emailUsername);
-      final credential = await FirebaseAuth.instance
+      final credential = await _firebaseAuth
           .createUserWithEmailAndPassword(
             email: email,
             password: details.password,
@@ -130,7 +141,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> _sendOtpEmail(String email, String otp) async {
     debugPrint('Sending OTP $otp to $email');
 
-    final response = await http.post(
+    final response = await _httpClient.post(
       Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -193,7 +204,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await _db.collection('otps').doc(uid).delete();
       await _db.collection('users').doc(uid).delete();
-      await FirebaseAuth.instance.currentUser?.delete();
+      await _firebaseAuth.currentUser?.delete();
     } catch (_) {}
   }
 }

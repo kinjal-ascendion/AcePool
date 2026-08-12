@@ -4,7 +4,30 @@ import 'package:geolocator/geolocator.dart';
 /// failure" convention used by [PlacesService]/[DirectionsService] — callers
 /// treat a null result the same as "location unavailable" (services off,
 /// permission denied, timeout, etc) without needing separate error handling.
+typedef _CheckPermission = Future<LocationPermission> Function();
+typedef _RequestPermission = Future<LocationPermission> Function();
+typedef _IsLocationServiceEnabled = Future<bool> Function();
+typedef _GetCurrentPosition = Future<Position> Function({
+  LocationSettings? locationSettings,
+});
+
 class LocationService {
+  LocationService({
+    _CheckPermission? checkPermission,
+    _RequestPermission? requestPermission,
+    _IsLocationServiceEnabled? isLocationServiceEnabled,
+    _GetCurrentPosition? getCurrentPosition,
+  })  : _checkPermission = checkPermission ?? Geolocator.checkPermission,
+        _requestPermission = requestPermission ?? Geolocator.requestPermission,
+        _isLocationServiceEnabled =
+            isLocationServiceEnabled ?? Geolocator.isLocationServiceEnabled,
+        _getCurrentPosition = getCurrentPosition ?? Geolocator.getCurrentPosition;
+
+  final _CheckPermission _checkPermission;
+  final _RequestPermission _requestPermission;
+  final _IsLocationServiceEnabled _isLocationServiceEnabled;
+  final _GetCurrentPosition _getCurrentPosition;
+
   /// Requests location permission if not already granted, then resolves the
   /// device's current position. Safe to call repeatedly: once permission is
   /// already granted this resolves without prompting again, which is what
@@ -15,18 +38,18 @@ class LocationService {
       // Permission is asked first, independent of the device's location
       // service (GPS) toggle — that way the OS permission prompt always
       // fires on first use, even if GPS happens to be off at the time.
-      var permission = await Geolocator.checkPermission();
+      var permission = await _checkPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        permission = await _requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         return null;
       }
 
-      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      if (!await _isLocationServiceEnabled()) return null;
 
-      return await Geolocator.getCurrentPosition(
+      return await _getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
         ),
@@ -39,5 +62,5 @@ class LocationService {
   /// Whether the device's location service (GPS) is currently turned on.
   /// Used by callers that want to prompt the user to enable it before
   /// attempting a fetch, rather than silently getting a null position back.
-  Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
+  Future<bool> isServiceEnabled() => _isLocationServiceEnabled();
 }

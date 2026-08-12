@@ -6,17 +6,19 @@ import 'package:acepool/features/profile/domain/entities/vehicle.dart';
 import 'package:acepool/features/profile/domain/repositories/vehicle_repository.dart';
 
 class VehicleRepositoryImpl implements VehicleRepository {
-  VehicleRepositoryImpl({FirebaseFirestore? db})
+  VehicleRepositoryImpl({FirebaseFirestore? db, FirebaseAuth? firebaseAuth})
       : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
-            );
+            ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   CollectionReference<Map<String, dynamic>> _vehiclesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = _auth.currentUser!.uid;
     return _db.collection('users').doc(uid).collection('vehicles');
   }
 

@@ -11,20 +11,25 @@ import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
 import 'package:acepool/features/home/domain/repositories/home_repository.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
-  HomeRepositoryImpl({FirebaseFirestore? db, DirectionsService? directions})
-      : _db = db ??
+  HomeRepositoryImpl({
+    FirebaseFirestore? db,
+    FirebaseAuth? firebaseAuth,
+    DirectionsService? directions,
+  })  : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
             ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance,
         _directions = directions ?? DirectionsService();
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
   final DirectionsService _directions;
 
   @override
   Future<List<UpcomingTrip>> getUpcomingTrips() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     final today = DateTime.now();
@@ -92,7 +97,7 @@ class HomeRepositoryImpl implements HomeRepository {
     int? routeDurationMinutes,
     Map<String, dynamic>? fare,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('User not authenticated');
 
     // Only re-fetch when the caller hasn't already resolved the route
@@ -162,7 +167,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
   @override
   Future<String?> getTravelPreference() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
     final doc = await _db.collection('users').doc(uid).get();
@@ -174,7 +179,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
   @override
   Future<List<VehicleOption>> getVehicleOptions(String vehicleType) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return const [];
 
     final expectedType = vehicleType == 'bike' ? 'two_wheeler' : 'four_wheeler';

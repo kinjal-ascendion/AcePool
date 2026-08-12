@@ -6,18 +6,20 @@ import 'package:flutter/foundation.dart';
 import 'package:acepool/features/profile/domain/repositories/ride_history_repository.dart';
 
 class RideHistoryRepositoryImpl implements RideHistoryRepository {
-  RideHistoryRepositoryImpl({FirebaseFirestore? db})
+  RideHistoryRepositoryImpl({FirebaseFirestore? db, FirebaseAuth? firebaseAuth})
       : _db = db ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'acepool',
-            );
+            ),
+        _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   @override
   Future<List<Map<String, dynamic>>> getHistory() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) return [];
 
     try {
