@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class UpiDetailsCard extends StatelessWidget {
   final bool isEditing;
@@ -20,23 +21,18 @@ class UpiDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Row(
               children: [
-
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       Text(
                         "UPI Details",
                         style: TextStyle(
@@ -49,10 +45,7 @@ class UpiDetailsCard extends StatelessWidget {
 
                       Text(
                         "Linked UPI ID For Instant Payout",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
                     ],
                   ),
@@ -60,14 +53,9 @@ class UpiDetailsCard extends StatelessWidget {
 
                 OutlinedButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(
-                    Icons.edit,
-                    size: 18,
-                  ),
+                  icon: const Icon(Icons.edit, size: 18),
                   label: const Text("Edit"),
-                  style: OutlinedButton.styleFrom(
-                    shape: const StadiumBorder(),
-                  ),
+                  style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
                 ),
               ],
             ),
@@ -89,11 +77,14 @@ class UpiDetailsCard extends StatelessWidget {
 
             const SizedBox(height: 22),
 
-
             TextField(
               controller: phoneController,
               enabled: isEditing,
               keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               decoration: InputDecoration(
                 hintText: "Phone Number",
                 filled: true,

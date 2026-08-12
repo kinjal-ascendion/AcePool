@@ -1,11 +1,11 @@
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/core/theme/app_theme.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/profile/domain/entities/vehicle.dart';
 import 'package:acepool/features/profile/domain/repositories/vehicle_repository.dart';
 import 'package:acepool/features/profile/presentation/bloc/vehicle_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:acepool/core/theme/app_theme.dart';
 
 class VehicleInfoPage extends StatefulWidget {
   const VehicleInfoPage({super.key});
@@ -85,7 +85,8 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     final name = vehicle.displayName;
 
     return GestureDetector(
-      onLongPress: () => _confirmDelete(vehicle.id, name.isNotEmpty ? name : number),
+      onLongPress: () =>
+          _confirmDelete(vehicle.id, name.isNotEmpty ? name : number),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -152,60 +153,60 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
         child: BlocProvider.value(
           value: _bloc,
           child: BlocBuilder<VehicleBloc, VehicleState>(
-          builder: (context, state) {
-            if (state.status == VehicleListStatus.initial ||
-                state.status == VehicleListStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            builder: (context, state) {
+              if (state.status == VehicleListStatus.initial ||
+                  state.status == VehicleListStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            if (state.status == VehicleListStatus.error) {
-              return Center(child: Text('Error: ${state.errorMessage}'));
-            }
+              if (state.status == VehicleListStatus.error) {
+                return Center(child: Text('Error: ${state.errorMessage}'));
+              }
 
-            final vehicles = state.vehicles;
+              final vehicles = state.vehicles;
 
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'My Vehicles',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                for (final doc in vehicles) ...[
-                  _vehicleCard(doc),
-                  const SizedBox(height: 12),
-                ],
-                InkWell(
-                  onTap: _openAddVehicleSheet,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.grey300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add, color: AppColors.grey700),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Add vehicle',
-                          style: TextStyle(
-                            color: AppColors.grey700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'My Vehicles',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(height: 12),
+                  for (final doc in vehicles) ...[
+                    _vehicleCard(doc),
+                    const SizedBox(height: 12),
+                  ],
+                  InkWell(
+                    onTap: _openAddVehicleSheet,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.grey300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add, color: AppColors.grey700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Add vehicle',
+                            style: TextStyle(
+                              color: AppColors.grey700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -288,9 +289,9 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding vehicle: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding vehicle: $e')));
       }
     }
   }
@@ -312,8 +313,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
       hintStyle: TextStyle(color: AppColors.grey400, fontSize: 15),
       filled: true,
       fillColor: AppColors.grey50,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: AppColors.grey300),
@@ -385,20 +385,20 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
               decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
             ),
             const SizedBox(height: 16),
-            _label('Vehicle name'),
+            _label('Brand'),
             const SizedBox(height: 6),
             TextField(
               controller: _brandController,
               style: TextStyle(color: AppColors.black87),
-              decoration: _fieldDecoration(_nameHint),
+              decoration: _fieldDecoration(_brandHint),
             ),
             const SizedBox(height: 16),
-            _label('Brand'),
+            _label('Vehicle name'),
             const SizedBox(height: 6),
             TextField(
               controller: _modelController,
               style: TextStyle(color: AppColors.black87),
-              decoration: _fieldDecoration(_brandHint),
+              decoration: _fieldDecoration(_nameHint),
             ),
             const SizedBox(height: 16),
             _label('No. of seats available'),

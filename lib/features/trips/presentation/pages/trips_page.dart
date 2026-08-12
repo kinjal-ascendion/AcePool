@@ -1,6 +1,5 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
-import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
@@ -13,8 +12,8 @@ import 'package:acepool/features/trips/domain/entities/driver_profile_stats.dart
 import 'package:acepool/features/trips/domain/entities/requested_ride.dart';
 import 'package:acepool/features/trips/domain/repositories/trips_repository.dart';
 import 'package:acepool/features/trips/presentation/bloc/trips_bloc.dart';
-import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:acepool/features/trips/presentation/widgets/cancel_ride_dialog.dart';
+import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,10 +56,15 @@ class _TripsPageState extends State<TripsPage>
       initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
     }
 
-    _tabController = TabController(length: 2, vsync: this, initialIndex: initialIdx);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: initialIdx,
+    );
     _tabController.addListener(() => setState(() {}));
 
-    _hasCommuteLocation = (homeState.fromAddress?.trim().isNotEmpty ?? false) &&
+    _hasCommuteLocation =
+        (homeState.fromAddress?.trim().isNotEmpty ?? false) &&
         (homeState.toAddress?.trim().isNotEmpty ?? false);
 
     _findRideFilter = _hasCommuteLocation ? 'Suggested Rides' : 'Ride Requests';
@@ -74,26 +78,30 @@ class _TripsPageState extends State<TripsPage>
   /// `HomeBloc`) and fetches matches for it — blank form means no rides.
   void _requestAvailableRidesFromHomeState() {
     final homeState = context.read<HomeBloc>().state;
-    _bloc.add(TripsAvailableRidesRequested(
-      fromAddress: homeState.fromAddress,
-      toAddress: homeState.toAddress,
-      fromLat: homeState.fromLat,
-      fromLng: homeState.fromLng,
-      toLat: homeState.toLat,
-      toLng: homeState.toLng,
-    ));
+    _bloc.add(
+      TripsAvailableRidesRequested(
+        fromAddress: homeState.fromAddress,
+        toAddress: homeState.toAddress,
+        fromLat: homeState.fromLat,
+        fromLng: homeState.fromLng,
+        toLat: homeState.toLat,
+        toLng: homeState.toLng,
+      ),
+    );
   }
 
   void _requestRideRequestsFromHomeState() {
     final homeState = context.read<HomeBloc>().state;
-    _bloc.add(TripsRequestedRidesRequested(
-      homeFromAddress: homeState.fromAddress,
-      homeToAddress: homeState.toAddress,
-      homeFromLat: homeState.fromLat,
-      homeFromLng: homeState.fromLng,
-      homeToLat: homeState.toLat,
-      homeToLng: homeState.toLng,
-    ));
+    _bloc.add(
+      TripsRequestedRidesRequested(
+        homeFromAddress: homeState.fromAddress,
+        homeToAddress: homeState.toAddress,
+        homeFromLat: homeState.fromLat,
+        homeFromLng: homeState.fromLng,
+        homeToLat: homeState.toLat,
+        homeToLng: homeState.toLng,
+      ),
+    );
   }
 
   @override
@@ -109,7 +117,8 @@ class _TripsPageState extends State<TripsPage>
     String emptyLabel, {
     void Function(UpcomingTrip)? onTap,
   }) {
-    if (status == TripsSectionStatus.initial || status == TripsSectionStatus.loading) {
+    if (status == TripsSectionStatus.initial ||
+        status == TripsSectionStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (trips.isEmpty) {
@@ -159,7 +168,10 @@ class _TripsPageState extends State<TripsPage>
         coPassengersCount: trip.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            await sl<TripsRepository>().cancelOfferedRide(trip.id, reason: reason);
+            await sl<TripsRepository>().cancelOfferedRide(
+              trip.id,
+              reason: reason,
+            );
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
@@ -177,7 +189,8 @@ class _TripsPageState extends State<TripsPage>
             if (mounted) {
               ScaffoldMessenger.of(tripsContext).showSnackBar(
                 const SnackBar(
-                    content: Text('Could not cancel ride. Please try again.')),
+                  content: Text('Could not cancel ride. Please try again.'),
+                ),
               );
             }
           }
@@ -195,9 +208,9 @@ class _TripsPageState extends State<TripsPage>
       _bloc.add(const TripsDrivesRequested());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update trip: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update trip: $e')));
       }
     }
   }
@@ -240,8 +253,9 @@ class _TripsPageState extends State<TripsPage>
                       _tabs[i],
                       style: TextStyle(
                         color: selected ? AppColors.white : AppColors.black87,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 14,
                       ),
                     ),
@@ -273,27 +287,24 @@ class _TripsPageState extends State<TripsPage>
           icon: const Icon(Icons.arrow_back, color: AppColors.black),
           onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
         ),
-        title: const Text('Trips',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        title: const Text(
+          'Trips',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
         centerTitle: true,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        bottom: context.read<HomeBloc>().state.travelPreference == 'both'
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(60),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-                  child: _buildTabToggle(),
-                ),
-              )
-            : null,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: _buildTabToggle(),
+          ),
+        ),
       ),
       body: TabBarView(
         controller: _tabController,
-        physics: context.read<HomeBloc>().state.travelPreference == 'both'
-            ? null
-            : const NeverScrollableScrollPhysics(),
         children: [
           // Find ride tab
           Column(
@@ -317,13 +328,18 @@ class _TripsPageState extends State<TripsPage>
                           value: _findRideFilter,
                           isDense: true,
                           items: _findRideFilters
-                              .map((f) => DropdownMenuItem(
-                                    value: f,
-                                    child: Text(f,
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500)),
-                                  ))
+                              .map(
+                                (f) => DropdownMenuItem(
+                                  value: f,
+                                  child: Text(
+                                    f,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              )
                               .toList(),
                           onChanged: (val) {
                             if (val != null) {
@@ -440,10 +456,7 @@ class _TripsPageState extends State<TripsPage>
 }
 
 class _AvailableRideCard extends StatefulWidget {
-  const _AvailableRideCard({
-    required this.ride,
-    required this.onRequested,
-  });
+  const _AvailableRideCard({required this.ride, required this.onRequested});
 
   final AvailableRide ride;
   final VoidCallback onRequested;
@@ -453,7 +466,6 @@ class _AvailableRideCard extends StatefulWidget {
 }
 
 class _AvailableRideCardState extends State<_AvailableRideCard> {
-
   final _messageController = TextEditingController();
   bool _submitting = false;
   bool _justRequested = false;
@@ -483,9 +495,9 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send message: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
         }
       } finally {
         if (mounted) setState(() => _submitting = false);
@@ -518,9 +530,9 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not request ride: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not request ride: $e')));
       }
     }
   }
@@ -604,12 +616,17 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                       color: AppColors.primaryGreen,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.person_outline,
-                                color: AppColors.white, size: 15),
+                            const Icon(
+                              Icons.person_outline,
+                              color: AppColors.white,
+                              size: 15,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               '${r.seatsFilled}/${r.seatsTotal} seats filled',
@@ -639,7 +656,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                           ),
                         ),
                         const SizedBox(width: 2),
-                        Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
+                        Icon(
+                          Icons.more_vert,
+                          size: 18,
+                          color: AppColors.grey600,
+                        ),
                       ],
                     ),
                   ),
@@ -669,8 +690,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(Icons.directions_walk,
-                                size: 12, color: AppColors.grey600),
+                            Icon(
+                              Icons.directions_walk,
+                              size: 12,
+                              color: AppColors.grey600,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               r.distanceLabel ??
@@ -682,8 +706,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Icon(Icons.chevron_right,
-                                size: 14, color: AppColors.grey400),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 14,
+                              color: AppColors.grey400,
+                            ),
                             const SizedBox(width: 6),
                             Icon(
                               r.vehicleType == 'bike'
@@ -707,11 +734,15 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                       Text(
                         r.timeLabel,
                         style: const TextStyle(
-                            color: AppColors.black45, fontSize: 12),
+                          color: AppColors.black45,
+                          fontSize: 12,
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -731,7 +762,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                             Text(
                               r.vehicleType == 'bike' ? 'Bike' : 'Car',
                               style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                                fontSize: 12,
+                                fontWeight: FontWeight.normal,
+                                color: AppColors.black87,
+                              ),
                             ),
                           ],
                         ),
@@ -764,27 +798,48 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                             Text(
                               r.driverName,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                             Text(
                               'Verified ID',
-                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
+                              style: TextStyle(
+                                color: AppColors.grey500,
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       GestureDetector(
                         onTap: r.driverPhone.isNotEmpty
-                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                            ? () => LocationShareHelper.launchDialer(
+                                r.driverPhone,
+                              )
                             : null,
-                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
+                        child: Icon(
+                          Icons.phone_outlined,
+                          size: 18,
+                          color: AppColors.grey600,
+                        ),
                       ),
                       const SizedBox(width: 2),
-                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
+                      Text(
+                        '|',
+                        style: TextStyle(
+                          color: AppColors.grey400,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(width: 2),
                       GestureDetector(
                         onTap: () {},
-                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
+                        child: Icon(
+                          Icons.chat_bubble_outline,
+                          size: 18,
+                          color: AppColors.grey600,
+                        ),
                       ),
                     ],
                   ),
@@ -796,10 +851,15 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                       _dot(filled: false),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(r.fromAddress,
-                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          r.fromAddress,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -826,10 +886,15 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                       _dot(filled: true),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(r.toAddress,
-                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          r.toAddress,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -868,7 +933,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
 
                   Container(
                     padding: const EdgeInsets.only(
-                        left: 16, right: 4, top: 4, bottom: 4),
+                      left: 16,
+                      right: 4,
+                      top: 4,
+                      bottom: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.grey100,
                       borderRadius: BorderRadius.circular(30),
@@ -884,11 +953,14 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                             decoration: InputDecoration(
                               hintText: 'Share message with driver',
                               hintStyle: TextStyle(
-                                  fontSize: 13, color: AppColors.grey400),
+                                fontSize: 13,
+                                color: AppColors.grey400,
+                              ),
                               border: InputBorder.none,
                               isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 6),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
                             ),
                           ),
                         ),
@@ -897,9 +969,15 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                           onTap: _submitting ? null : _requestRide,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
-                              color: (requested && _messageController.text.trim().isEmpty) ? AppColors.grey400 : AppColors.primaryGreen,
+                              color:
+                                  (requested &&
+                                      _messageController.text.trim().isEmpty)
+                                  ? AppColors.grey400
+                                  : AppColors.primaryGreen,
                               borderRadius: BorderRadius.circular(30),
                             ),
                             child: _submitting
@@ -907,10 +985,19 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: AppColors.white),
+                                      strokeWidth: 2,
+                                      color: AppColors.white,
+                                    ),
                                   )
                                 : Text(
-                                    (requested && _messageController.text.trim().isNotEmpty) ? 'Send' : (requested ? 'Requested' : 'Request ride'),
+                                    (requested &&
+                                            _messageController.text
+                                                .trim()
+                                                .isNotEmpty)
+                                        ? 'Send'
+                                        : (requested
+                                              ? 'Requested'
+                                              : 'Request ride'),
                                     style: const TextStyle(
                                       color: AppColors.white,
                                       fontSize: 13,
@@ -936,7 +1023,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       width: 10,
       height: 10,
       decoration: filled
-          ? const BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGreen)
+          ? const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGreen,
+            )
           : BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.primaryGreen, width: 1.5),
@@ -946,10 +1036,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
 }
 
 class _RequestedRideCard extends StatefulWidget {
-  const _RequestedRideCard({
-    required this.request,
-    required this.onCancelled,
-  });
+  const _RequestedRideCard({required this.request, required this.onCancelled});
 
   final RequestedRide request;
   final VoidCallback onCancelled;
@@ -982,15 +1069,15 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
 
       if (mounted) {
         _messageController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Message sent to driver')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Message sent to driver')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -1019,10 +1106,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
               Navigator.pop(dialogContext); // Close dialog
               riderContext.push(
                 '/ride-cancelled',
-                extra: {
-                  'fromAddress': r.fromAddress,
-                  'toAddress': r.toAddress,
-                },
+                extra: {'fromAddress': r.fromAddress, 'toAddress': r.toAddress},
               );
               widget.onCancelled();
             }
@@ -1030,7 +1114,8 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
             if (mounted) {
               ScaffoldMessenger.of(riderContext).showSnackBar(
                 const SnackBar(
-                    content: Text('Could not cancel ride. Please try again.')),
+                  content: Text('Could not cancel ride. Please try again.'),
+                ),
               );
             }
           }
@@ -1041,7 +1126,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
 
   Future<void> _showDriverProfile(BuildContext context) async {
     final r = widget.request;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1083,7 +1168,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 ? NetworkImage(r.driverPhotoUrl)
                                 : null,
                             child: r.driverPhotoUrl.isEmpty
-                                ? Icon(Icons.person, size: 40, color: AppColors.grey400)
+                                ? Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: AppColors.grey400,
+                                  )
                                 : null,
                           ),
                         ],
@@ -1107,16 +1196,32 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                   children: [
                                     GestureDetector(
                                       onTap: r.driverPhone.isNotEmpty
-                                          ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                                          ? () =>
+                                                LocationShareHelper.launchDialer(
+                                                  r.driverPhone,
+                                                )
                                           : null,
-                                      child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
+                                      child: Icon(
+                                        Icons.phone_outlined,
+                                        size: 18,
+                                        color: AppColors.grey600,
+                                      ),
                                     ),
                                     const SizedBox(width: 2),
-                                    Text('|', style: TextStyle(color: AppColors.grey400)),
+                                    Text(
+                                      '|',
+                                      style: TextStyle(
+                                        color: AppColors.grey400,
+                                      ),
+                                    ),
                                     const SizedBox(width: 2),
                                     GestureDetector(
                                       onTap: () {},
-                                      child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
+                                      child: Icon(
+                                        Icons.chat_bubble_outline,
+                                        size: 18,
+                                        color: AppColors.grey600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1140,7 +1245,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 14),
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primaryGreen,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Verified ID',
@@ -1154,7 +1263,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.star, color: Colors.orange, size: 16),
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.orange,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '$rating ($ratingCount)',
@@ -1213,341 +1326,433 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
         );
       },
       child: Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: seats filled + popup menu
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-                child: ColoredBox(
-                  color: const Color(0xFF6B6B6B),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.person_outline, color: AppColors.white, size: 15),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, right: 0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${r.matchPercent}% Match',
-                      style: const TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
-                      onSelected: (val) {
-                        if (val == 'cancel') _handleCancelRequest();
-                      },
-                      offset: const Offset(8, 0),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'cancel',
-                          child: Row(
-                            children: [
-                              Icon(Icons.cancel_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Cancel Ride'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: seats filled + popup menu
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      r.dateLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
-                    Transform.translate(
-                      offset: const Offset(0, -2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(Icons.directions_walk, size: 12, color: AppColors.grey600),
-                          const SizedBox(width: 4),
-                          Text(
-                            r.distanceLabel ?? (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.grey600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.chevron_right, size: 14, color: AppColors.grey400),
-                          const SizedBox(width: 6),
-                          Icon(
-                            r.vehicleType == 'bike' ? Icons.two_wheeler : Icons.directions_car,
-                            size: 14,
-                            color: AppColors.grey700,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // ── Row 4: time + vehicle pill ───────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      r.timeLabel,
-                      style: const TextStyle(
-                          color: AppColors.black45, fontSize: 12),
-                    ),
-                    Container(
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: const Color(0xFF6B6B6B),
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.grey300),
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            r.vehicleType == 'bike'
-                                ? Icons.two_wheeler
-                                : Icons.directions_car,
-                            size: 14,
-                            color: AppColors.black87,
+                          const Icon(
+                            Icons.person_outline,
+                            color: AppColors.white,
+                            size: 15,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
                             style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 6),
-                const Divider(height: 1, color: AppColors.black12),
-                const SizedBox(height: 6),
-
-                // Driver info
-                GestureDetector(
-                  onTap: () => _showDriverProfile(context),
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.grey200,
-                        backgroundImage: r.driverPhotoUrl.isNotEmpty
-                            ? NetworkImage(r.driverPhotoUrl)
-                            : null,
-                        child: r.driverPhotoUrl.isEmpty
-                            ? Icon(Icons.person, color: AppColors.grey400)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r.driverName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            Text(
-                              'Verified ID',
-                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: r.driverPhone.isNotEmpty
-                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
-                            : null,
-                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
-                      ),
-                      const SizedBox(width: 2),
-                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
-                      const SizedBox(width: 2),
-                      GestureDetector(
-                        onTap: () {},
-                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
-                      ),
-                    ],
                   ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    _dot(filled: false),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(r.fromAddress,
-                          style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Container(width: 1.5, height: 10, color: AppColors.black26),
-                ),
-                Row(
-                  children: [
-                    _dot(filled: true),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(r.toAddress,
-                          style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      r.farePerSeat != null
-                          ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
-                          : 'Fare not set',
-                      style: TextStyle(
-                        color: r.farePerSeat != null
-                            ? AppColors.primaryGreen
-                            : AppColors.grey500,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Text(
-                      'View Details',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.black54,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.only(left: 16, right: 4, top: 4, bottom: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: AppColors.grey200),
-                  ),
+                  padding: const EdgeInsets.only(top: 4, right: 0),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          enabled: !_submitting,
-                          style: const TextStyle(fontSize: 13),
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Share a message...',
-                            hintStyle: TextStyle(fontSize: 13, color: AppColors.grey400),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                          ),
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: const TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: _submitting ? null : _sendMessage,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _messageController.text.trim().isEmpty ? Colors.transparent : AppColors.primaryGreen,
-                            border: _messageController.text.trim().isEmpty ? Border.all(color: AppColors.primaryGreen, width: 2) : null,
-                          ),
-                          child: _submitting
-                            ? const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen),
-                              )
-                            : Icon(
-                                _messageController.text.trim().isEmpty ? Icons.check : Icons.send,
-                                color: _messageController.text.trim().isEmpty ? AppColors.primaryGreen : AppColors.white,
-                                size: 18,
-                              ),
+                      PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: AppColors.grey600,
+                          size: 20,
                         ),
+                        onSelected: (val) {
+                          if (val == 'cancel') _handleCancelRequest();
+                        },
+                        offset: const Offset(8, 0),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'cancel',
+                            child: Row(
+                              children: [
+                                Icon(Icons.cancel_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Cancel Ride'),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.dateLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Transform.translate(
+                        offset: const Offset(0, -2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.directions_walk,
+                              size: 12,
+                              color: AppColors.grey600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              r.distanceLabel ??
+                                  (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.grey600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 14,
+                              color: AppColors.grey400,
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.grey700,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  // ── Row 4: time + vehicle pill ───────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.timeLabel,
+                        style: const TextStyle(
+                          color: AppColors.black45,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.grey300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              r.vehicleType == 'bike'
+                                  ? Icons.two_wheeler
+                                  : Icons.directions_car,
+                              size: 14,
+                              color: AppColors.black87,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.normal,
+                                color: AppColors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 6),
+                  const Divider(height: 1, color: AppColors.black12),
+                  const SizedBox(height: 6),
+
+                  // Driver info
+                  GestureDetector(
+                    onTap: () => _showDriverProfile(context),
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppColors.grey200,
+                          backgroundImage: r.driverPhotoUrl.isNotEmpty
+                              ? NetworkImage(r.driverPhotoUrl)
+                              : null,
+                          child: r.driverPhotoUrl.isEmpty
+                              ? Icon(Icons.person, color: AppColors.grey400)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                r.driverName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Verified ID',
+                                style: TextStyle(
+                                  color: AppColors.grey500,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: r.driverPhone.isNotEmpty
+                              ? () => LocationShareHelper.launchDialer(
+                                  r.driverPhone,
+                                )
+                              : null,
+                          child: Icon(
+                            Icons.phone_outlined,
+                            size: 18,
+                            color: AppColors.grey600,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '|',
+                          style: TextStyle(
+                            color: AppColors.grey400,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        GestureDetector(
+                          onTap: () {},
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            size: 18,
+                            color: AppColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      _dot(filled: false),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          r.fromAddress,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Container(
+                      width: 1.5,
+                      height: 10,
+                      color: AppColors.black26,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _dot(filled: true),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          r.toAddress,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        r.farePerSeat != null
+                            ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                            : 'Fare not set',
+                        style: TextStyle(
+                          color: r.farePerSeat != null
+                              ? AppColors.primaryGreen
+                              : AppColors.grey500,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Text(
+                        'View Details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.black54,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Container(
+                    padding: const EdgeInsets.only(
+                      left: 16,
+                      right: 4,
+                      top: 4,
+                      bottom: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: AppColors.grey200),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            enabled: !_submitting,
+                            style: const TextStyle(fontSize: 13),
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: 'Share a message...',
+                              hintStyle: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.grey400,
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: _submitting ? null : _sendMessage,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _messageController.text.trim().isEmpty
+                                  ? Colors.transparent
+                                  : AppColors.primaryGreen,
+                              border: _messageController.text.trim().isEmpty
+                                  ? Border.all(
+                                      color: AppColors.primaryGreen,
+                                      width: 2,
+                                    )
+                                  : null,
+                            ),
+                            child: _submitting
+                                ? const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primaryGreen,
+                                    ),
+                                  )
+                                : Icon(
+                                    _messageController.text.trim().isEmpty
+                                        ? Icons.check
+                                        : Icons.send,
+                                    color:
+                                        _messageController.text.trim().isEmpty
+                                        ? AppColors.primaryGreen
+                                        : AppColors.white,
+                                    size: 18,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1557,7 +1762,10 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
       width: 10,
       height: 10,
       decoration: filled
-          ? const BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGreen)
+          ? const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGreen,
+            )
           : BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.primaryGreen, width: 1.5),

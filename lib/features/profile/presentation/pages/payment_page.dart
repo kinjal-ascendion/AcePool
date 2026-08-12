@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/profile/presentation/bloc/profile_payment_bloc.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../widgets/payment_method_card.dart';
 import '../widgets/payment_save_button.dart';
 import '../widgets/upi_details_card.dart';
@@ -20,6 +21,7 @@ class _PaymentPageState extends State<PaymentPage> {
   final TextEditingController _phoneController = TextEditingController();
 
   int _lastSavedTick = 0;
+  bool _detailsHydrated = false;
 
   @override
   void initState() {
@@ -46,6 +48,13 @@ class _PaymentPageState extends State<PaymentPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("Payment details updated")),
             );
+          }
+
+          if (!_detailsHydrated &&
+              (state.upiId.isNotEmpty || state.upiPhone.isNotEmpty)) {
+            _detailsHydrated = true;
+            _upiController.text = state.upiId;
+            _phoneController.text = state.upiPhone;
           }
         },
         builder: (context, state) {
@@ -105,8 +114,12 @@ class _PaymentPageState extends State<PaymentPage> {
                   const SizedBox(height: 40),
 
                   PaymentSaveButton(
-                    onPressed: () =>
-                        _bloc.add(ProfilePaymentSaveRequested(_upiController.text.trim())),
+                    onPressed: () => _bloc.add(
+                      ProfilePaymentSaveRequested(
+                        _upiController.text.trim(),
+                        _phoneController.text.trim(),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),

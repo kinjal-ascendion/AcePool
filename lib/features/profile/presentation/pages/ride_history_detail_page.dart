@@ -21,13 +21,11 @@ class RideHistoryDetailPage extends StatelessWidget {
 
     final isDriver = rideData['rideMode'] == 'offer';
     final fareMap = rideData['fare'] as Map<String, dynamic>?;
-    final totalFare = isDriver 
+    final totalFare = isDriver
         ? (fareMap?['driverEarnings'] ?? fareMap?['totalCost'] ?? 0.0)
         : (fareMap?['farePerSeat'] ?? 0.0);
-    
-    final personCount = isDriver 
-        ? (rideData['seatsFilled'] ?? 0)
-        : 1;
+
+    final personCount = isDriver ? (rideData['seatsFilled'] ?? 0) : 1;
 
     final shortId = rideData['id'].toString().substring(0, 5).toUpperCase();
 
@@ -71,7 +69,10 @@ class RideHistoryDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0x0A308666),
                       borderRadius: BorderRadius.circular(20),
@@ -119,9 +120,15 @@ class RideHistoryDetailPage extends StatelessWidget {
                         const Divider(height: 1, color: borderColor),
                         _buildDetailRow('To', rideData['toAddress'] ?? ''),
                         const Divider(height: 1, color: borderColor),
-                        _buildDetailRow('Date & Time', DateTimeFormatter.monthDayYear(rideDate)),
+                        _buildDetailRow(
+                          'Date & Time',
+                          DateTimeFormatter.monthDayYear(rideDate),
+                        ),
                         const Divider(height: 1, color: borderColor),
-                        _buildDetailRow('Time', DateTimeFormatter.time12h(time)),
+                        _buildDetailRow(
+                          'Time',
+                          DateTimeFormatter.time12h(time),
+                        ),
                         const Divider(height: 1, color: borderColor),
                         _buildDetailRow('Person', personCount.toString()),
                       ],
@@ -152,7 +159,10 @@ class RideHistoryDetailPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: innerBgColor,
                       borderRadius: BorderRadius.circular(12),
@@ -169,7 +179,7 @@ class RideHistoryDetailPage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '₹ $totalFare',
+                          '₹ ${totalFare.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Color(0xFF0F1923),
                             fontSize: 16,
@@ -191,7 +201,10 @@ class RideHistoryDetailPage extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE8F4F8),
                   borderRadius: BorderRadius.circular(16),
@@ -221,7 +234,11 @@ class RideHistoryDetailPage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.black, size: 20),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.black,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -242,10 +259,7 @@ class RideHistoryDetailPage extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF757474),
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Color(0xFF757474), fontSize: 14),
             ),
           ),
           Expanded(

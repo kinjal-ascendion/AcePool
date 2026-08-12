@@ -17,5 +17,11 @@ abstract class ProfileRepository {
 
   Future<void> logout();
 
-  Future<void> savePaymentDetails({required String method, required String upiId});
+  Future<void> savePaymentDetails({
+    required String method,
+    required String upiId,
+    required String upiPhone,
+  });
+
+  Future<({String method, String upiId, String upiPhone})> getPaymentDetails();
 }

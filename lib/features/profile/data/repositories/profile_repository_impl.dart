@@ -90,13 +90,32 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
-  Future<void> savePaymentDetails({required String method, required String upiId}) async {
+  Future<void> savePaymentDetails({
+    required String method,
+    required String upiId,
+    required String upiPhone,
+  }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
     await _db.collection('users').doc(uid).update({
       'paymentMethod': method,
       'upiId': upiId,
+      'upiPhone': upiPhone,
     });
+  }
+
+  @override
+  Future<({String method, String upiId, String upiPhone})> getPaymentDetails() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return (method: 'UPI', upiId: '', upiPhone: '');
+
+    final doc = await _db.collection('users').doc(uid).get();
+    final data = doc.data();
+    return (
+      method: data?['paymentMethod'] as String? ?? 'UPI',
+      upiId: data?['upiId'] as String? ?? '',
+      upiPhone: data?['upiPhone'] as String? ?? '',
+    );
   }
 }

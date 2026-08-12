@@ -13,6 +13,8 @@ class ProfilePaymentBloc extends Bloc<ProfilePaymentEvent, ProfilePaymentState> 
     on<ProfilePaymentMethodChanged>(_onMethodChanged);
     on<ProfilePaymentEditToggled>(_onEditToggled);
     on<ProfilePaymentSaveRequested>(_onSaveRequested);
+    on<ProfilePaymentDetailsLoaded>(_onDetailsLoaded);
+    _loadPaymentDetails();
   }
 
   final ProfileRepository _profileRepository;
@@ -32,7 +34,42 @@ class ProfilePaymentBloc extends Bloc<ProfilePaymentEvent, ProfilePaymentState> 
     await _profileRepository.savePaymentDetails(
       method: state.selectedMethod,
       upiId: event.upiId,
+      upiPhone: event.upiPhone,
     );
-    emit(state.copyWith(savedTick: state.savedTick + 1));
+    emit(
+      state.copyWith(
+        savedTick: state.savedTick + 1,
+        upiId: event.upiId,
+        upiPhone: event.upiPhone,
+      ),
+    );
+  }
+
+  void _onDetailsLoaded(
+    ProfilePaymentDetailsLoaded event,
+    Emitter<ProfilePaymentState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        selectedMethod: event.method,
+        upiId: event.upiId,
+        upiPhone: event.upiPhone,
+      ),
+    );
+  }
+
+  Future<void> _loadPaymentDetails() async {
+    try {
+      final details = await _profileRepository.getPaymentDetails();
+      add(
+        ProfilePaymentDetailsLoaded(
+          method: details.method,
+          upiId: details.upiId,
+          upiPhone: details.upiPhone,
+        ),
+      );
+    } catch (_) {
+      // Keep defaults if the fetch fails.
+    }
   }
 }
