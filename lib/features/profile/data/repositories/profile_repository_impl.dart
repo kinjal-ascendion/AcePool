@@ -100,11 +100,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    await _db.collection('users').doc(uid).update({
-      'paymentMethod': method,
-      'upiId': upiId,
-      'upiPhone': upiPhone,
-    });
+    await _db.collection('users').doc(uid).set(
+      {
+        'paymentMethod': method,
+        'upiId': upiId,
+        'upiPhone': upiPhone,
+      },
+      // merge-set: works even if the user doc doesn't exist yet (update()
+      // would throw and the save would silently fail).
+      SetOptions(merge: true),
+    );
   }
 
   @override

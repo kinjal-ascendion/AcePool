@@ -1,5 +1,6 @@
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/profile/presentation/bloc/profile_payment_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,7 +22,6 @@ class _PaymentPageState extends State<PaymentPage> {
   final TextEditingController _phoneController = TextEditingController();
 
   int _lastSavedTick = 0;
-  bool _detailsHydrated = false;
 
   @override
   void initState() {
@@ -48,13 +48,14 @@ class _PaymentPageState extends State<PaymentPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("Payment details updated")),
             );
+            // Return to the Profile page after a successful save.
+            Navigator.of(context).pop();
           }
-
-          if (!_detailsHydrated &&
-              (state.upiId.isNotEmpty || state.upiPhone.isNotEmpty)) {
-            _detailsHydrated = true;
-            _upiController.text = state.upiId;
-            _phoneController.text = state.upiPhone;
+          if (state.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.errorMessage!)),
+            );
+            _bloc.add(const ProfilePaymentErrorDismissed());
           }
         },
         builder: (context, state) {
@@ -69,62 +70,78 @@ class _PaymentPageState extends State<PaymentPage> {
                 "Payment",
                 style: TextStyle(
                   color: Colors.black,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               iconTheme: const IconThemeData(color: Colors.black),
             ),
 
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "PAYMENT METHODS",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
+            body: Column(
+              children: [
+                // Scrollable content — cards only.
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "PAYMENT METHODS",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                            color: Color(0xFF757575),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        PaymentMethodCard(
+                          selectedMethod: state.selectedMethod,
+                          onChanged: (method) {
+                            _bloc.add(ProfilePaymentMethodChanged(method));
+                          },
+                        ),
+
+                        if (state.selectedMethod == "UPI") ...[
+                          const SizedBox(height: 18),
+
+                          UpiDetailsCard(
+                            isEditing: state.isEditing,
+                            upiController: _upiController,
+                            phoneController: _phoneController,
+                            phoneLabel:
+                                FirebaseAuth.instance.currentUser
+                                    ?.displayName ??
+                                'Phone Number',
+                            onEdit: () {
+                              _bloc.add(const ProfilePaymentEditToggled());
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 18),
-
-                  PaymentMethodCard(
-                    selectedMethod: state.selectedMethod,
-                    onChanged: (method) {
-                      _bloc.add(ProfilePaymentMethodChanged(method));
-                    },
-                  ),
-
-                  if (state.selectedMethod == "UPI") ...[
-                    const SizedBox(height: 18),
-
-                    UpiDetailsCard(
-                      isEditing: state.isEditing,
-                      upiController: _upiController,
-                      phoneController: _phoneController,
-                      onEdit: () {
-                        _bloc.add(const ProfilePaymentEditToggled());
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 40),
-
-                  PaymentSaveButton(
-                    onPressed: () => _bloc.add(
-                      ProfilePaymentSaveRequested(
-                        _upiController.text.trim(),
-                        _phoneController.text.trim(),
+                // Save button pinned to the bottom of the screen.
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                    child: PaymentSaveButton(
+                      onPressed: () => _bloc.add(
+                        ProfilePaymentSaveRequested(
+                          _upiController.text.trim(),
+                          _phoneController.text.trim(),
+                        ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
