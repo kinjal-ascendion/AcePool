@@ -7,6 +7,9 @@
 .buildlog/
 .history
 
+# Agent files
+AGENTS.md
+
 
 
 # Flutter repo-specific

@@ -44,3 +44,7 @@ class ProfilePaymentDetailsLoaded extends ProfilePaymentEvent {
   @override
   List<Object?> get props => [method, upiId, upiPhone];
 }
+
+class ProfilePaymentErrorDismissed extends ProfilePaymentEvent {
+  const ProfilePaymentErrorDismissed();
+}

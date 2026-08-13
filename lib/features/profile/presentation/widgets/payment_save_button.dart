@@ -15,10 +15,10 @@ class PaymentSaveButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(double.infinity, 54),
+          minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -27,7 +27,7 @@ class PaymentSaveButton extends StatelessWidget {
           "Save Changes",
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

@@ -14,6 +14,7 @@ class ProfilePaymentBloc extends Bloc<ProfilePaymentEvent, ProfilePaymentState> 
     on<ProfilePaymentEditToggled>(_onEditToggled);
     on<ProfilePaymentSaveRequested>(_onSaveRequested);
     on<ProfilePaymentDetailsLoaded>(_onDetailsLoaded);
+    on<ProfilePaymentErrorDismissed>(_onErrorDismissed);
     _loadPaymentDetails();
   }
 
@@ -31,18 +32,28 @@ class ProfilePaymentBloc extends Bloc<ProfilePaymentEvent, ProfilePaymentState> 
     ProfilePaymentSaveRequested event,
     Emitter<ProfilePaymentState> emit,
   ) async {
-    await _profileRepository.savePaymentDetails(
-      method: state.selectedMethod,
-      upiId: event.upiId,
-      upiPhone: event.upiPhone,
-    );
-    emit(
-      state.copyWith(
-        savedTick: state.savedTick + 1,
+    try {
+      await _profileRepository.savePaymentDetails(
+        method: state.selectedMethod,
         upiId: event.upiId,
         upiPhone: event.upiPhone,
-      ),
-    );
+      );
+      emit(
+        state.copyWith(
+          savedTick: state.savedTick + 1,
+          upiId: event.upiId,
+          upiPhone: event.upiPhone,
+          errorMessage: null,
+          isEditing: false, // Lock the fields again after a successful save.
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          errorMessage: 'Could not save payment details. Please try again.',
+        ),
+      );
+    }
   }
 
   void _onDetailsLoaded(
@@ -56,6 +67,13 @@ class ProfilePaymentBloc extends Bloc<ProfilePaymentEvent, ProfilePaymentState> 
         upiPhone: event.upiPhone,
       ),
     );
+  }
+
+  void _onErrorDismissed(
+    ProfilePaymentErrorDismissed event,
+    Emitter<ProfilePaymentState> emit,
+  ) {
+    emit(state.copyWith(errorMessage: null));
   }
 
   Future<void> _loadPaymentDetails() async {
