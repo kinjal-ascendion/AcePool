@@ -5,6 +5,7 @@ import 'package:acepool/features/profile/presentation/bloc/ride_history_bloc.dar
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'ride_history_detail_page.dart';
 
@@ -17,6 +18,7 @@ class RideHistoryPage extends StatefulWidget {
 
 class _RideHistoryPageState extends State<RideHistoryPage> {
   late final RideHistoryBloc _bloc;
+  bool _showAllRides = false;
 
   @override
   void initState() {
@@ -71,77 +73,97 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffoldBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Ride History',
-          style: TextStyle(
-            color: AppColors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: BlocProvider.value(
-        value: _bloc,
-        child: BlocBuilder<RideHistoryBloc, RideHistoryState>(
-          builder: (context, state) {
-            if (state.status == RideHistoryStatus.initial ||
-                state.status == RideHistoryStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final rides = state.rides;
-            if (rides.isEmpty) {
-              return const Center(child: Text('No completed rides found.'));
-            }
-
-            final groups = _groupRides(rides);
-            final hasData = groups.values.any((list) => list.isNotEmpty);
-
-            if (!hasData) {
-              return const Center(child: Text('No completed rides found.'));
-            }
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ..._buildGroup('TODAY', groups['TODAY']!),
-                    ..._buildGroup('YESTERDAY', groups['YESTERDAY']!),
-                    ..._buildGroup('THIS MONTH', groups['THIS MONTH']!),
-                    ..._buildGroup('OLDER RIDES', groups['OLDER RIDES']!),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: Text(
-                          'View All',
-                          style: TextStyle(
-                            color: AppColors.grey500,
-                            decoration: TextDecoration.underline,
-                            fontSize: 14,
-                          ),
-                        ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Ride History',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.mulish(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E1E1E),
+                        height: 1.0,
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: BlocProvider.value(
+                value: _bloc,
+                child: BlocBuilder<RideHistoryBloc, RideHistoryState>(
+                  builder: (context, state) {
+                    if (state.status == RideHistoryStatus.initial ||
+                        state.status == RideHistoryStatus.loading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final rides = state.rides;
+                    if (rides.isEmpty) {
+                      return const Center(child: Text('No completed rides found.'));
+                    }
+
+                    final groups = _groupRides(rides);
+                    final hasData = groups.values.any((list) => list.isNotEmpty);
+
+                    if (!hasData) {
+                      return const Center(child: Text('No completed rides found.'));
+                    }
+
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE0E0E0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ..._buildGroup('TODAY', groups['TODAY']!),
+                            ..._buildGroup('YESTERDAY', groups['YESTERDAY']!),
+                            ..._buildGroup('THIS MONTH', groups['THIS MONTH']!),
+                            ..._buildGroup('OLDER RIDES', groups['OLDER RIDES']!),
+                            if (!_showAllRides)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: TextButton(
+                                    onPressed: () => setState(() => _showAllRides = true),
+                                    child: Text(
+                                      'View All',
+                                      style: GoogleFonts.mulish(
+                                        color: const Color(0xFF616874),
+                                        decoration: TextDecoration.underline,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -150,9 +172,14 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
   List<Widget> _buildGroup(String title, List<Map<String, dynamic>> rides) {
     if (rides.isEmpty) return [];
 
+    List<Map<String, dynamic>> displayRides = rides;
+    if (!_showAllRides && rides.length > 2) {
+      displayRides = rides.take(2).toList();
+    }
+
     return [
       _buildSectionHeader(title),
-      ...rides.map((ride) {
+      ...displayRides.map((ride) {
         final data = ride;
         final isDriver = data['rideMode'] == 'offer';
         final vehicleType = data['vehicleType'] as String? ?? 'car';
@@ -220,15 +247,17 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
           child: Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF4C515B),
+            style: GoogleFonts.mulish(
+              color: const Color(0xFF4C515B),
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              height: 15 / 14,
+              letterSpacing: 0.8,
             ),
           ),
         ),
-        Divider(
-          color: const Color(0xFFE0E0E0),
+        const Divider(
+          color: Color(0xFFE0E0E0),
           height: 1,
           indent: 16,
           endIndent: 16,
@@ -262,10 +291,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: GoogleFonts.mulish(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: Color(0xFF1E1E1E),
+                          color: const Color(0xFF1E1E1E),
+                          height: 1.0,
+                          letterSpacing: -0.32, // -2% of 16
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -273,8 +304,8 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     ),
                     Text(
                       relativeTime,
-                      style: const TextStyle(
-                        color: Color(0xFF616874),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF616874),
                         fontSize: 14,
                       ),
                     ),
@@ -283,9 +314,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                 const SizedBox(height: 4),
                 Text(
                   dateTime,
-                  style: const TextStyle(
-                    color: Color(0xFF616874),
+                  style: GoogleFonts.mulish(
+                    color: const Color(0xFF616874),
                     fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    height: 1.0,
+                    letterSpacing: 0.256, // 1.6% of 16
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -294,9 +328,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   children: [
                     Text(
                       priceStatus,
-                      style: const TextStyle(
-                        color: Color(0xFF616874),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF616874),
                         fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        height: 1.0,
+                        letterSpacing: 0.256, // 1.6% of 16
                       ),
                     ),
                     const Icon(

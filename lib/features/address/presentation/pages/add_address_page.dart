@@ -5,6 +5,7 @@ import 'package:acepool/features/address/presentation/bloc/add_address_bloc.dart
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:acepool/features/home/presentation/pages/location_search_page.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AddAddressPage extends StatefulWidget {
   final PickedLocation location;
@@ -76,7 +77,12 @@ class _AddAddressPageState extends State<AddAddressPage> {
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey),
+      hintStyle: GoogleFonts.mulish(
+        color: const Color(0xFF6B7280),
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        height: 24 / 15,
+      ),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -177,15 +183,16 @@ class _AddAddressPageState extends State<AddAddressPage> {
       scrolledUnderElevation: 0,
       centerTitle: true,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Text(
+      title: Text(
         "Address",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w600,
-          fontSize: 22,
+        style: GoogleFonts.mulish(
+          color: const Color(0xFF1E1E1E),
+          fontWeight: FontWeight.w700,
+          fontSize: 24,
+          height: 1.0,
         ),
       ),
     ),
@@ -201,13 +208,14 @@ class _AddAddressPageState extends State<AddAddressPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            const Text(
+            Text(
               "ADD ADDRESS",
-              style: TextStyle(
+              style: GoogleFonts.mulish(
                 fontSize: 14,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
+                color: const Color(0xFF1E1E1E),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.3,
+                height: 19.5 / 14,
               ),
             ),
 
@@ -233,8 +241,20 @@ GestureDetector(
 },
   child: AbsorbPointer(
     child: TextField(
+      style: GoogleFonts.mulish(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFF1E1E1E),
+        height: 1.0,
+      ),
       decoration: InputDecoration(
         hintText: "Search for a location",
+        hintStyle: GoogleFonts.mulish(
+          color: const Color(0xFF6B7280),
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          height: 24 / 15,
+        ),
         prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: const Color(0xffF6F6F6),
@@ -314,16 +334,17 @@ GestureDetector(
 
             const SizedBox(height: 28),
 
-            const Text.rich(
+            Text.rich(
               TextSpan(
                 text: "ADDRESS ",
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
-                  color: Colors.black,
+                  color: const Color(0xFF1E1E1E),
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+                  letterSpacing: 0.3,
+                  height: 16 / 12,
                 ),
-                children: [
+                children: const [
                   TextSpan(
                     text: "*",
                     style: TextStyle(color: Colors.red),
@@ -337,18 +358,25 @@ GestureDetector(
             TextField(
               controller: _addressController,
               maxLines: 2,
+              style: GoogleFonts.mulish(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF1E1E1E),
+                height: 1.0,
+              ),
               decoration: _fieldDecoration("Enter address"),
             ),
 
             const SizedBox(height: 20),
 
-            const Text(
+            Text(
               "FLAT, FLOOR, LANDMARK (OPTIONAL)",
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
-                color: Colors.black,
+                color: const Color(0xFF1E1E1E),
                 fontWeight: FontWeight.w600,
-                letterSpacing: 1,
+                letterSpacing: 0.3,
+                height: 16 / 12,
               ),
             ),
 
@@ -356,18 +384,25 @@ GestureDetector(
 
             TextField(
               controller: _landmarkController,
+              style: GoogleFonts.mulish(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF1E1E1E),
+                height: 1.0,
+              ),
               decoration: _fieldDecoration("Enter landmark"),
             ),
 
             const SizedBox(height: 20),
 
-            const Text(
+            Text(
   "SAVE AS",
-  style: TextStyle(
+  style: GoogleFonts.dmSans(
     fontSize: 12,
-    color: Colors.black,
+    color: const Color(0xFF1E1E1E),
     fontWeight: FontWeight.w600,
-    letterSpacing: 1,
+    letterSpacing: 0.3,
+    height: 16 / 12,
   ),
 ),
 
@@ -431,11 +466,13 @@ SizedBox(
               color: Colors.white,
             ),
           )
-        : const Text(
+        : Text(
             "Save Address",
-            style: TextStyle(
+            textAlign: TextAlign.center,
+            style: GoogleFonts.mulish(
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
             ),
           ),
   ),

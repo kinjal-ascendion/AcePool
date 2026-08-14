@@ -5,6 +5,7 @@ import 'package:acepool/features/address/presentation/bloc/addresses_bloc.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'add_address_page.dart';
 
 class AddressesPage extends StatefulWidget {
@@ -211,11 +212,12 @@ class _AddressesPageState extends State<AddressesPage> {
         children: [
           Text(
             label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.black,
-              letterSpacing: 0.5,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1D1D1D),
+              letterSpacing: 1.3,
+              height: 19.5 / 14,
             ),
           ),
           if (onAdd != null)
@@ -223,14 +225,15 @@ class _AddressesPageState extends State<AddressesPage> {
               onTap: onAdd,
               child: Row(
                 children: [
-                  Icon(Icons.add, size: 16, color: AppColors.grey700),
+                  const Icon(Icons.add, size: 16, color: Color(0xFF1D1D1D)),
                   const SizedBox(width: 2),
                   Text(
                     'Add',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.grey700,
+                    style: GoogleFonts.mulish(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1D1D1D),
+                      height: 18 / 12,
                     ),
                   ),
                 ],
@@ -250,10 +253,6 @@ class _AddressesPageState extends State<AddressesPage> {
     required bool isDefault,
     required String category,
   }) {
-    final parts = address.split(',');
-    final line1 = parts.first.trim();
-    final line2 = parts.skip(1).join(',').trim();
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -287,9 +286,11 @@ class _AddressesPageState extends State<AddressesPage> {
                           Expanded(
                             child: Text(
                               label,
-                              style: const TextStyle(
+                              style: GoogleFonts.mulish(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 18,
+                                fontSize: 16,
+                                color: const Color(0xFF1D1D1D),
+                                height: 22.5 / 16,
                               ),
                             ),
                           ),
@@ -303,7 +304,7 @@ class _AddressesPageState extends State<AddressesPage> {
                               ),
                               child: Text(
                                 'Default',
-                                style: TextStyle(
+                                style: GoogleFonts.mulish(
                                   fontSize: 12,
                                   color: AppColors.grey700,
                                   fontWeight: FontWeight.w500,
@@ -314,15 +315,14 @@ class _AddressesPageState extends State<AddressesPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        line1,
-                        style: TextStyle(color: AppColors.grey600, fontSize: 15),
-                      ),
-                      if (line2.isNotEmpty)
-                        Text(
-                          line2,
-                          style:
-                              TextStyle(color: AppColors.grey600, fontSize: 15),
+                        address,
+                        style: GoogleFonts.mulish(
+                          color: const Color(0xFF6A7282),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          height: 21.13 / 16,
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -337,19 +337,20 @@ class _AddressesPageState extends State<AddressesPage> {
                 Expanded(
                   child: InkWell(
                     onTap: () => _editAddress(docId, label, address, landmark),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.edit_outlined, size: 18, color: AppColors.black87),
-                          SizedBox(width: 6),
+                          const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF1D1D1D)),
+                          const SizedBox(width: 6),
                           Text(
                             'Edit',
-                            style: TextStyle(
-                              color: AppColors.black87,
-                              fontSize: 14,
+                            style: GoogleFonts.mulish(
+                              color: const Color(0xFF1D1D1D),
+                              fontSize: 16,
                               fontWeight: FontWeight.w500,
+                              height: 19.5 / 16,
                             ),
                           ),
                         ],
@@ -361,16 +362,21 @@ class _AddressesPageState extends State<AddressesPage> {
                 Expanded(
                   child: InkWell(
                     onTap: () => _deleteAddress(docId, category, isDefault),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.delete_outline, size: 18, color: AppColors.red),
-                          SizedBox(width: 6),
+                          const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEA0000)),
+                          const SizedBox(width: 6),
                           Text(
                             'Delete',
-                            style: TextStyle(color: AppColors.red, fontSize: 14),
+                            style: GoogleFonts.mulish(
+                              color: const Color(0xFFEA0000),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              height: 19.5 / 16,
+                            ),
                           ),
                         ],
                       ),
@@ -461,98 +467,119 @@ class _AddressesPageState extends State<AddressesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffoldBackground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        foregroundColor: AppColors.black,
-        centerTitle: true,
-        title: const Text('Address', style: TextStyle(fontWeight: FontWeight.w600)),
-      ),
       body: SafeArea(
-        child: BlocProvider.value(
-          value: _bloc,
-          child: BlocBuilder<AddressesBloc, AddressesState>(
-          builder: (context, state) {
-            if (state.status == AddressesStatus.initial ||
-                state.status == AddressesStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final docs = state.addresses;
-            final homeDocs =
-                docs.where((d) => d.category == 'home').toList();
-            final officeDocs =
-                docs.where((d) => d.category == 'office').toList();
-            final otherDocs = docs.where((d) {
-              final category = d.category.toLowerCase();
-              return category != "home" && category != "office";
-            }).toList();
-            final seenOtherCategories = <String>{};
-            String? firstHomeOrOfficeId;
-            for (final d in docs) {
-              if (d.category == 'home' || d.category == 'office') {
-                firstHomeOrOfficeId = d.id;
-                break;
-              }
-            }
-
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                _sectionHeader(
-                  'Home',
-                  homeDocs.isEmpty ? null : () => _addAddress('home', 'Home'),
-                ),
-                if (homeDocs.isEmpty)
-                  _emptyAddressPlaceholder('home', () => _addAddress('home', 'Home')),
-                for (var i = 0; i < homeDocs.length; i++)
-                  _addressCard(
-                    docId: homeDocs[i].id,
-                    label: 'Home',
-                    icon: Icons.home_outlined,
-                    address: homeDocs[i].address,
-                    landmark: homeDocs[i].landmark,
-                    isDefault: homeDocs[i].id == firstHomeOrOfficeId,
-                    category: 'home',
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF000000), size: 26),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                _sectionHeader(
-                  'Office',
-                  officeDocs.isEmpty ? null : () => _addAddress('office', 'Office'),
-                ),
-                if (officeDocs.isEmpty)
-                  _emptyAddressPlaceholder('office', () => _addAddress('office', 'Office')),
-                for (var i = 0; i < officeDocs.length; i++)
-                  _addressCard(
-                    docId: officeDocs[i].id,
-                    label: 'Office',
-                    icon: Icons.apartment_outlined,
-                    address: officeDocs[i].address,
-                    landmark: officeDocs[i].landmark,
-                    isDefault: officeDocs[i].id == firstHomeOrOfficeId,
-                    category: 'office',
+                  Expanded(
+                    child: Text(
+                      'Address',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.mulish(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF000000),
+                        height: 1.0,
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: BlocProvider.value(
+                value: _bloc,
+                child: BlocBuilder<AddressesBloc, AddressesState>(
+                builder: (context, state) {
+                  if (state.status == AddressesStatus.initial ||
+                      state.status == AddressesStatus.loading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-if (otherDocs.isNotEmpty) ...[
-  _sectionHeader('Saved', () => _addAddress('other', 'Other')),
+                  final docs = state.addresses;
+                  final homeDocs =
+                      docs.where((d) => d.category == 'home').toList();
+                  final officeDocs =
+                      docs.where((d) => d.category == 'office').toList();
+                  final otherDocs = docs.where((d) {
+                    final category = d.category.toLowerCase();
+                    return category != "home" && category != "office";
+                  }).toList();
+                  final seenOtherCategories = <String>{};
+                  String? firstHomeOrOfficeId;
+                  for (final d in docs) {
+                    if (d.category == 'home' || d.category == 'office') {
+                      firstHomeOrOfficeId = d.id;
+                      break;
+                    }
+                  }
 
-  for (final doc in otherDocs)
-    _addressCard(
-      docId: doc.id,
-      label: doc.label.isNotEmpty ? doc.label : 'Saved',
-      icon: Icons.bookmark_border,
-      address: doc.address,
-      landmark: doc.landmark,
-      isDefault: seenOtherCategories.add(doc.category),
-      category: doc.category,
-    ),
-],
-                const SizedBox(height: 20),
-              ],
-            );
-          },
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      _sectionHeader(
+                        'Home',
+                        homeDocs.isEmpty ? null : () => _addAddress('home', 'Home'),
+                      ),
+                      if (homeDocs.isEmpty)
+                        _emptyAddressPlaceholder('home', () => _addAddress('home', 'Home')),
+                      for (var i = 0; i < homeDocs.length; i++)
+                        _addressCard(
+                          docId: homeDocs[i].id,
+                          label: 'Home',
+                          icon: Icons.home_outlined,
+                          address: homeDocs[i].address,
+                          landmark: homeDocs[i].landmark,
+                          isDefault: homeDocs[i].id == firstHomeOrOfficeId,
+                          category: 'home',
+                        ),
+                      _sectionHeader(
+                        'Office',
+                        officeDocs.isEmpty ? null : () => _addAddress('office', 'Office'),
+                      ),
+                      if (officeDocs.isEmpty)
+                        _emptyAddressPlaceholder('office', () => _addAddress('office', 'Office')),
+                      for (var i = 0; i < officeDocs.length; i++)
+                        _addressCard(
+                          docId: officeDocs[i].id,
+                          label: 'Office',
+                          icon: Icons.apartment_outlined,
+                          address: officeDocs[i].address,
+                          landmark: officeDocs[i].landmark,
+                          isDefault: officeDocs[i].id == firstHomeOrOfficeId,
+                          category: 'office',
+                        ),
+
+      if (otherDocs.isNotEmpty) ...[
+        _sectionHeader('Saved', () => _addAddress('other', 'Other')),
+
+        for (final doc in otherDocs)
+          _addressCard(
+            docId: doc.id,
+            label: doc.label.isNotEmpty ? doc.label : 'Saved',
+            icon: Icons.bookmark_border,
+            address: doc.address,
+            landmark: doc.landmark,
+            isDefault: seenOtherCategories.add(doc.category),
+            category: doc.category,
           ),
+      ],
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

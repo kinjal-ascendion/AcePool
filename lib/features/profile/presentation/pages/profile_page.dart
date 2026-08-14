@@ -49,19 +49,30 @@ class _ProfilePageState extends State<ProfilePage> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
+                      height: 1.1, // Adjusted for 20px
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: AppColors.grey600, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.subheadingGrey,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.285, // 18px / 14px
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: AppColors.grey400),
+            Image.asset(
+              'assets/images/next.png',
+              width: 9,
+              height: 18,
+            ),
           ],
         ),
       ),
@@ -88,6 +99,7 @@ class _ProfilePageState extends State<ProfilePage> {
               final summary = state.summary!;
               final fullName = summary.fullName;
               final employeeId = summary.employeeId;
+              final ridesCompleted = summary.ridesCompleted;
               final phone = summary.phone;
               final licenceVerified = summary.licenceVerified;
               final licenceNumber = summary.licenceNumber;
@@ -104,6 +116,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
+                      height: 1.1,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -164,16 +177,30 @@ class _ProfilePageState extends State<ProfilePage> {
                             Text(
                               fullName.isNotEmpty ? fullName : '—',
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                color: AppColors.black,
+                                height: 1.1,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               employeeId.isNotEmpty ? employeeId : '—',
-                              style: TextStyle(
-                                color: AppColors.grey600,
+                              style: const TextStyle(
+                                color: AppColors.subheadingGrey,
                                 fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                height: 1.285,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$ridesCompleted rides completed',
+                              style: const TextStyle(
+                                color: AppColors.subheadingGrey,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                height: 1.285,
                               ),
                             ),
                           ],
@@ -182,7 +209,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                   const SizedBox(height: 28),
-                  Divider(color: AppColors.grey200, height: 1),
                   _settingsRow(
                     title: 'Account settings',
                     subtitle: 'Name, Contact, Asc id, License, Role',
@@ -199,7 +225,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Vehicle info',
                     subtitle: 'Add/ Edit vehicle details',
@@ -208,7 +234,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       MaterialPageRoute(builder: (_) => const VehicleInfoPage()),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Route matching',
                     subtitle: 'Routes & Radius settings',
@@ -219,7 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Ride History',
                     subtitle: 'Past Rides & Receipts',
@@ -230,11 +256,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   if (isDriver) ...[
                     _settingsRow(
                       title: 'Payment',
-                      subtitle: 'UPI & Cash payment preferences',
+                      subtitle: 'Payment methods',
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -242,7 +268,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
-                    Divider(color: AppColors.grey200, height: 1),
+                    Divider(color: AppColors.dividerGrey, height: 1),
                   ],
                   _settingsRow(
                     title: 'Addresses',
@@ -252,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       MaterialPageRoute(builder: (_) => const AddressesPage()),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Ride statistics',
                     subtitle: 'Ratings, Reviews & more',
@@ -266,7 +292,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Security',
                     subtitle: 'Emergency contact details',
@@ -277,7 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  Divider(color: AppColors.grey200, height: 1),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   const SizedBox(height: 20),
                   InkWell(
                     onTap: () => _logout(context),

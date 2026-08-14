@@ -19,6 +19,9 @@ class AppColors {
   static const Color surfaceDark = Color(0xFF161B22);
   static const Color chatBubbleMe = Color(0xFFE8F5E9);
 
+  static const Color subheadingGrey = Color(0xFF757474);
+  static const Color dividerGrey = Color(0xFFDDDDDD);
+
   // ── Misc custom ────────────────────────────────────────────────────
   static const Color placeholderGrey = Color(0xFFAAAAAA);
 

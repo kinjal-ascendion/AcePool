@@ -3,6 +3,7 @@ import 'package:acepool/core/utils/date_time_formatter.dart';
 import 'package:acepool/features/rides/presentation/pages/security_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RideHistoryDetailPage extends StatelessWidget {
   final Map<String, dynamic> rideData;
@@ -39,15 +40,16 @@ class RideHistoryDetailPage extends StatelessWidget {
         backgroundColor: AppColors.scaffoldBackground,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Ride History',
-          style: TextStyle(
-            color: AppColors.black,
-            fontSize: 20,
+          style: GoogleFonts.mulish(
+            color: const Color(0xFF1E1E1E),
+            fontSize: 24,
             fontWeight: FontWeight.w700,
+            height: 1.0,
           ),
         ),
         centerTitle: true,
@@ -77,12 +79,13 @@ class RideHistoryDetailPage extends StatelessWidget {
                       color: const Color(0x0A308666),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Completed',
-                      style: TextStyle(
-                        color: Color(0xFF308666),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF308666),
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
+                        height: 15 / 12,
                       ),
                     ),
                   ),
@@ -90,19 +93,22 @@ class RideHistoryDetailPage extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Ride Details',
-                        style: TextStyle(
-                          color: Color(0xFF1D1D1D),
+                        style: GoogleFonts.mulish(
+                          color: const Color(0xFF1D1D1D),
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
+                          height: 20 / 16,
                         ),
                       ),
                       Text(
                         'Ride ID #$shortId',
-                        style: const TextStyle(
-                          color: Color(0xFF757474),
+                        style: GoogleFonts.mulish(
+                          color: const Color(0xFF757474),
                           fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          height: 20 / 14,
                         ),
                       ),
                     ],

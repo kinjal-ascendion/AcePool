@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   AppTheme._();
@@ -43,14 +44,16 @@ class AppTheme {
           surface: AppColors.surfaceDark,
         ),
         timePickerTheme: _timePickerTheme,
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            color: AppColors.white,
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
+        textTheme: GoogleFonts.mulishTextTheme(
+          const TextTheme(
+            displayLarge: TextStyle(
+              color: AppColors.white,
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+            bodyLarge: TextStyle(color: AppColors.white70, fontSize: 16),
           ),
-          bodyLarge: TextStyle(color: AppColors.white70, fontSize: 16),
         ),
       );
 
@@ -64,14 +67,16 @@ class AppTheme {
           surface: AppColors.white,
         ),
         timePickerTheme: _timePickerTheme,
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            color: AppColors.black87,
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
+        textTheme: GoogleFonts.mulishTextTheme(
+          const TextTheme(
+            displayLarge: TextStyle(
+              color: AppColors.black87,
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+            bodyLarge: TextStyle(color: AppColors.black54, fontSize: 16),
           ),
-          bodyLarge: TextStyle(color: AppColors.black54, fontSize: 16),
         ),
       );
 }

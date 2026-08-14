@@ -7,6 +7,7 @@ import 'package:acepool/features/chat/presentation/pages/new_chat_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ChatListPage extends StatefulWidget {
   final VoidCallback? onBack;
@@ -38,12 +39,18 @@ class _ChatListPageState extends State<ChatListPage> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.black),
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF1D1D1D), size: 26),
             onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
           ),
-          title: const Text(
+          title: Text(
             'Chats',
-            style: TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 24),
+            style: GoogleFonts.mulish(
+              color: const Color(0xFF1D1D1D),
+              fontWeight: FontWeight.w700,
+              fontSize: 24,
+              height: 1.0,
+              letterSpacing: 0,
+            ),
           ),
           actions: [
             Padding(
@@ -81,11 +88,23 @@ class _ChatListPageState extends State<ChatListPage> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: (query) => context.read<ChatListBloc>().add(ChatSearchQueryChanged(query)),
-                      decoration: const InputDecoration(
+                      style: GoogleFonts.mulish(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF1D1D1D),
+                      ),
+                      decoration: InputDecoration(
                         hintText: 'Search Chat',
-                        prefixIcon: Icon(Icons.search, color: AppColors.grey),
+                        hintStyle: GoogleFonts.mulish(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                          height: 24 / 15,
+                          letterSpacing: 0,
+                          color: const Color(0xFF757474),
+                        ),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.grey),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
@@ -272,17 +291,25 @@ class _ChatListItem extends StatelessWidget {
                 children: [
                   Text(
                     displayName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: GoogleFonts.mulish(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      height: 1.0,
+                      letterSpacing: -0.02 * 16,
+                      color: const Color(0xFF1D1D1D),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     room.lastMessage.isEmpty ? 'No messages yet' : room.lastMessage,
-                    style: TextStyle(
-                      color: unreadCount > 0 ? AppColors.primaryGreen : AppColors.grey600,
-                      fontSize: 14,
-                      fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                    style: GoogleFonts.mulish(
+                      color: unreadCount > 0 ? AppColors.primaryGreen : const Color(0xFF757474),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      height: 1.0,
+                      letterSpacing: 0.016 * 16,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
