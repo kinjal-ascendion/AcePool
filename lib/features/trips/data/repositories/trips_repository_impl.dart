@@ -115,15 +115,20 @@ class TripsRepositoryImpl implements TripsRepository {
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
         .get();
 
-    Set<String> requestedRideIds = {};
+    Map<String, (double? price, String? status)> requestedRideNegotiations = {};
     try {
       final myRequestsSnap = await _db
           .collection('ride_requests')
           .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
           .get();
-      requestedRideIds =
-          myRequestsSnap.docs.map((d) => d.data()['rideId'] as String).toSet();
+      for (var d in myRequestsSnap.docs) {
+        final data = d.data();
+        if (data['status'] == 'cancelled') continue;
+        requestedRideNegotiations[data['rideId'] as String] = (
+          (data['negotiatedPrice'] as num?)?.toDouble(),
+          data['negotiationStatus'] as String?,
+        );
+      }
     } catch (_) {}
 
     final rides = <AvailableRide>[];
@@ -230,11 +235,13 @@ class TripsRepositoryImpl implements TripsRepository {
         seatsFilled: seatsFilled,
         seatsTotal: seatCount,
         vehicleType: d['vehicleType'] as String? ?? 'car',
-        alreadyRequested: requestedRideIds.contains(doc.id),
+        alreadyRequested: requestedRideNegotiations.containsKey(doc.id),
         matchPercent: match.matchPercent,
         distanceKm: match.distanceKm,
         defaultPickupPoint: userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
         farePerSeat: farePerSeat,
+        negotiatedPrice: requestedRideNegotiations[doc.id]?.$1,
+        negotiationStatus: requestedRideNegotiations[doc.id]?.$2,
         userFromAddress: userHomeAddress,
         userToAddress: userOfficeAddress,
         userFromLat: userHomeLat,
@@ -290,6 +297,9 @@ class TripsRepositoryImpl implements TripsRepository {
       final rideTime = d['rideTime'] as Map<String, dynamic>;
       final storedDriverName = d['driverName'] as String?;
 
+      final riderStartLatLng = d['riderStartLatLng'] as Map<String, dynamic>?;
+      final riderEndLatLng = d['riderEndLatLng'] as Map<String, dynamic>?;
+
       final rideFromLat = (rideData['fromLat'] as num?)?.toDouble() ??
           (rideData['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
       final rideFromLng = (rideData['fromLng'] as num?)?.toDouble() ??
@@ -330,10 +340,16 @@ class TripsRepositoryImpl implements TripsRepository {
         toAddress: d['rideTo'] as String,
         riderStartAddress: d['riderStartAddress'] as String? ?? '',
         riderEndAddress: d['riderEndAddress'] as String? ?? '',
+        riderStartLat: (riderStartLatLng?['latitude'] as num?)?.toDouble(),
+        riderStartLng: (riderStartLatLng?['longitude'] as num?)?.toDouble(),
+        riderEndLat: (riderEndLatLng?['latitude'] as num?)?.toDouble(),
+        riderEndLng: (riderEndLatLng?['longitude'] as num?)?.toDouble(),
         seatsFilled: rideData['seatsFilled'] as int? ?? 0,
         seatsTotal: rideData['seatCount'] as int? ?? 0,
         status: d['status'] as String? ?? 'pending',
         farePerSeat: (rideData['fare'] as Map?)?['farePerSeat'] as double?,
+        negotiatedPrice: (d['negotiatedPrice'] as num?)?.toDouble(),
+        negotiationStatus: d['negotiationStatus'] as String?,
         vehicleType: rideData['vehicleType'] as String? ?? 'car',
         matchPercent: match.matchPercent,
         distanceKm: match.distanceKm,
@@ -372,6 +388,7 @@ class TripsRepositoryImpl implements TripsRepository {
   Future<String> requestAvailableRide({
     required AvailableRide ride,
     String message = '',
+    double? negotiatedPrice,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
@@ -442,6 +459,7 @@ class TripsRepositoryImpl implements TripsRepository {
       'dropOffLatLng': dropOffLatLng,
       'pickupTime': {'hour': ride.time.hour, 'minute': ride.time.minute},
       'message': message,
+      'negotiatedPrice': negotiatedPrice,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,

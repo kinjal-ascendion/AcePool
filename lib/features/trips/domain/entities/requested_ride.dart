@@ -17,10 +17,16 @@ class RequestedRide {
   final String toAddress;
   final String riderStartAddress;
   final String riderEndAddress;
+  final double? riderStartLat;
+  final double? riderStartLng;
+  final double? riderEndLat;
+  final double? riderEndLng;
   final int seatsFilled;
   final int seatsTotal;
   final String status;
   final double? farePerSeat;
+  final double? negotiatedPrice;
+  final String? negotiationStatus;
   final String vehicleType;
   final int matchPercent;
   final double? distanceKm;
@@ -38,10 +44,16 @@ class RequestedRide {
     required this.toAddress,
     required this.riderStartAddress,
     required this.riderEndAddress,
+    this.riderStartLat,
+    this.riderStartLng,
+    this.riderEndLat,
+    this.riderEndLng,
     required this.seatsFilled,
     required this.seatsTotal,
     required this.status,
     this.farePerSeat,
+    this.negotiatedPrice,
+    this.negotiationStatus,
     required this.vehicleType,
     required this.matchPercent,
     this.distanceKm,

@@ -452,6 +452,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         padding: const EdgeInsets.only(bottom: 12),
         child: _RiderCard(
           rider: r,
+          farePerSeat: widget.trip.farePerSeat,
           fallbackPickupLat: widget.trip.fromLat,
           fallbackPickupLng: widget.trip.fromLng,
           onCancel: () => _confirmCancelRider(context, r.riderName, r.requestId),
@@ -464,12 +465,14 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
 class _RiderCard extends StatelessWidget {
   const _RiderCard({
     required this.rider,
+    this.farePerSeat,
     required this.fallbackPickupLat,
     required this.fallbackPickupLng,
     required this.onCancel,
   });
 
   final RideRider rider;
+  final double? farePerSeat;
 
   /// Trip's own from-lat/lng, used when the rider's own pickup coordinates
   /// are missing — matches the original `_fetchRiders`' guaranteed
@@ -572,6 +575,187 @@ class _RiderCard extends StatelessWidget {
               ],
             ),
           ),
+
+          if (rider.negotiatedPrice != null && rider.negotiationStatus == 'declined') ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Text('Price: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(
+                  '₹${farePerSeat?.toInt() ?? 0}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    decoration: TextDecoration.lineThrough,
+                    color: Color(0xFF616874),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '₹${rider.negotiatedPrice!.toInt()} - Declined',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFC82323),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (rider.negotiatedPrice != null && rider.negotiationStatus == 'accepted') ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Text('Price: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(
+                  '₹${farePerSeat?.toInt() ?? 0}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    decoration: TextDecoration.lineThrough,
+                    color: Color(0xFF616874),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '₹${rider.negotiatedPrice!.toInt()}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF308666),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (rider.negotiatedPrice != null && rider.negotiationStatus == null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.grey200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${rider.riderName} countered your offer',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            'YOUR OFFER',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Color(0xFF616874),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${farePerSeat?.toInt() ?? 0}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 20),
+                      Icon(Icons.arrow_forward, size: 20, color: AppColors.grey400),
+                      const SizedBox(width: 20),
+                      Column(
+                        children: [
+                          const Text(
+                            'COUNTER',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Color(0xFF308666),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${rider.negotiatedPrice!.toInt()}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await sl<RidesRepository>().respondToNegotiation(
+                              requestId: rider.requestId,
+                              status: 'declined',
+                            );
+                            if (context.mounted) {
+                              context.read<DrivesDetailBloc>().add(const DrivesDetailReloadRequested());
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFDDDDDD)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Decline',
+                            style: TextStyle(color: Color(0xFF1E1E1E), fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await sl<RidesRepository>().respondToNegotiation(
+                              requestId: rider.requestId,
+                              status: 'accepted',
+                            );
+                            if (context.mounted) {
+                              context.read<DrivesDetailBloc>().add(const DrivesDetailReloadRequested());
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'Accept ₹${rider.negotiatedPrice!.toInt()}',
+                            style: const TextStyle(color: Color(0xFFFDFDFD), fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 14),
           Row(
             children: [

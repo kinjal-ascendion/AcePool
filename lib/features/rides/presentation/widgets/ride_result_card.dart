@@ -21,6 +21,7 @@ class RideResultCard extends StatefulWidget {
     this.riderToLng,
     required this.riderTime,
     required this.onRequested,
+    this.onFindDriver,
   });
 
   final RideMatch result;
@@ -32,6 +33,7 @@ class RideResultCard extends StatefulWidget {
   final double? riderToLng;
   final TimeOfDay riderTime;
   final VoidCallback onRequested;
+  final VoidCallback? onFindDriver;
 
   @override
   State<RideResultCard> createState() => _RideResultCardState();
@@ -40,12 +42,31 @@ class RideResultCard extends StatefulWidget {
 class _RideResultCardState extends State<RideResultCard> {
 
   final _messageController = TextEditingController();
+  final _priceController = TextEditingController();
   bool _submitting = false;
   bool _justRequested = false;
+  bool _negotiating = false;
+  bool _offerSent = false;
+  bool _offerDeclined = false;
+  String _offeredPrice = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.result.negotiatedPrice != null) {
+      _offeredPrice = widget.result.negotiatedPrice!.toInt().toString();
+      if (widget.result.negotiationStatus == 'declined') {
+        _offerDeclined = true;
+      } else {
+        _offerSent = true;
+      }
+    }
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -65,6 +86,7 @@ class _RideResultCardState extends State<RideResultCard> {
         riderToLng: widget.riderToLng,
         riderTime: widget.riderTime,
         message: _messageController.text.trim(),
+        negotiatedPrice: _offerSent ? double.tryParse(_offeredPrice) : null,
       );
 
       // Also send a chat message if there's a message entered
@@ -110,26 +132,9 @@ class _RideResultCardState extends State<RideResultCard> {
     final r = widget.result;
     final requested = r.alreadyRequested || _justRequested;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RideDetailsPage(
-              ride: r,
-              riderFromAddress: widget.riderFromAddress,
-              riderFromLat: widget.riderFromLat,
-              riderFromLng: widget.riderFromLng,
-              riderToAddress: widget.riderToAddress,
-              riderToLat: widget.riderToLat,
-              riderToLng: widget.riderToLng,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
@@ -395,7 +400,7 @@ class _RideResultCardState extends State<RideResultCard> {
                   Divider(color: AppColors.grey200, height: 1),
                   const SizedBox(height: 8),
 
-                  // ── Price + View Details ──────────────────────────────────
+                  // ── Price + Negotiate ──────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -404,20 +409,233 @@ class _RideResultCardState extends State<RideResultCard> {
                             ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
                             : 'Fare not set',
                         style: TextStyle(
-                          color: r.farePerSeat != null
-                              ? AppColors.primaryGreen
-                              : AppColors.grey500,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF308666),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          decoration: _offerSent ? TextDecoration.lineThrough : null,
                         ),
                       ),
-                      Text(
-                        'View Details',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.black54,
-                          decoration: TextDecoration.underline,
+                      if (_offerDeclined)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC82323).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFC82323).withValues(alpha: 0.2)),
+                          ),
+                          child: Text(
+                            '₹ $_offeredPrice - Declined',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFC82323),
+                            ),
+                          ),
+                        )
+                      else if (_offerSent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF046B4B).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF046B4B).withValues(alpha: 0.2)),
+                          ),
+                          child: Text(
+                            'Offer : ₹ $_offeredPrice',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF046B4B),
+                            ),
+                          ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _negotiating = !_negotiating;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDDDDDD).withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFDDDDDD)),
+                            ),
+                            child: Text(
+                              _negotiating ? 'Cancel' : 'Negotiate',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1E1E1E),
+                              ),
+                            ),
+                          ),
                         ),
+                    ],
+                  ),
+
+                  if (_offerDeclined) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline, color: Color(0xFFC82323), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Driver declined your offer. Try a higher offer or find another driver.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.normal,
+                              color: const Color(0xFFC82323),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: widget.onFindDriver,
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFDDDDDD)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Find Driver',
+                              style: TextStyle(color: Color(0xFF1E1E1E), fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _offerDeclined = false;
+                                _negotiating = true;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.black,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Revise Offer',
+                              style: TextStyle(color: Color(0xFFFEFEFE), fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (_offerSent) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Offer Sent - waiting for driver to respond',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E1E1E),
+                      ),
+                    ),
+                  ] else if (_negotiating) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'What would you like to offer ?',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E1E1E),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.grey200),
+                      ),
+                      child: TextField(
+                        controller: _priceController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(fontSize: 16, color: Color(0xFF1E1E1E)),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Enter your price',
+                          hintStyle: const TextStyle(fontSize: 16, color: Color(0xFF616874), fontWeight: FontWeight.normal),
+                          border: InputBorder.none,
+                          prefixIcon: const Icon(Icons.currency_rupee, size: 16, color: Color(0xFF1E1E1E)),
+                          prefixIconConstraints: const BoxConstraints(minWidth: 24),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _offerSent = true;
+                          _offeredPrice = _priceController.text;
+                          _negotiating = false;
+                        });
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.scheduleButtonColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFFFEFEFE),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: AppColors.black12),
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    'Payment Method',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.currency_rupee, size: 16, color: Color(0xFF1E1E1E)),
+                          const SizedBox(width: 4),
+                          const Text('UPI', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E1E1E))),
+                        ],
+                      ),
+                      const SizedBox(width: 20),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.payments_outlined, size: 16, color: Color(0xFF1E1E1E)),
+                          const SizedBox(width: 4),
+                          const Text('Cash', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E1E1E))),
+                        ],
                       ),
                     ],
                   ),
@@ -483,13 +701,42 @@ class _RideResultCardState extends State<RideResultCard> {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 12),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RideDetailsPage(
+                              ride: r,
+                              riderFromAddress: widget.riderFromAddress,
+                              riderFromLat: widget.riderFromLat,
+                              riderFromLng: widget.riderFromLng,
+                              riderToAddress: widget.riderToAddress,
+                              riderToLat: widget.riderToLat,
+                              riderToLng: widget.riderToLng,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'View Ride Details',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF616874),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _routeDot({required bool filled}) {
