@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Local design tokens for the Payment Methods card. Kept here (not in
 /// AppColors) until these values are confirmed against the design system.
 class _PayColors {
   _PayColors._();
 
-  static const Color brandGreen = Color(0xFF1E8E5A);
-  static const Color mintTint = Color(0xFFEAF7EF);
-  static const Color ink = Color(0xFF1A1A1A);
+  static const Color brandGreen = Color(0xFF308666);
+  static const Color mintTint = Color(0x0A308666);
+  static const Color ink = Color(0xFF1D1D1D);
 
   /// Body/label grey text (darkened from #8A8A8A per design feedback).
-  static const Color bodyGray = Color(0xFF757575);
+  static const Color bodyGray = Color(0xFF757474);
 
-  /// Idle grey for the UPI icon badge — kept at the original shade since
-  /// only font colors were darkened.
-  static const Color iconIdle = Color(0xFF8A8A8A);
-  static const Color borderGray = Color(0xFFE5E5E5);
-  static const Color badgeGray = Color(0xFFF3F3F3);
+  static const Color borderGray = Color(0xFFDDDDDD);
+  static const Color badgeGray = Color(0x29DDDDDD);
   static const Color radioIdle = Color(0xFFC4C4C4);
-  static const Color cashInk = Color(0xFF333333);
 
   /// rgba(0, 0, 0, 0.04) — soft card shadow.
   static const Color cardShadow = Color(0x0A000000);
@@ -41,6 +38,7 @@ class PaymentMethodCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _PayColors.borderGray),
         boxShadow: const [
           BoxShadow(
             color: _PayColors.cardShadow,
@@ -52,22 +50,23 @@ class PaymentMethodCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Receive Earnings Via",
-            style: TextStyle(
+            style: GoogleFonts.mulish(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: _PayColors.ink,
-              height: 1.3,
+              height: 20 / 16,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             "Choose how passengers pay and how you collect",
-            style: TextStyle(
+            style: GoogleFonts.mulish(
               color: _PayColors.bodyGray,
-              fontSize: 12,
-              height: 1.3,
+              fontSize: 14,
+              height: 16 / 14,
+              fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 14),
@@ -85,22 +84,27 @@ class PaymentMethodCard extends StatelessWidget {
     required String value,
   }) {
     final isSelected = selectedMethod == value;
+    final isUPI = value == "UPI";
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => onChanged(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? _PayColors.mintTint : Colors.white,
+          color: isUPI ? _PayColors.mintTint : _PayColors.badgeGray,
           border: Border.all(
-            color: isSelected ? _PayColors.brandGreen : _PayColors.borderGray,
-            width: isSelected ? 1.5 : 1,
+            color: isUPI ? _PayColors.brandGreen : _PayColors.borderGray,
+            width: 1,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            _MethodIcon(value: value, selected: isSelected),
+            Image.asset(
+              isUPI ? 'assets/images/currency_rupee_circle.png' : 'assets/images/universal_currency.png',
+              width: 24,
+              height: 24,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -108,20 +112,21 @@ class PaymentMethodCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                    style: GoogleFonts.mulish(
+                      fontWeight: isUPI ? FontWeight.w600 : FontWeight.w700,
+                      fontSize: 16,
                       color: _PayColors.ink,
-                      height: 1.3,
+                      height: 20 / 16,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: GoogleFonts.mulish(
                       color: _PayColors.bodyGray,
-                      fontSize: 13,
-                      height: 1.3,
+                      fontSize: 14,
+                      height: 16 / 14,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -145,23 +150,7 @@ class _MethodIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: selected ? Colors.white : _PayColors.badgeGray,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: value == "UPI"
-            ? Icon(
-                Icons.currency_rupee,
-                size: 20,
-                color: selected ? _PayColors.brandGreen : _PayColors.iconIdle,
-              )
-            : const _StackedNotesIcon(),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -171,31 +160,7 @@ class _StackedNotesIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 24,
-      height: 24,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Transform.translate(
-            offset: const Offset(-2, 2),
-            child: const Icon(
-              Icons.payments_outlined,
-              size: 17,
-              color: Color(0x66333333),
-            ),
-          ),
-          Transform.translate(
-            offset: const Offset(2, -2),
-            child: const Icon(
-              Icons.payments_outlined,
-              size: 17,
-              color: _PayColors.cashInk,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 

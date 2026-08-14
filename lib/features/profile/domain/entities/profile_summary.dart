@@ -8,6 +8,7 @@ class ProfileSummary {
     this.licenceNumber,
     this.travelPreference,
     this.hasVehicles = false,
+    this.ridesCompleted = 0,
   });
 
   final String fullName;
@@ -17,6 +18,7 @@ class ProfileSummary {
   final String? licenceNumber;
   final String? travelPreference;
   final bool hasVehicles;
+  final int ridesCompleted;
 
   bool get isDriver =>
       travelPreference == 'drive' || travelPreference == 'both' || hasVehicles;

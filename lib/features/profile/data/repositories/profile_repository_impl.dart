@@ -35,6 +35,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         licenceNumber: data?['licenceNumber'] as String?,
         travelPreference: travelPreference,
         hasVehicles: data?['hasVehicles'] as bool? ?? false,
+        ridesCompleted: data?['ridesCompleted'] as int? ?? 0,
       );
     });
   }

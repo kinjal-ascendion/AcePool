@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PaymentSaveButton extends StatelessWidget {
   final VoidCallback onPressed;
@@ -15,7 +16,7 @@ class PaymentSaveButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A1A1A),
+          backgroundColor: const Color(0xFF1D1D1D),
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 52),
@@ -23,11 +24,12 @@ class PaymentSaveButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        child: const Text(
+        child: Text(
           "Save Changes",
-          style: TextStyle(
+          style: GoogleFonts.mulish(
             fontSize: 16,
             fontWeight: FontWeight.w700,
+            height: 20 / 16,
           ),
         ),
       ),

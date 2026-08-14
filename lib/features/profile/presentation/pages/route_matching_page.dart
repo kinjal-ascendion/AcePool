@@ -3,6 +3,7 @@ import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/profile/presentation/bloc/route_matching_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RouteMatchingPage extends StatefulWidget {
   const RouteMatchingPage({super.key});
@@ -69,50 +70,51 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
         },
         builder: (context, state) {
           return Scaffold(
-            backgroundColor: const Color(0xFFF8F8F8),
-
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: Colors.black,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text(
-                "Route Matching",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 22,
-                ),
-              ),
-            ),
-
-            resizeToAvoidBottomInset: false,
+            backgroundColor: AppColors.scaffoldBackground,
             body: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-
-                    buildRadiusCard(),
-
-                    const Spacer(),
-
-                    buildNoRideCard(),
-
-                    const SizedBox(height: 20),
-
-                    buildButtons(state),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Route Matching',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.mulish(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1D1D1D),
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 48),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        children: [
+                          buildRadiusCard(),
+                          const Spacer(),
+                          buildNoRideCard(),
+                          const SizedBox(height: 20),
+                          buildButtons(state),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-
           );
         },
       ),
@@ -125,6 +127,7 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFBBBEC5), width: 1),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.05),
@@ -136,24 +139,26 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "RADIUS LIMIT",
-          style: TextStyle(
-            fontSize: 13,
+          style: GoogleFonts.mulish(
+            fontSize: 14,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1,
-            color: Colors.black54,
+            letterSpacing: 0.8,
+            color: const Color(0xFF4C515B),
+            height: 15 / 14,
           ),
         ),
 
         const SizedBox(height: 12),
 
-        const Text(
+        Text(
           "Accept riders within a set radius from your location.",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-            height: 1.4,
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: const Color(0xFF757474),
+            height: 24 / 16,
           ),
         ),
 
@@ -161,9 +166,14 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
 
         Row(
           children: [
-            const Text(
+            Text(
               "0 km",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: GoogleFonts.mulish(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: const Color(0xFF1D1D1D),
+                height: 19.5 / 16,
+              ),
             ),
             Expanded(
               child: SliderTheme(
@@ -173,14 +183,15 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                     enabledThumbRadius: 9,
                   ),
                   overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                  activeTrackColor: const Color(0xFF308666),
+                  inactiveTrackColor: AppColors.grey200,
+                  thumbColor: const Color(0xFF308666),
+                  tickMarkShape: SliderTickMarkShape.noTickMark,
                 ),
                 child: Slider(
                   value: radius,
                   min: 0.0,
                   max: 10,
-                  divisions: 20,
-                  activeColor: AppColors.primaryGreen,
-                  inactiveColor: AppColors.grey200,
                   onChanged: (value) {
                     setState(() {
                       radius = value;
@@ -190,9 +201,14 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                 ),
               ),
             ),
-            const Text(
+            Text(
               "10 km",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: GoogleFonts.mulish(
+                fontWeight: FontWeight.w400,
+                fontSize: 16,
+                color: const Color(0xFF757474),
+                height: 18 / 16,
+              ),
             ),
           ],
         ),
@@ -217,9 +233,11 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                       controller: _radiusController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       textAlign: TextAlign.end,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
+                        color: const Color(0xFF757474),
+                        height: 18 / 16,
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
@@ -236,11 +254,16 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                       },
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
                     child: Text(
                       "km",
-                      style: TextStyle(fontSize: 13, color: AppColors.black54),
+                      style: GoogleFonts.mulish(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF757474),
+                        height: 18 / 16,
+                      ),
                     ),
                   ),
                   Container(
@@ -267,6 +290,7 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                             child: const Icon(
                               Icons.keyboard_arrow_up,
                               size: 14,
+                              color: Color(0xFF757474),
                             ),
                           ),
                         ),
@@ -284,6 +308,7 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                             child: const Icon(
                               Icons.keyboard_arrow_down,
                               size: 14,
+                              color: Color(0xFF757474),
                             ),
                           ),
                         ),
@@ -294,12 +319,14 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 "Set a radius from your location",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.black54,
+                style: GoogleFonts.mulish(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF757474),
+                  height: 24 / 16,
                 ),
               ),
             ),
@@ -318,7 +345,7 @@ Widget buildNoRideCard() {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: Colors.grey.shade300,
+        color: const Color(0xFFBBBEC5),
       ),
     ),
     child: Row(
@@ -326,7 +353,7 @@ Widget buildNoRideCard() {
       children: [
         const Icon(
           Icons.info_outline,
-          color: Colors.black54,
+          color: Color(0xFF1E1E1E),
         ),
 
         const SizedBox(width: 12),
@@ -334,20 +361,24 @@ Widget buildNoRideCard() {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
                 "Nothing nearby yet",
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+                style: GoogleFonts.mulish(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: const Color(0xFF1E1E1E),
+                  height: 17 / 14,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 "We couldn't find any rides within your selected radius. Increase the radius or try again later.",
-                style: TextStyle(
-                  color: Colors.black54,
-                  height: 1.4,
+                style: GoogleFonts.mulish(
+                  fontWeight: FontWeight.w400,
+                  fontSize: 14,
+                  color: const Color(0xFF4C515B),
+                  height: 18 / 14,
                 ),
               ),
             ],
@@ -357,6 +388,7 @@ Widget buildNoRideCard() {
         IconButton(
           onPressed: () {},
           icon: const Icon(Icons.close),
+          iconSize: 20,
         ),
       ],
     ),
@@ -374,11 +406,20 @@ Widget buildButtons(RouteMatchingState state) {
               Navigator.pop(context);
             },
             style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1D1D1D),
+              side: BorderSide(color: AppColors.grey300),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text("Cancel"),
+            child: Text(
+              "Cancel",
+              style: GoogleFonts.mulish(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                height: 1.0,
+              ),
+            ),
           ),
         ),
       ),
@@ -405,7 +446,14 @@ Widget buildButtons(RouteMatchingState state) {
                   width: 20,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                 )
-              : const Text("Save Changes"),
+              : Text(
+                  "Save Changes",
+                  style: GoogleFonts.mulish(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    height: 1.0,
+                  ),
+                ),
           ),
         ),
       ),

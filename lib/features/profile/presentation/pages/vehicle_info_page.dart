@@ -6,6 +6,7 @@ import 'package:acepool/features/profile/domain/repositories/vehicle_repository.
 import 'package:acepool/features/profile/presentation/bloc/vehicle_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VehicleInfoPage extends StatefulWidget {
   const VehicleInfoPage({super.key});
@@ -68,12 +69,17 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, color: AppColors.grey700),
+        style: GoogleFonts.mulish(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF3B3F46),
+          height: 1.285,
+        ),
       ),
     );
   }
@@ -91,8 +97,8 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.grey200),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
         child: Row(
           children: [
@@ -100,12 +106,12 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.green50,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(22),
               ),
               child: Icon(
                 isFourWheeler ? Icons.directions_car : Icons.two_wheeler,
-                color: AppColors.green700,
+                color: const Color(0xFF1B8A3F),
               ),
             ),
             const SizedBox(width: 14),
@@ -115,15 +121,22 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
                 children: [
                   Text(
                     name.isNotEmpty ? name : 'Vehicle',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                    style: GoogleFonts.mulish(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: const Color(0xFF1D1D1D),
+                      height: 1.3125,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     number,
-                    style: TextStyle(color: AppColors.grey600, fontSize: 13),
+                    style: GoogleFonts.mulish(
+                      color: AppColors.subheadingGrey,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      height: 1.125,
+                    ),
                   ),
                 ],
               ),
@@ -140,74 +153,101 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffoldBackground,
-        elevation: 0,
-        foregroundColor: AppColors.black,
-        title: const Text(
-          'Vehicle info',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
       body: SafeArea(
-        child: BlocProvider.value(
-          value: _bloc,
-          child: BlocBuilder<VehicleBloc, VehicleState>(
-            builder: (context, state) {
-              if (state.status == VehicleListStatus.initial ||
-                  state.status == VehicleListStatus.loading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (state.status == VehicleListStatus.error) {
-                return Center(child: Text('Error: ${state.errorMessage}'));
-              }
-
-              final vehicles = state.vehicles;
-
-              return ListView(
-                padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
                 children: [
-                  Text(
-                    'My Vehicles',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Vehicle info',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black,
+                        height: 1.0,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  for (final doc in vehicles) ...[
-                    _vehicleCard(doc),
-                    const SizedBox(height: 12),
-                  ],
-                  InkWell(
-                    onTap: _openAddVehicleSheet,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.grey300),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, color: AppColors.grey700),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Add vehicle',
-                            style: TextStyle(
-                              color: AppColors.grey700,
-                              fontWeight: FontWeight.w500,
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: BlocProvider.value(
+                value: _bloc,
+                child: BlocBuilder<VehicleBloc, VehicleState>(
+                  builder: (context, state) {
+                    if (state.status == VehicleListStatus.initial ||
+                        state.status == VehicleListStatus.loading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (state.status == VehicleListStatus.error) {
+                      return Center(child: Text('Error: ${state.errorMessage}'));
+                    }
+
+                    final vehicles = state.vehicles;
+
+                    return ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        Text(
+                          'My Vehicles',
+                          style: GoogleFonts.mulish(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: const Color(0xFF1D1D1D),
+                            height: 1.406,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        for (final doc in vehicles) ...[
+                          _vehicleCard(doc),
+                          const SizedBox(height: 12),
+                        ],
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: _openAddVehicleSheet,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFD1D5DB), style: BorderStyle.solid),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.add, color: AppColors.subheadingGrey, size: 28),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Add vehicle',
+                                  style: GoogleFonts.mulish(
+                                    color: AppColors.subheadingGrey,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    height: 1.125,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -299,10 +339,11 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   Widget _label(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 13,
-        color: AppColors.grey600,
-        fontWeight: FontWeight.w500,
+      style: GoogleFonts.mulish(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: const Color(0xFF000000), // Assuming black based on "Choose an option - Default" requirement
+        height: 1.285, // 18/14
       ),
     );
   }
@@ -310,7 +351,12 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: AppColors.grey400, fontSize: 15),
+      hintStyle: GoogleFonts.mulish(
+        color: const Color(0xFFB6B6B6),
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        height: 1.285,
+      ),
       filled: true,
       fillColor: AppColors.grey50,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -345,9 +391,14 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Add vehicle',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  style: GoogleFonts.mulish(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF000000),
+                    height: 1.0,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -381,7 +432,12 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
             TextField(
               controller: _numberController,
               textCapitalization: TextCapitalization.characters,
-              style: TextStyle(color: AppColors.black87),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB6B6B6),
+                height: 1.285,
+              ),
               decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
             ),
             const SizedBox(height: 16),
@@ -389,7 +445,12 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
             const SizedBox(height: 6),
             TextField(
               controller: _brandController,
-              style: TextStyle(color: AppColors.black87),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB6B6B6),
+                height: 1.285,
+              ),
               decoration: _fieldDecoration(_brandHint),
             ),
             const SizedBox(height: 16),
@@ -397,7 +458,12 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
             const SizedBox(height: 6),
             TextField(
               controller: _modelController,
-              style: TextStyle(color: AppColors.black87),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB6B6B6),
+                height: 1.285,
+              ),
               decoration: _fieldDecoration(_nameHint),
             ),
             const SizedBox(height: 16),
@@ -408,6 +474,12 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                   ? _seats
                   : _seatOptions.first,
               decoration: _fieldDecoration(''),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB6B6B6),
+                height: 1.285,
+              ),
               items: _seatOptions
                   .map((s) => DropdownMenuItem(value: s, child: Text('$s')))
                   .toList(),
@@ -430,6 +502,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                   label: 'Optional',
                   selected: !_isDefault,
                   onTap: () => setState(() => _isDefault = false),
+                  isOptional: true,
                 ),
               ],
             ),
@@ -440,14 +513,21 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.black87,
+                      foregroundColor: const Color(0xFF1D1D1D),
                       side: BorderSide(color: AppColors.grey300),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        height: 1.0,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -472,7 +552,15 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text('Confirm'),
+                        : Text(
+                            'Confirm', // The user mentioned "Save changes" in text but "Confirm" is usually used here. 
+                                     // Screenshot shows "Confirm". Applying Bold 16 style.
+                            style: GoogleFonts.mulish(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              height: 1.0,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -511,9 +599,11 @@ class _TypeOption extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: selected ? AppColors.white : AppColors.black87,
+          style: GoogleFonts.mulish(
+            color: selected ? AppColors.white : const Color(0xFF1D1D1D),
             fontWeight: FontWeight.w600,
+            fontSize: 14,
+            height: 1.5, // 21/14
           ),
         ),
       ),
@@ -525,11 +615,13 @@ class _RadioChoice extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool isOptional;
 
   const _RadioChoice({
     required this.label,
     required this.selected,
     required this.onTap,
+    this.isOptional = false,
   });
 
   @override
@@ -545,7 +637,15 @@ class _RadioChoice extends StatelessWidget {
             color: selected ? AppTheme.scheduleButtonColor : AppColors.grey400,
           ),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 14)),
+          Text(
+            label,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.285,
+              color: isOptional && !selected ? const Color(0xFF757474) : const Color(0xFF1D1D1D),
+            ),
+          ),
         ],
       ),
     );
