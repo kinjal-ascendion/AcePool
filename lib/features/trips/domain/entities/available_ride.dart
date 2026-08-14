@@ -28,6 +28,8 @@ class AvailableRide {
     required this.defaultPickupPoint,
     required this.distanceKm,
     this.farePerSeat,
+    this.negotiatedPrice,
+    this.negotiationStatus,
     this.userFromAddress = '',
     this.userToAddress = '',
     this.userFromLat,
@@ -57,6 +59,8 @@ class AvailableRide {
   final String defaultPickupPoint;
   final double? distanceKm;
   final double? farePerSeat;
+  final double? negotiatedPrice;
+  final String? negotiationStatus;
 
   /// The rider's own commute points at the time this match was computed
   /// (read from `HomeBloc`'s find-ride form) — needed again when creating

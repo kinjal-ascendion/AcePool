@@ -61,7 +61,6 @@ class RidesRepositoryImpl implements RidesRepository {
     final myRequestsSnapFuture = _db
         .collection('ride_requests')
         .where('riderId', isEqualTo: uid)
-        .where('status', isEqualTo: 'accepted')
         .get();
 
     final userDoc = await userDocFuture;
@@ -71,8 +70,15 @@ class RidesRepositoryImpl implements RidesRepository {
     final matchRadiusKm =
         (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
 
-    final requestedRideIds =
-        myRequestsSnap.docs.map((d) => d.data()['rideId'] as String).toSet();
+    Map<String, (double? price, String? status)> requestedRideNegotiations = {};
+    for (var d in myRequestsSnap.docs) {
+      final data = d.data();
+      if (data['status'] == 'cancelled') continue;
+      requestedRideNegotiations[data['rideId'] as String] = (
+        (data['negotiatedPrice'] as num?)?.toDouble(),
+        data['negotiationStatus'] as String?,
+      );
+    }
 
     final candidates = snap.docs.where((doc) {
       final d = doc.data();
@@ -190,10 +196,12 @@ class RidesRepositoryImpl implements RidesRepository {
         seatsFilled: seatsFilled,
         seatsTotal: seatCount,
         vehicleType: rideVehicleType,
-        alreadyRequested: requestedRideIds.contains(doc.id),
+        alreadyRequested: requestedRideNegotiations.containsKey(doc.id),
         distanceKm: fromDistanceKm,
         matchPercent: matchPercent,
         farePerSeat: farePerSeat,
+        negotiatedPrice: requestedRideNegotiations[doc.id]?.$1,
+        negotiationStatus: requestedRideNegotiations[doc.id]?.$2,
         fromLat: rideFromLat,
         fromLng: rideFromLng,
         toLat: rideToLat,
@@ -224,6 +232,7 @@ class RidesRepositoryImpl implements RidesRepository {
     double? riderToLng,
     required TimeOfDay riderTime,
     String message = '',
+    double? negotiatedPrice,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
@@ -293,6 +302,7 @@ class RidesRepositoryImpl implements RidesRepository {
       'dropOffLatLng': dropOffLatLng,
       'pickupTime': {'hour': riderTime.hour, 'minute': riderTime.minute},
       'message': message,
+      'negotiatedPrice': negotiatedPrice,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,
@@ -366,6 +376,8 @@ class RidesRepositoryImpl implements RidesRepository {
           hour: (pickupTimeMap['hour'] as num).toInt(),
           minute: (pickupTimeMap['minute'] as num).toInt(),
         ),
+        negotiatedPrice: (d['negotiatedPrice'] as num?)?.toDouble(),
+        negotiationStatus: d['negotiationStatus'] as String?,
       ));
     }
 
@@ -422,6 +434,8 @@ class RidesRepositoryImpl implements RidesRepository {
           hour: (pickupTimeMap['hour'] as num).toInt(),
           minute: (pickupTimeMap['minute'] as num).toInt(),
         ),
+        negotiatedPrice: (d['negotiatedPrice'] as num?)?.toDouble(),
+        negotiationStatus: d['negotiationStatus'] as String?,
       ));
     }
     return riders;
@@ -437,6 +451,7 @@ class RidesRepositoryImpl implements RidesRepository {
     double? riderToLat,
     double? riderToLng,
     String message = '',
+    double? negotiatedPrice,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return '';
@@ -515,6 +530,7 @@ class RidesRepositoryImpl implements RidesRepository {
       'dropOffLatLng': dropOffLatLng,
       'pickupTime': {'hour': ride.time.hour, 'minute': ride.time.minute},
       'message': message,
+      'negotiatedPrice': negotiatedPrice,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,
@@ -591,6 +607,16 @@ class RidesRepositoryImpl implements RidesRepository {
     if (current != acceptedCount) {
       await rideRef.update({'seatsFilled': acceptedCount});
     }
+  }
+
+  @override
+  Future<void> respondToNegotiation({
+    required String requestId,
+    required String status,
+  }) async {
+    await _db.collection('ride_requests').doc(requestId).update({
+      'negotiationStatus': status,
+    });
   }
 
   @override

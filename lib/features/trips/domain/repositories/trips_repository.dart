@@ -41,6 +41,7 @@ abstract class TripsRepository {
   Future<String> requestAvailableRide({
     required AvailableRide ride,
     String message = '',
+    double? negotiatedPrice,
   });
 
   /// Cancels the current user's own ride_request [requestId] (on ride

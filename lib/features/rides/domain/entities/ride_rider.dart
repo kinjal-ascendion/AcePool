@@ -15,6 +15,8 @@ class RideRider {
     this.dropOffLat,
     this.dropOffLng,
     required this.pickupTime,
+    this.negotiatedPrice,
+    this.negotiationStatus,
   });
 
   final String requestId;
@@ -28,6 +30,8 @@ class RideRider {
   final double? dropOffLat;
   final double? dropOffLng;
   final TimeOfDay pickupTime;
+  final double? negotiatedPrice;
+  final String? negotiationStatus;
 
   String get pickupTimeLabel {
     final h = pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;

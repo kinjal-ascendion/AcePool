@@ -31,6 +31,7 @@ abstract class RidesRepository {
     double? riderToLng,
     required TimeOfDay riderTime,
     String message = '',
+    double? negotiatedPrice,
   });
 
   /// Riders whose request on [rideId] has [status] (default `accepted`),
@@ -67,6 +68,7 @@ abstract class RidesRepository {
     double? riderToLat,
     double? riderToLng,
     String message = '',
+    double? negotiatedPrice,
   });
 
   /// Rejects a rider's request and decrements the ride's seatsFilled count.
@@ -84,6 +86,11 @@ abstract class RidesRepository {
   /// Corrects `seatsFilled` on [rideId] to match [acceptedCount] if it has
   /// drifted.
   Future<void> reconcileSeatsFilled(String rideId, int acceptedCount);
+
+  Future<void> respondToNegotiation({
+    required String requestId,
+    required String status, // 'accepted' or 'declined'
+  });
 
   Future<bool> isRideOwnedByCurrentUser(String rideId);
 
