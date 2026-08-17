@@ -1,29 +1,32 @@
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/profile/presentation/bloc/review_riders_bloc.dart';
+import 'package:acepool/features/profile/domain/repositories/ratings_repository.dart';
+import 'package:acepool/features/profile/presentation/bloc/review_drivers_bloc.dart';
 import 'package:acepool/features/profile/presentation/pages/all_done_page.dart';
 import 'package:acepool/features/profile/presentation/widgets/passenger_review_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class ReviewRidersPage extends StatefulWidget {
+class ReviewDriversPage extends StatefulWidget {
   final String rideId;
 
-  const ReviewRidersPage({
+  const ReviewDriversPage({
     super.key,
     required this.rideId,
   });
 
   @override
-  State<ReviewRidersPage> createState() => _ReviewRidersPageState();
+  State<ReviewDriversPage> createState() => _ReviewDriversPageState();
 }
 
-class _ReviewRidersPageState extends State<ReviewRidersPage> {
-  late final ReviewRidersBloc _bloc;
+class _ReviewDriversPageState extends State<ReviewDriversPage> {
+  late final ReviewDriversBloc _bloc;
 
   @override
   void initState() {
     super.initState();
-    _bloc = sl<ReviewRidersBloc>()..add(ReviewRidersStarted(widget.rideId));
+    _bloc = ReviewDriversBloc(
+      ratingsRepository: sl<RatingsRepository>(),
+    )..add(ReviewDriversStarted(widget.rideId));
   }
 
   @override
@@ -51,28 +54,31 @@ class _ReviewRidersPageState extends State<ReviewRidersPage> {
       ),
       body: BlocProvider.value(
         value: _bloc,
-        child: BlocConsumer<ReviewRidersBloc, ReviewRidersState>(
+        child: BlocConsumer<ReviewDriversBloc, ReviewDriversState>(
           listenWhen: (previous, current) =>
               !previous.completed && current.completed,
           listener: (context, state) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AllDonePage(passengerCount: state.riders.length),
+                builder: (_) => AllDonePage(
+                  passengerCount: state.drivers.length,
+                  message: 'Feedback submitted for the driver.',
+                ),
               ),
             );
           },
           builder: (context, state) {
-            if (state.status == ReviewRidersStatus.initial ||
-                state.status == ReviewRidersStatus.loading) {
+            if (state.status == ReviewDriversStatus.initial ||
+                state.status == ReviewDriversStatus.loading) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (state.riders.isEmpty) {
-              return const Center(child: Text('No riders found'));
+            if (state.drivers.isEmpty) {
+              return const Center(child: Text('No drivers found'));
             }
 
-            final rider = state.currentRider!;
-            final isRated = rider.driverRating != null;
+            final driver = state.currentDriver!;
+            final isRated = driver.riderRating != null;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -80,7 +86,7 @@ class _ReviewRidersPageState extends State<ReviewRidersPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'REVIEW YOUR RIDERS',
+                    'REVIEW YOUR DRIVER',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -88,47 +94,33 @@ class _ReviewRidersPageState extends State<ReviewRidersPage> {
                       color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _ProgressBar(
-                    total: state.riders.length,
-                    filled: state.currentIndex + 1,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'PASSENGER ${state.currentIndex + 1} OF ${state.riders.length}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.3,
-                      color: Color(0xFF8A8A8A),
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   PassengerReviewCard(
-                    key: ValueKey(rider.requestId),
-                    riderName: rider.riderName,
-                    employeeId: rider.employeeId,
-                    riderPhotoUrl: rider.riderPhotoUrl,
-                    pickupPoint: rider.pickupPoint,
-                    dropOffPoint: rider.dropOffPoint,
+                    key: ValueKey(driver.requestId),
+                    riderName: driver.driverName,
+                    employeeId: driver.employeeId,
+                    riderPhotoUrl: driver.driverPhotoUrl,
+                    pickupPoint: driver.pickupPoint,
+                    dropOffPoint: driver.dropOffPoint,
                     selectedEmoji: state.selectedEmoji,
                     selectedTags: state.selectedTags,
                     comment: state.comment,
                     isRated: isRated,
                     isSubmitting: state.isSubmitting,
+                    isDriverReview: true,
                     onEmojiSelected: (rating) =>
-                        _bloc.add(ReviewRidersEmojiSelected(rating)),
+                        _bloc.add(ReviewDriversEmojiSelected(rating)),
                     onTagToggled: (tag) =>
-                        _bloc.add(ReviewRidersTagToggled(tag)),
+                        _bloc.add(ReviewDriversTagToggled(tag)),
                     onCommentChanged: (text) =>
-                        _bloc.add(ReviewRidersCommentChanged(text)),
-                    onSubmit: () => _bloc.add(const ReviewRidersSubmitted()),
+                        _bloc.add(ReviewDriversCommentChanged(text)),
+                    onSubmit: () => _bloc.add(const ReviewDriversSubmitted()),
                   ),
                   const SizedBox(height: 16),
                   Center(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => _bloc.add(const ReviewRidersSkipped()),
+                      onTap: () => _bloc.add(const ReviewDriversSkipped()),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 4),
                         child: Text(
@@ -152,29 +144,4 @@ class _ReviewRidersPageState extends State<ReviewRidersPage> {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  final int total;
-  final int filled;
 
-  const _ProgressBar({required this.total, required this.filled});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(total, (index) {
-        return Expanded(
-          child: Container(
-            height: 4,
-            margin: EdgeInsets.only(right: index == total - 1 ? 0 : 5),
-            decoration: BoxDecoration(
-              color: index < filled
-                  ? const Color(0xFF1A1A1A)
-                  : const Color(0xFFE5E5E5),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}

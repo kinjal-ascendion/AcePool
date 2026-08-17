@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'package:acepool/features/profile/domain/entities/driver_ratable_ride.dart';
+import 'package:acepool/features/profile/domain/entities/driver_review.dart';
 import 'package:acepool/features/profile/domain/entities/received_rating_ride.dart';
 import 'package:acepool/features/profile/domain/entities/rider_ratable_ride.dart';
 import 'package:acepool/features/profile/domain/entities/rider_review.dart';
@@ -188,16 +189,30 @@ class RatingsRepositoryImpl implements RatingsRepository {
       if (rideData['status'] != 'completed') continue;
 
       final rideTime = requestData['rideTime'] as Map<String, dynamic>;
+      final driverId = requestData['driverId'] as String? ?? '';
+
+      String driverName = '';
+      String? driverPhotoUrl;
+      try {
+        final driverDoc = await _db.collection('users').doc(driverId).get();
+        final driverData = driverDoc.data();
+        if (driverData != null) {
+          driverName = driverData['fullName'] as String? ?? '';
+          driverPhotoUrl = driverData['profileImageUrl'] as String?;
+        }
+      } catch (_) {}
 
       rides.add(RiderRatableRide(
         requestId: request.id,
         rideId: requestData['rideId'],
-        driverId: requestData['driverId'],
+        driverId: driverId,
         date: (requestData['rideDate'] as Timestamp).toDate(),
         time: TimeOfDay(hour: rideTime['hour'], minute: rideTime['minute']),
         pickup: requestData['rideFrom'],
         drop: requestData['rideTo'],
         riderRating: requestData['riderRating'],
+        driverName: driverName,
+        driverPhotoUrl: driverPhotoUrl,
       ));
     }
 
@@ -228,14 +243,21 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final userDoc = await _db.collection('users').doc(data['riderId']).get();
       final userData = userDoc.data();
 
+      final riderName = (data['riderName'] as String?) ?? '';
+      final riderPhotoUrl = (data['riderPhotoUrl'] as String?) ??
+          (userData?['profileImageUrl'] as String?);
+
       riders.add(RiderReview(
         requestId: doc.id,
         riderId: data['riderId'],
-        riderName: data['riderName'],
+        riderName: riderName.isNotEmpty
+            ? riderName
+            : (userData?['fullName'] as String? ?? ''),
         employeeId: userData?['employeeId'] ?? '',
         pickupPoint: data['pickupPoint'] ?? '',
         dropOffPoint: data['dropOffPoint'] ?? '',
         driverRating: data['driverRating'],
+        riderPhotoUrl: riderPhotoUrl,
       ));
     }
 
@@ -248,6 +270,54 @@ class RatingsRepositoryImpl implements RatingsRepository {
       "driverRating": rating,
       "driverRatedAt": FieldValue.serverTimestamp(),
     });
+  }
+
+  @override
+  Future<List<DriverReview>> getDriversToReview(String rideId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+
+    final snapshot = await _db
+        .collection('ride_requests')
+        .where('riderId', isEqualTo: uid)
+        .where('rideId', isEqualTo: rideId)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+
+    final drivers = <DriverReview>[];
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final driverId = data['driverId'] as String? ?? '';
+
+      String driverName = data['driverName'] as String? ?? '';
+      String? driverPhotoUrl;
+      String employeeId = '';
+
+      try {
+        final userDoc = await _db.collection('users').doc(driverId).get();
+        final userData = userDoc.data();
+        if (userData != null) {
+          if (driverName.isEmpty) driverName = userData['fullName'] as String? ?? '';
+          driverPhotoUrl = userData['profileImageUrl'] as String?;
+          employeeId = userData['employeeId'] as String? ?? '';
+        }
+      } catch (_) {}
+
+      drivers.add(DriverReview(
+        requestId: doc.id,
+        rideId: rideId,
+        driverId: driverId,
+        driverName: driverName,
+        employeeId: employeeId,
+        pickupPoint: data['pickupPoint'] as String? ?? data['rideFrom'] as String? ?? '',
+        dropOffPoint: data['dropOffPoint'] as String? ?? data['rideTo'] as String? ?? '',
+        driverPhotoUrl: driverPhotoUrl,
+        riderRating: data['riderRating'] as int?,
+      ));
+    }
+
+    return drivers;
   }
 
   @override
@@ -277,6 +347,29 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final ratedRiders =
           requestSnapshot.docs.where((doc) => doc.data()['driverRating'] != null).length;
 
+      // Passenger names + avatar URLs (request-doc values, falling back to
+      // the user doc when a name is missing or a fresher photo exists).
+      final riderNames = <String>[];
+      final riderPhotoUrls = <String?>[];
+      for (final doc in requestSnapshot.docs) {
+        final requestData = doc.data();
+        var name = requestData['riderName'] as String? ?? '';
+        String? photo = requestData['riderPhotoUrl'] as String?;
+        try {
+          final userDoc = await _db
+              .collection('users')
+              .doc(requestData['riderId'] as String)
+              .get();
+          final userData = userDoc.data();
+          if (userData != null) {
+            if (name.isEmpty) name = userData['fullName'] as String? ?? '';
+            photo = userData['profileImageUrl'] as String? ?? photo;
+          }
+        } catch (_) {}
+        riderNames.add(name);
+        riderPhotoUrls.add(photo);
+      }
+
       rides.add(DriverRatableRide(
         requestId: '', // Not needed yet
         rideId: ride.id,
@@ -288,6 +381,8 @@ class RatingsRepositoryImpl implements RatingsRepository {
         driverRating: ratedRiders > 0 ? 1 : null,
         ratedRiders: ratedRiders,
         totalRiders: totalRiders, // We'll calculate this later
+        riderNames: riderNames,
+        riderPhotoUrls: riderPhotoUrls,
       ));
     }
 

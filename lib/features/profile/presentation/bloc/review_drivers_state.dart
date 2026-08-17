@@ -1,11 +1,11 @@
-part of 'review_riders_bloc.dart';
+part of 'review_drivers_bloc.dart';
 
-enum ReviewRidersStatus { initial, loading, loaded }
+enum ReviewDriversStatus { initial, loading, loaded }
 
-class ReviewRidersState extends Equatable {
-  const ReviewRidersState({
-    this.status = ReviewRidersStatus.initial,
-    this.riders = const [],
+class ReviewDriversState extends Equatable {
+  const ReviewDriversState({
+    this.status = ReviewDriversStatus.initial,
+    this.drivers = const [],
     this.currentIndex = 0,
     this.selectedEmoji,
     this.selectedTags = const {},
@@ -14,8 +14,8 @@ class ReviewRidersState extends Equatable {
     this.completed = false,
   });
 
-  final ReviewRidersStatus status;
-  final List<RiderReview> riders;
+  final ReviewDriversStatus status;
+  final List<DriverReview> drivers;
   final int currentIndex;
   final int? selectedEmoji;
   final Set<String> selectedTags;
@@ -23,14 +23,14 @@ class ReviewRidersState extends Equatable {
   final bool isSubmitting;
   final bool completed;
 
-  RiderReview? get currentRider =>
-      currentIndex >= 0 && currentIndex < riders.length
-          ? riders[currentIndex]
+  DriverReview? get currentDriver =>
+      currentIndex >= 0 && currentIndex < drivers.length
+          ? drivers[currentIndex]
           : null;
 
-  ReviewRidersState copyWith({
-    ReviewRidersStatus? status,
-    List<RiderReview>? riders,
+  ReviewDriversState copyWith({
+    ReviewDriversStatus? status,
+    List<DriverReview>? drivers,
     int? currentIndex,
     int? Function()? selectedEmoji,
     Set<String>? selectedTags,
@@ -38,9 +38,9 @@ class ReviewRidersState extends Equatable {
     bool? isSubmitting,
     bool? completed,
   }) {
-    return ReviewRidersState(
+    return ReviewDriversState(
       status: status ?? this.status,
-      riders: riders ?? this.riders,
+      drivers: drivers ?? this.drivers,
       currentIndex: currentIndex ?? this.currentIndex,
       selectedEmoji: selectedEmoji != null ? selectedEmoji() : this.selectedEmoji,
       selectedTags: selectedTags ?? this.selectedTags,
@@ -53,7 +53,7 @@ class ReviewRidersState extends Equatable {
   @override
   List<Object?> get props => [
     status,
-    riders,
+    drivers,
     currentIndex,
     selectedEmoji,
     selectedTags,
