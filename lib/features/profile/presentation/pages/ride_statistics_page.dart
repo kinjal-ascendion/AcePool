@@ -97,8 +97,8 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
                 children: [
                   if (_currentMode == RideMode.takeRide) ...[
                     _menuTile(
-                      title: "Ratings by You",
-                      subtitle: "Ratings given by you to your drivers",
+                      title: "Feedback by You",
+                      subtitle: "Feedback given by you to your drivers",
                       onTap: () {
                         Navigator.push(
                           context,
@@ -110,8 +110,8 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
                     ),
                     Divider(color: AppColors.grey200),
                     _menuTile(
-                      title: "Ratings by Drivers",
-                      subtitle: "Ratings given by drivers to you",
+                      title: "Feedback by Drivers",
+                      subtitle: "Feedback given by drivers to you",
                       onTap: () {
                         Navigator.push(
                           context,
@@ -124,8 +124,8 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
                   ],
                   if (_currentMode == RideMode.offerRide) ...[
                     _menuTile(
-                      title: "Ratings by You",
-                      subtitle: "Ratings given by you to your riders",
+                      title: "Feedback by You",
+                      subtitle: "Feedback given by you to your riders",
                       onTap: () {
                         Navigator.push(
                           context,
@@ -137,8 +137,8 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
                     ),
                     Divider(color: AppColors.grey200),
                     _menuTile(
-                      title: "Ratings by Riders",
-                      subtitle: "Ratings given by riders to you",
+                      title: "Feedback by Riders",
+                      subtitle: "Feedback given by riders to you",
                       onTap: () {
                         Navigator.push(
                           context,

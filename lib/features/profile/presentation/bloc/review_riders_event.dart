@@ -16,21 +16,37 @@ class ReviewRidersStarted extends ReviewRidersEvent {
   List<Object?> get props => [rideId];
 }
 
-class ReviewRidersStarSelected extends ReviewRidersEvent {
-  const ReviewRidersStarSelected({required this.requestId, required this.rating});
+class ReviewRidersEmojiSelected extends ReviewRidersEvent {
+  const ReviewRidersEmojiSelected(this.rating);
 
-  final String requestId;
   final int rating;
 
   @override
-  List<Object?> get props => [requestId, rating];
+  List<Object?> get props => [rating];
+}
+
+class ReviewRidersTagToggled extends ReviewRidersEvent {
+  const ReviewRidersTagToggled(this.tag);
+
+  final String tag;
+
+  @override
+  List<Object?> get props => [tag];
+}
+
+class ReviewRidersCommentChanged extends ReviewRidersEvent {
+  const ReviewRidersCommentChanged(this.comment);
+
+  final String comment;
+
+  @override
+  List<Object?> get props => [comment];
 }
 
 class ReviewRidersSubmitted extends ReviewRidersEvent {
-  const ReviewRidersSubmitted(this.requestId);
+  const ReviewRidersSubmitted();
+}
 
-  final String requestId;
-
-  @override
-  List<Object?> get props => [requestId];
+class ReviewRidersSkipped extends ReviewRidersEvent {
+  const ReviewRidersSkipped();
 }

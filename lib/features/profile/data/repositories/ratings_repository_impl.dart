@@ -228,14 +228,21 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final userDoc = await _db.collection('users').doc(data['riderId']).get();
       final userData = userDoc.data();
 
+      final riderName = (data['riderName'] as String?) ?? '';
+      final riderPhotoUrl = (data['riderPhotoUrl'] as String?) ??
+          (userData?['profileImageUrl'] as String?);
+
       riders.add(RiderReview(
         requestId: doc.id,
         riderId: data['riderId'],
-        riderName: data['riderName'],
+        riderName: riderName.isNotEmpty
+            ? riderName
+            : (userData?['fullName'] as String? ?? ''),
         employeeId: userData?['employeeId'] ?? '',
         pickupPoint: data['pickupPoint'] ?? '',
         dropOffPoint: data['dropOffPoint'] ?? '',
         driverRating: data['driverRating'],
+        riderPhotoUrl: riderPhotoUrl,
       ));
     }
 
@@ -277,6 +284,29 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final ratedRiders =
           requestSnapshot.docs.where((doc) => doc.data()['driverRating'] != null).length;
 
+      // Passenger names + avatar URLs (request-doc values, falling back to
+      // the user doc when a name is missing or a fresher photo exists).
+      final riderNames = <String>[];
+      final riderPhotoUrls = <String?>[];
+      for (final doc in requestSnapshot.docs) {
+        final requestData = doc.data();
+        var name = requestData['riderName'] as String? ?? '';
+        String? photo = requestData['riderPhotoUrl'] as String?;
+        try {
+          final userDoc = await _db
+              .collection('users')
+              .doc(requestData['riderId'] as String)
+              .get();
+          final userData = userDoc.data();
+          if (userData != null) {
+            if (name.isEmpty) name = userData['fullName'] as String? ?? '';
+            photo = userData['profileImageUrl'] as String? ?? photo;
+          }
+        } catch (_) {}
+        riderNames.add(name);
+        riderPhotoUrls.add(photo);
+      }
+
       rides.add(DriverRatableRide(
         requestId: '', // Not needed yet
         rideId: ride.id,
@@ -288,6 +318,8 @@ class RatingsRepositoryImpl implements RatingsRepository {
         driverRating: ratedRiders > 0 ? 1 : null,
         ratedRiders: ratedRiders,
         totalRiders: totalRiders, // We'll calculate this later
+        riderNames: riderNames,
+        riderPhotoUrls: riderPhotoUrls,
       ));
     }
 

@@ -8,6 +8,7 @@ class RiderReview {
     required this.pickupPoint,
     required this.dropOffPoint,
     required this.driverRating,
+    this.riderPhotoUrl,
   });
 
   final String requestId;
@@ -17,8 +18,9 @@ class RiderReview {
   final String pickupPoint;
   final String dropOffPoint;
   final int? driverRating;
+  final String? riderPhotoUrl;
 
-  RiderReview copyWith({int? driverRating}) {
+  RiderReview copyWith({int? driverRating, String? riderPhotoUrl}) {
     return RiderReview(
       requestId: requestId,
       riderId: riderId,
@@ -27,6 +29,7 @@ class RiderReview {
       pickupPoint: pickupPoint,
       dropOffPoint: dropOffPoint,
       driverRating: driverRating ?? this.driverRating,
+      riderPhotoUrl: riderPhotoUrl ?? this.riderPhotoUrl,
     );
   }
 }
