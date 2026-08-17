@@ -23,11 +23,18 @@ class _CardColors {
   ];
 }
 
-const List<String> _reviewTags = [
+const List<String> _defaultReviewTags = [
   'On time',
   'Polite',
   'Easy to find',
   'Good company',
+];
+
+const List<String> _driverReviewTags = [
+  'On time',
+  'Safe driver',
+  'Clean car',
+  'Friendly',
 ];
 
 const List<String> _sentimentEmojis = ['😠', '😞', '😐', '🙂', '😍'];
@@ -43,6 +50,7 @@ class PassengerReviewCard extends StatefulWidget {
   final String comment;
   final bool isRated;
   final bool isSubmitting;
+  final bool isDriverReview;
   final ValueChanged<int> onEmojiSelected;
   final ValueChanged<String> onTagToggled;
   final ValueChanged<String> onCommentChanged;
@@ -60,6 +68,7 @@ class PassengerReviewCard extends StatefulWidget {
     required this.comment,
     required this.isRated,
     required this.isSubmitting,
+    this.isDriverReview = false,
     required this.onEmojiSelected,
     required this.onTagToggled,
     required this.onCommentChanged,
@@ -170,6 +179,7 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
           ),
           const SizedBox(height: 12),
           _TagChips(
+            tags: widget.isDriverReview ? _driverReviewTags : _defaultReviewTags,
             selectedTags: widget.selectedTags,
             onToggled: widget.onTagToggled,
           ),
@@ -482,10 +492,11 @@ class _SentimentPicker extends StatelessWidget {
 }
 
 class _TagChips extends StatelessWidget {
+  final List<String> tags;
   final Set<String> selectedTags;
   final ValueChanged<String> onToggled;
 
-  const _TagChips({required this.selectedTags, required this.onToggled});
+  const _TagChips({required this.tags, required this.selectedTags, required this.onToggled});
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +504,7 @@ class _TagChips extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final tag in _reviewTags)
+        for (final tag in tags)
           GestureDetector(
             onTap: () => onToggled(tag),
             child: Container(

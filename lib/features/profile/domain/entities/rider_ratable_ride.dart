@@ -12,6 +12,8 @@ class RiderRatableRide {
     required this.pickup,
     required this.drop,
     required this.riderRating,
+    this.driverName = '',
+    this.driverPhotoUrl,
   });
 
   final String requestId;
@@ -22,8 +24,10 @@ class RiderRatableRide {
   final String pickup;
   final String drop;
   final int? riderRating;
+  final String driverName;
+  final String? driverPhotoUrl;
 
-  RiderRatableRide copyWith({int? riderRating}) {
+  RiderRatableRide copyWith({int? riderRating, String? driverName, String? driverPhotoUrl}) {
     return RiderRatableRide(
       requestId: requestId,
       rideId: rideId,
@@ -33,6 +37,8 @@ class RiderRatableRide {
       pickup: pickup,
       drop: drop,
       riderRating: riderRating ?? this.riderRating,
+      driverName: driverName ?? this.driverName,
+      driverPhotoUrl: driverPhotoUrl ?? this.driverPhotoUrl,
     );
   }
 }

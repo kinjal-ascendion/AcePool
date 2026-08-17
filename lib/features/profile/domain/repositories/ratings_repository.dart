@@ -1,4 +1,5 @@
 import 'package:acepool/features/profile/domain/entities/driver_ratable_ride.dart';
+import 'package:acepool/features/profile/domain/entities/driver_review.dart';
 import 'package:acepool/features/profile/domain/entities/received_rating_ride.dart';
 import 'package:acepool/features/profile/domain/entities/rider_ratable_ride.dart';
 import 'package:acepool/features/profile/domain/entities/rider_review.dart';
@@ -23,4 +24,6 @@ abstract class RatingsRepository {
   /// The current user's (driver's) completed offered rides, with review
   /// progress.
   Future<List<DriverRatableRide>> getMyCompletedRidesAsDriver();
+
+  Future<List<DriverReview>> getDriversToReview(String rideId);
 }

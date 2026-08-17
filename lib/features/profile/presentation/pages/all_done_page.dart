@@ -11,15 +11,17 @@ class _AllDoneColors {
 
 class AllDonePage extends StatelessWidget {
   final int passengerCount;
+  final String? message;
 
-  const AllDonePage({super.key, required this.passengerCount});
+  const AllDonePage({super.key, required this.passengerCount, this.message});
 
   @override
   Widget build(BuildContext context) {
     final topSpace = MediaQuery.sizeOf(context).height * 0.16;
-    final subtext = passengerCount == 1
-        ? 'Feedback submitted for 1 passenger.'
-        : 'Feedback submitted for all $passengerCount passengers.';
+    final subtext = message ??
+        (passengerCount == 1
+            ? 'Feedback submitted for 1 passenger.'
+            : 'Feedback submitted for all $passengerCount passengers.');
 
     return Scaffold(
       backgroundColor: Colors.white,

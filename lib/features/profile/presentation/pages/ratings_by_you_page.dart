@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/profile/presentation/bloc/ratings_by_you_bloc.dart';
-import '../widgets/ride_card.dart';
+import '../widgets/ride_review_card.dart';
 import 'package:intl/intl.dart';
-import '../widgets/rating_panel.dart';
+import 'review_drivers_page.dart';
 
 class RatingsByYouPage extends StatefulWidget {
   const RatingsByYouPage({super.key});
@@ -28,10 +28,24 @@ class _RatingsByYouPageState extends State<RatingsByYouPage> {
     super.dispose();
   }
 
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (isToday) return 'Today';
+    return DateFormat('EEE d MMM').format(date);
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return DateFormat('h.mm a')
+        .format(DateTime(2000, 1, 1, time.hour, time.minute))
+        .toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -46,28 +60,21 @@ class _RatingsByYouPageState extends State<RatingsByYouPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
-              "RATINGS BY YOU",
+              "FEEDBACK BY YOU",
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1.2,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: Colors.black,
               ),
             ),
           ),
-
           Expanded(
             child: BlocProvider.value(
               value: _bloc,
-              child: BlocConsumer<RatingsByYouBloc, RatingsByYouState>(
-                listener: (context, state) {
-                  if (state.errorMessage != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(state.errorMessage!)),
-                    );
-                  }
-                },
+              child: BlocBuilder<RatingsByYouBloc, RatingsByYouState>(
                 builder: (context, state) {
                   if (state.status == RatingsByYouStatus.initial ||
                       state.status == RatingsByYouStatus.loading) {
@@ -90,61 +97,25 @@ class _RatingsByYouPageState extends State<RatingsByYouPage> {
                     itemBuilder: (context, index) {
                       final ride = rides[index];
 
-                      return Column(
-                        children: [
-                          RideCard(
-                            date: DateFormat('MMMM d, yyyy').format(ride.date),
-                            time: ride.time.format(context),
-                            pickup: ride.pickup,
-                            drop: ride.drop,
-                            rating: (ride.riderRating ?? 0).toDouble(),
-                            reviews: 0,
-                            showReviews: false,
-                            trailing: ride.riderRating == null
-                                ? ElevatedButton.icon(
-                                    onPressed: () {
-                                      _bloc.add(RatingsByYouExpandToggled(ride.requestId));
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.black,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(24),
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.add,
-                                      size: 14,
-                                    ),
-                                    label: const Text(
-                                      "Review your Driver",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  )
-                                : null,
-                          ),
-
-                          if (state.expandedRequestId == ride.requestId)
-                            RatingPanel(
-                              selectedRating: state.selectedRating,
-                              onRatingChanged: (rating) {
-                                _bloc.add(RatingsByYouStarSelected(rating));
-                              },
-                              onSubmit: () {
-                                _bloc.add(RatingsByYouSubmitted(ride.requestId));
-                              },
+                      return RideReviewCard(
+                        riderNames: [ride.driverName.isNotEmpty ? ride.driverName : 'Driver'],
+                        riderPhotoUrls: [ride.driverPhotoUrl],
+                        passengerCount: 0,
+                        dateTimeText:
+                            '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ReviewDriversPage(
+                                rideId: ride.rideId,
+                              ),
                             ),
-
-                          const SizedBox(height: 16),
-                        ],
+                          );
+                          if (mounted) {
+                            _bloc.add(const RatingsByYouStarted());
+                          }
+                        },
                       );
                     },
                   );

@@ -104,15 +104,16 @@ class RideReviewCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          "$passengerCount passenger${passengerCount == 1 ? '' : 's'}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: _ReviewCardColors.bodyGray,
-                            height: 1.3,
+                        if (passengerCount > 0)
+                          Text(
+                            "$passengerCount passenger${passengerCount == 1 ? '' : 's'}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: _ReviewCardColors.bodyGray,
+                              height: 1.3,
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 2),
                         Text(
                           dateTimeText,
