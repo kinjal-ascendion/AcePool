@@ -76,6 +76,7 @@ class HomeRepositoryImpl implements HomeRepository {
         note: data['note'] as String?,
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
         status: data['status'] as String? ?? 'upcoming',
+        vehicleType: data['vehicleType'] as String?,
       );
     }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
   }

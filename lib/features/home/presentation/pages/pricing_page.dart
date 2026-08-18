@@ -5,12 +5,12 @@ import 'package:acepool/features/home/domain/entities/fare_breakdown.dart';
 import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
 import 'package:acepool/features/home/presentation/bloc/pricing_bloc.dart';
 import 'package:acepool/features/home/presentation/pages/ride_published_page.dart';
-import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
 import 'package:acepool/features/home/presentation/widgets/schedule_ride_button.dart';
 import 'package:acepool/features/profile/presentation/pages/vehicle_info_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PricingPage extends StatelessWidget {
   const PricingPage({
@@ -139,17 +139,26 @@ class _PricingViewState extends State<_PricingView> {
         ),
       ],
       child: Scaffold(
-        backgroundColor: AppColors.scaffoldBackground,
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: AppColors.transparent,
+          backgroundColor: Colors.white,
           elevation: 0,
-          foregroundColor: AppColors.black87,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              size: 26,
+              color: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
           centerTitle: true,
-          title: const Text(
+          title: Text(
             'Pricing',
-            style: TextStyle(
-              color: AppColors.black87,
-              fontWeight: FontWeight.w600,
+            style: GoogleFonts.mulish(
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              fontSize: 24,
+              height: 1.0,
             ),
           ),
         ),
@@ -169,54 +178,51 @@ class _PricingViewState extends State<_PricingView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _SectionLabel('SET FARE'),
-                          const SizedBox(height: 8),
-                          _RouteSummaryCard(
-                            fromAddress: state.fromAddress,
-                            toAddress: state.toAddress,
-                            fare: fare,
+                          const _SectionLabel('SET FARE'),
+                          const SizedBox(height: 10),
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFDDDDDD)),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: _RouteSummarySection(
+                              fromAddress: state.fromAddress,
+                              toAddress: state.toAddress,
+                              fare: fare,
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          GlassCard(
-                            borderRadius: 20,
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _SectionLabel('VEHICLE TYPE'),
-                                const SizedBox(height: 10),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: _VehicleDropdown(
-                                        vehicles: state.vehicles,
-                                        selectedId: fare.vehicleId,
-                                        onChanged: (id, label) => bloc.add(
-                                          VehicleSelected(id, label),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: _RateInputBox(
-                                        value: fare.ratePerKm,
-                                        onChanged: (v) =>
-                                            bloc.add(RatePerKmChanged(v)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Note: Rate per km changes based on the vehicle '
-                                  'type you select',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.grey500,
+                          const SizedBox(height: 24),
+                          const _SectionLabel('VEHICLE TYPE'),
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _VehicleDropdown(
+                                  vehicles: state.vehicles,
+                                  selectedId: fare.vehicleId,
+                                  onChanged: (id, label) => bloc.add(
+                                    VehicleSelected(id, label),
                                   ),
                                 ),
-                              ],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _RateInputBox(
+                                  value: fare.ratePerKm,
+                                  onChanged: (v) => bloc.add(RatePerKmChanged(v)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Note: Rate per km changes based on the vehicle type you select',
+                            style: GoogleFonts.mulish(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              height: 18 / 14,
+                              color: const Color(0xFF4C515B),
                             ),
                           ),
                         ],
@@ -248,18 +254,19 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 11,
+      style: GoogleFonts.mulish(
+        fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: AppColors.grey600,
-        letterSpacing: 0.6,
+        height: 15 / 14,
+        color: const Color(0xFF4C515B),
+        letterSpacing: 0.8,
       ),
     );
   }
 }
 
-class _RouteSummaryCard extends StatelessWidget {
-  const _RouteSummaryCard({
+class _RouteSummarySection extends StatelessWidget {
+  const _RouteSummarySection({
     required this.fromAddress,
     required this.toAddress,
     required this.fare,
@@ -269,44 +276,29 @@ class _RouteSummaryCard extends StatelessWidget {
   final String toAddress;
   final FareBreakdown fare;
 
-  Widget _addressLine(String text) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.grey700,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Icon(Icons.map_outlined, size: 14, color: AppColors.grey600),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      borderRadius: 20,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final addressStyle = GoogleFonts.mulish(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      height: 18 / 16,
+      color: Colors.black,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 11,
-                    height: 11,
+                    width: 12,
+                    height: 12,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
@@ -315,18 +307,15 @@ class _RouteSummaryCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  ...List.generate(
-                    3,
-                    (_) => Container(
-                      width: 1.5,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      color: AppColors.black26,
-                    ),
+                  Container(
+                    width: 1.5,
+                    height: 32,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    child: CustomPaint(painter: _DashedLinePainter()),
                   ),
                   Container(
-                    width: 11,
-                    height: 11,
+                    width: 12,
+                    height: 12,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.primaryGreen,
@@ -337,44 +326,100 @@ class _RouteSummaryCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _addressLine(fromAddress),
-                    const SizedBox(height: 18),
-                    _addressLine(toAddress),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fromAddress,
+                            style: addressStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.map_outlined, size: 20, color: Color(0xFF757474)),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(color: Color(0xFFDDDDDD), height: 1),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            toAddress,
+                            style: addressStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.map_outlined, size: 20, color: Color(0xFF757474)),
+                      ],
+                    ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.swap_vert, size: 24, color: Color(0xFF757474)),
+            ],
+          ),
+        ),
+        const Divider(color: Color(0xFFDDDDDD), height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Image.asset('assets/images/distance_map_icon.png', width: 16, height: 16),
+              const SizedBox(width: 6),
+              Text(
+                '${fare.distanceKm.toStringAsFixed(1)} km',
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 20 / 14,
+                  letterSpacing: 14 * 0.01,
+                  color: const Color(0xFF1D1D1D),
+                ),
+              ),
+              const SizedBox(width: 32),
+              Image.asset('assets/images/estimation_timer.png', width: 16, height: 16),
+              const SizedBox(width: 6),
+              Text(
+                '${RideMatcher.formatDuration(fare.durationMinutes)} est.',
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 20 / 14,
+                  letterSpacing: 14 * 0.01,
+                  color: const Color(0xFF1D1D1D),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Divider(color: AppColors.grey200, height: 1),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                Icons.location_on_outlined,
-                size: 15,
-                color: AppColors.grey600,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${fare.distanceKm.toStringAsFixed(1)} km',
-                style: TextStyle(fontSize: 12, color: AppColors.grey600),
-              ),
-              const SizedBox(width: 16),
-              Icon(Icons.access_time, size: 15, color: AppColors.grey600),
-              const SizedBox(width: 4),
-              Text(
-                '${RideMatcher.formatDuration(fare.durationMinutes)} est.',
-                style: TextStyle(fontSize: 12, color: AppColors.grey600),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    double dashHeight = 5, dashSpace = 3, startY = 0;
+    final paint = Paint()
+      ..color = AppColors.black26
+      ..strokeWidth = size.width;
+    while (startY < size.height) {
+      canvas.drawLine(Offset(0, startY), Offset(0, startY + dashHeight), paint);
+      startY += dashHeight + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 class _VehicleDropdown extends StatelessWidget {
@@ -396,7 +441,21 @@ class _VehicleDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       value: validSelectedId,
       isExpanded: true,
-      hint: const Text('e.g. SUV'),
+      hint: Text(
+        'e.g. SUV',
+        style: GoogleFonts.mulish(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFFB6B6B6),
+        ),
+      ),
+      icon: Image.asset(
+        'assets/images/expand.png',
+        width: 12,
+        height: 12,
+        color: const Color(0xFF757474),
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.keyboard_arrow_down, color: Color(0xFF757474)),
+      ),
       decoration: InputDecoration(
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
@@ -407,19 +466,25 @@ class _VehicleDropdown extends StatelessWidget {
         fillColor: AppColors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.grey300),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.grey300),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.black, width: 2),
+          borderSide: const BorderSide(color: AppColors.black, width: 1),
         ),
       ),
       items: vehicles
-          .map((v) => DropdownMenuItem(value: v.id, child: Text(v.label)))
+          .map((v) => DropdownMenuItem(
+                value: v.id,
+                child: Text(
+                  v.label,
+                  style: GoogleFonts.mulish(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ))
           .toList(),
       onChanged: vehicles.isEmpty
           ? null
@@ -441,12 +506,12 @@ class _RateInputBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
+      height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.grey300),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       alignment: Alignment.centerLeft,
       child: TextFormField(
@@ -454,7 +519,7 @@ class _RateInputBox extends StatelessWidget {
         initialValue: value > 0 ? value.round().toString() : '',
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: TextStyle(
+        style: GoogleFonts.mulish(
           color: AppColors.black87,
           fontWeight: FontWeight.w600,
           fontSize: 14,
@@ -464,7 +529,11 @@ class _RateInputBox extends StatelessWidget {
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,
           hintText: 'Enter Rate/km',
-          hintStyle: TextStyle(color: AppColors.grey400, fontSize: 13),
+          hintStyle: GoogleFonts.mulish(
+            color: const Color(0xFFB6B6B6),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         onChanged: (text) => onChanged(double.tryParse(text) ?? 0),
       ),
@@ -489,15 +558,11 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -2),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFDDDDDD), width: 1),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -512,14 +577,20 @@ class _BottomBar extends StatelessWidget {
                   children: [
                     Text(
                       'Total Cost',
-                      style: TextStyle(fontSize: 11, color: AppColors.grey600),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        height: 16.5 / 11,
+                        color: const Color(0xFF7A8494),
+                      ),
                     ),
                     Text(
                       '₹${fare.totalCost.toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.black87,
+                        height: 28 / 18,
+                        color: const Color(0xFF0F1923),
                       ),
                     ),
                   ],

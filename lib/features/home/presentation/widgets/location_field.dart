@@ -1,5 +1,6 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LocationField extends StatelessWidget {
   const LocationField({
@@ -39,9 +40,12 @@ class LocationField extends StatelessWidget {
         Expanded(
           child: Text(
             address ?? placeholder,
-            style: TextStyle(
-              color: hasAddress ? AppColors.black87 : AppColors.black45,
-              fontWeight: hasAddress ? FontWeight.w600 : FontWeight.normal,
+            style: GoogleFonts.mulish(
+              color: hasAddress ? AppColors.black87 : const Color(0xFF757474),
+              fontWeight: hasAddress ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 16,
+              height: 1.25, // 20px line-height / 16px font-size
+              letterSpacing: 16 * 0.01, // 1%
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

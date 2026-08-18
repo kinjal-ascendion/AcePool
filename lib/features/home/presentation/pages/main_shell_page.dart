@@ -19,6 +19,7 @@ class MainShellPage extends StatefulWidget {
 class _MainShellPageState extends State<MainShellPage> {
   late int _currentIndex;
   int _tripsRefreshKey = 0;
+  String? _tripsInitialFilter;
 
   @override
   void initState() {
@@ -35,10 +36,11 @@ class _MainShellPageState extends State<MainShellPage> {
     }
   }
 
-  void _goToTrips() {
+  void _goToTrips({String? filter}) {
     setState(() {
       _tripsRefreshKey++;
       _currentIndex = 1;
+      _tripsInitialFilter = filter;
     });
   }
 
@@ -51,7 +53,10 @@ class _MainShellPageState extends State<MainShellPage> {
       _goToTrips();
       return;
     }
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      if (index != 1) _tripsInitialFilter = null;
+    });
   }
 
   @override
@@ -65,9 +70,14 @@ class _MainShellPageState extends State<MainShellPage> {
         body: IndexedStack(
           index: _currentIndex,
           children: [
-            HomePage(onViewAllTrips: _goToTrips, onOpenProfile: _goToProfile),
+            HomePage(
+              onViewAllTrips: () => _goToTrips(),
+              onViewAllMatchingRides: () => _goToTrips(filter: 'Suggested Rides'),
+              onOpenProfile: _goToProfile,
+            ),
             TripsPage(
               key: ValueKey(_tripsRefreshKey),
+              initialFilter: _tripsInitialFilter,
               onBack: () => setState(() => _currentIndex = 0),
             ),
             ChatListPage(onBack: () => setState(() => _currentIndex = 0)),

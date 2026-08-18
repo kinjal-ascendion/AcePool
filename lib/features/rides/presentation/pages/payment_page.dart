@@ -58,8 +58,16 @@ class _PaymentView extends StatelessWidget {
   }
 
   Widget _buildScaffold(BuildContext context, RidePaymentState state) {
-    final timestamp = rideData['date'] as Timestamp;
-    final rideDate = timestamp.toDate();
+    final dateValue = rideData['date'];
+    final DateTime rideDate;
+    if (dateValue is Timestamp) {
+      rideDate = dateValue.toDate();
+    } else if (dateValue is DateTime) {
+      rideDate = dateValue;
+    } else {
+      rideDate = DateTime.now();
+    }
+
     final timeMap = rideData['time'] as Map<String, dynamic>?;
     final time = TimeOfDay(
       hour: timeMap?['hour'] as int? ?? 0,
@@ -68,7 +76,9 @@ class _PaymentView extends StatelessWidget {
 
     final fareMap = rideData['fare'] as Map<String, dynamic>?;
     final totalFare = (fareMap?['farePerSeat'] as num? ?? 0.0).toDouble();
-    final shortId = rideId.substring(0, 5).toUpperCase();
+    final shortId = rideId.length >= 5
+        ? rideId.substring(0, 5).toUpperCase()
+        : rideId.toUpperCase();
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -301,7 +311,7 @@ class _PaymentView extends StatelessWidget {
         color: isSelected ? const Color(0xFFF1F8F6) : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? const Color(0xFF308666) : borderColor,
+          color: isSelected ? const Color(0xFF1B8A3F) : borderColor,
           width: isSelected ? 1.5 : 1,
         ),
       ),
@@ -318,7 +328,7 @@ class _PaymentView extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: borderColor),
               ),
-              child: const Icon(Icons.currency_rupee, size: 16, color: Color(0xFF308666)),
+              child: const Icon(Icons.currency_rupee, size: 16, color: Color(0xFF1B8A3F)),
             ),
             title: const Text(
               'UPI',
@@ -330,7 +340,7 @@ class _PaymentView extends StatelessWidget {
             ),
             trailing: Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? const Color(0xFF308666) : borderColor,
+              color: isSelected ? const Color(0xFF1B8A3F) : borderColor,
             ),
           ),
           if (isSelected) ...[
@@ -416,7 +426,7 @@ class _PaymentView extends StatelessWidget {
         color: isSelected ? const Color(0xFFF1F8F6) : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? const Color(0xFF308666) : borderColor,
+          color: isSelected ? const Color(0xFF1B8A3F) : borderColor,
           width: isSelected ? 1.5 : 1,
         ),
       ),
@@ -443,7 +453,7 @@ class _PaymentView extends StatelessWidget {
         ),
         trailing: Icon(
           isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-          color: isSelected ? const Color(0xFF308666) : borderColor,
+          color: isSelected ? const Color(0xFF1B8A3F) : borderColor,
         ),
       ),
     );

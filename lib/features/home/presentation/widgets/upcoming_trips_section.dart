@@ -3,6 +3,8 @@ import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
+import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
+import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -65,7 +67,8 @@ class UpcomingTripsSection extends StatelessWidget {
           )
         else
           for (final trip in trips.take(3)) ...[
-            GestureDetector(
+            DriveTripCard(
+              trip: trip,
               onTap: () {
                 final homeBloc = context.read<HomeBloc>();
                 Navigator.of(context).push(
@@ -77,7 +80,46 @@ class UpcomingTripsSection extends StatelessWidget {
                   ),
                 );
               },
-              child: DriveTripCard(trip: trip),
+              onEditFare: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PricingPage(
+                      fromAddress: trip.fromAddress,
+                      toAddress: trip.toAddress,
+                      fromLat: trip.fromLat,
+                      fromLng: trip.fromLng,
+                      toLat: trip.toLat,
+                      toLng: trip.toLng,
+                      date: trip.date,
+                      time: trip.time,
+                      seatCount: trip.seatsTotal,
+                      vehicleType: trip.vehicleType ?? 'car',
+                      rideMode: 'offer',
+                    ),
+                  ),
+                );
+              },
+              onEditPayment: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PaymentPage(
+                      rideId: trip.id,
+                      rideData: {
+                        'fromAddress': trip.fromAddress,
+                        'toAddress': trip.toAddress,
+                        'date': trip.date,
+                        'time': {
+                          'hour': trip.time.hour,
+                          'minute': trip.time.minute,
+                        },
+                        'fare': {'farePerSeat': trip.farePerSeat},
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
           ],
