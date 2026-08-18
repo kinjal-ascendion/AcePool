@@ -2,6 +2,7 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/utils/date_time_formatter.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ScheduleDateTimeRow extends StatelessWidget {
   const ScheduleDateTimeRow({
@@ -26,6 +27,13 @@ class ScheduleDateTimeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxSeats = vehicleType == VehicleType.bike ? 1 : 4;
+    final TextStyle fieldStyle = GoogleFonts.mulish(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      height: 1.25,
+      letterSpacing: 16 * 0.01,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -39,8 +47,8 @@ class ScheduleDateTimeRow extends StatelessWidget {
                 selectedDate != null
                     ? DateTimeFormatter.monthDayYear(selectedDate!)
                     : 'Select date',
-                style: TextStyle(
-                  color: selectedDate != null ? AppColors.black87 : AppColors.black45,
+                style: fieldStyle.copyWith(
+                  color: selectedDate != null ? AppColors.black87 : const Color(0xFF757474),
                 ),
               ),
             ],
@@ -63,8 +71,8 @@ class ScheduleDateTimeRow extends StatelessWidget {
                       selectedTime != null
                           ? DateTimeFormatter.time12h(selectedTime!)
                           : 'Choose time',
-                      style: TextStyle(
-                        color: selectedTime != null ? AppColors.black87 : AppColors.black45,
+                      style: fieldStyle.copyWith(
+                        color: selectedTime != null ? AppColors.black87 : const Color(0xFF757474),
                       ),
                     ),
                   ],
@@ -86,10 +94,19 @@ class ScheduleDateTimeRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 18, color: AppColors.black87),
+                  const Icon(Icons.person_outline, size: 18, color: Color(0xFF757474)),
                   const SizedBox(width: 6),
-                  Text('$seatCount', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.black87),
+                  Text(
+                    '$seatCount',
+                    style: GoogleFonts.mulish(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      height: 1.25, // 20px / 16px
+                      letterSpacing: 16 * 0.01,
+                      color: const Color(0xFF757474),
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF757474)),
                 ],
               ),
             ),

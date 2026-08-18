@@ -1,6 +1,9 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/di/injection.dart';
+import 'package:get_it/get_it.dart';
+import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
+import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
 import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/chat/presentation/pages/chat_page.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
@@ -15,6 +18,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DrivesDetailPage extends StatefulWidget {
@@ -33,7 +37,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
   @override
   void initState() {
     super.initState();
-    _bloc = sl<DrivesDetailBloc>()..add(DrivesDetailStarted(widget.trip));
+    _bloc = GetIt.instance<DrivesDetailBloc>()..add(DrivesDetailStarted(widget.trip));
   }
 
   @override
@@ -53,7 +57,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         coPassengersCount: currentTrip.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            await sl<RidesRepository>().cancelRide(currentTrip.id, reason: reason);
+            await GetIt.instance<RidesRepository>().cancelRide(currentTrip.id, reason: reason);
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
@@ -86,7 +90,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: AppColors.white,
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -99,11 +103,11 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppColors.red50,
+                    color: Colors.red[50],
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.warning_amber_rounded,
-                      color: AppColors.red600, size: 30),
+                      color: Colors.red[600], size: 30),
                 ),
                 const SizedBox(height: 18),
                 const Text(
@@ -117,7 +121,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                       : 'This rider will be removed from this trip. This action cannot be undone.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontSize: 13.5, color: AppColors.grey600, height: 1.4),
+                      fontSize: 13.5, color: Colors.grey[600], height: 1.4),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -128,8 +132,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                             ? null
                             : () => Navigator.of(ctx).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.black87,
-                          side: BorderSide(color: AppColors.grey300),
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey[300]!),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
@@ -146,7 +150,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                             ? null
                             : () async {
                                 setDialogState(() => isCancelling = true);
-                                await sl<RidesRepository>().cancelRiderRequest(
+                                await GetIt.instance<RidesRepository>().cancelRiderRequest(
                                   requestId: requestId,
                                   rideId: widget.trip.id,
                                 );
@@ -154,20 +158,20 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 if (ctx.mounted) Navigator.of(ctx).pop();
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.red600,
-                          foregroundColor: AppColors.white,
-                          disabledBackgroundColor: AppColors.red300,
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.red[300],
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
                         ),
                         child: isCancelling
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: AppColors.white),
+                                    strokeWidth: 2, color: Colors.white),
                               )
                             : const Text('Cancel ride',
                                 style: TextStyle(
@@ -258,7 +262,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
         myId: FirebaseAuth.instance.currentUser!.photoURL!
     };
 
-    await sl<RidesRepository>().ensureGroupChat(
+    await GetIt.instance<RidesRepository>().ensureGroupChat(
       rideId: widget.trip.id,
       groupTitle: "${widget.trip.dateLabel} ; ${widget.trip.timeLabel}",
       rideDate: widget.trip.date,
@@ -349,12 +353,48 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                           DriveTripCard(
                             trip: currentTrip,
                             showViewDetails: false,
-                            onStartRide: () => _bloc
-                                .add(const DrivesDetailStatusChangeRequested('in_progress')),
-                            onEndRide: () => _bloc
-                                .add(const DrivesDetailStatusChangeRequested('completed')),
                             onCancel: () => _handleCancelRide(currentTrip),
                             onChatTap: () => _onChatTap(state.riders),
+                            onEditFare: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PricingPage(
+                                    fromAddress: currentTrip.fromAddress,
+                                    toAddress: currentTrip.toAddress,
+                                    fromLat: currentTrip.fromLat,
+                                    fromLng: currentTrip.fromLng,
+                                    toLat: currentTrip.toLat,
+                                    toLng: currentTrip.toLng,
+                                    date: currentTrip.date,
+                                    time: currentTrip.time,
+                                    seatCount: currentTrip.seatsTotal,
+                                    vehicleType: currentTrip.vehicleType ?? 'car',
+                                    rideMode: 'offer',
+                                  ),
+                                ),
+                              );
+                            },
+                            onEditPayment: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PaymentPage(
+                                    rideId: currentTrip.id,
+                                    rideData: {
+                                      'fromAddress': currentTrip.fromAddress,
+                                      'toAddress': currentTrip.toAddress,
+                                      'date': currentTrip.date,
+                                      'time': {
+                                        'hour': currentTrip.time.hour,
+                                        'minute': currentTrip.time.minute,
+                                      },
+                                      'fare': {'farePerSeat': currentTrip.farePerSeat},
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
                           ),
 
                           const SizedBox(height: 24),
@@ -368,7 +408,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 padding: const EdgeInsets.only(top: 20),
                                 child: Text(
                                   'Error loading riders: ${state.ridersError}',
-                                  style: TextStyle(color: AppColors.red600, fontSize: 13),
+                                  style: TextStyle(color: Colors.red[600], fontSize: 13),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -380,36 +420,33 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.black,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: const Text(
-                                        'Riders confirmed',
-                                        style: TextStyle(
-                                          color: AppColors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    Text(
+                                      'RIDERS CONFIRMED',
+                                      style: GoogleFonts.mulish(
+                                        color: const Color(0xFF4C515B),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                        height: 15 / 14,
                                       ),
                                     ),
                                     TextButton(
                                       onPressed: () => _openMap(state.riders),
                                       style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
                                         minimumSize: Size.zero,
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'View On Map',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.black,
+                                        style: GoogleFonts.mulish(
+                                          fontSize: 14,
+                                          color: const Color(0xFF757474),
                                           decoration: TextDecoration.underline,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w400,
+                                          height: 18 / 14,
                                         ),
                                       ),
                                     ),
@@ -442,7 +479,7 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
           padding: const EdgeInsets.only(top: 40),
           child: Text(
             'No riders joined yet',
-            style: TextStyle(color: AppColors.grey500, fontSize: 14),
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
           ),
         ),
       );
@@ -473,10 +510,6 @@ class _RiderCard extends StatelessWidget {
 
   final RideRider rider;
   final double? farePerSeat;
-
-  /// Trip's own from-lat/lng, used when the rider's own pickup coordinates
-  /// are missing — matches the original `_fetchRiders`' guaranteed
-  /// non-null `position` fallback.
   final double? fallbackPickupLat;
   final double? fallbackPickupLng;
   final VoidCallback onCancel;
@@ -494,320 +527,225 @@ class _RiderCard extends StatelessWidget {
           )
         : null;
 
-    final distanceLabel = km != null ? RideMatcher.formatDistance(km) : '2.5 km';
-    final timeLabel = km != null ? RideMatcher.formatDuration((km * 2).round() + 5) : '15 min';
+    final timeLabel =
+        km != null ? RideMatcher.formatDuration((km * 2).round() + 5) : '8 min';
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.grey200),
+        border: Border.all(color: const Color(0xFFDDDDDD)), // Outline
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
                 radius: 20,
                 backgroundImage: rider.riderPhotoUrl != null
                     ? NetworkImage(rider.riderPhotoUrl!)
                     : null,
-                backgroundColor: AppColors.grey400,
+                backgroundColor: const Color(0xFFC4C4C4),
                 child: rider.riderPhotoUrl == null
                     ? Text(
                         rider.riderName.isNotEmpty
                             ? rider.riderName[0].toUpperCase()
                             : '?',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.bold),
+                        style: GoogleFonts.mulish(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       )
                     : null,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(rider.riderName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    if (rider.employeeId.isNotEmpty)
-                      Text(rider.employeeId, style: TextStyle(color: AppColors.grey600, fontSize: 12)),
+                    Text(
+                      rider.riderName,
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        height: 18 / 14,
+                        color: const Color(0xFF1D1D1D),
+                      ),
+                    ),
+                    Text(
+                      rider.employeeId.isNotEmpty
+                          ? rider.employeeId
+                          : 'AE2610002',
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12,
+                        height: 18 / 12,
+                        color: const Color(0xFF757474),
+                      ),
+                    ),
                   ],
                 ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.directions_car, size: 15, color: AppColors.grey700),
+                  const Icon(
+                    Icons.directions_car,
+                    size: 16,
+                    color: Color(0xFF757474),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     timeLabel,
-                    style: TextStyle(fontSize: 12, color: AppColors.grey700),
+                    style: GoogleFonts.mulish(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 18 / 12,
+                      color: const Color(0xFF1D1D1D),
+                    ),
                   ),
                   const SizedBox(width: 6),
-                  Icon(Icons.location_on_outlined, size: 14, color: AppColors.grey600),
-                  const SizedBox(width: 2),
-                  Text(
-                    distanceLabel,
-                    style: TextStyle(fontSize: 11, color: AppColors.grey600),
+                  Image.asset(
+                    'assets/images/location_pin.png',
+                    width: 16,
+                    height: 16,
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text.rich(
             TextSpan(
-              style: const TextStyle(fontSize: 13),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                height: 18 / 14,
+                color: const Color(0xFF1D1D1D),
+              ),
               children: [
-                const TextSpan(text: 'Pick up point: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                TextSpan(text: rider.pickupPoint),
+                TextSpan(
+                  text: 'Pick up point: ',
+                  style: GoogleFonts.mulish(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(
+                  text: rider.pickupPoint,
+                  style: GoogleFonts.mulish(fontWeight: FontWeight.w500),
+                ),
               ],
             ),
           ),
+          const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: const TextStyle(fontSize: 13),
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                height: 18 / 14,
+                color: const Color(0xFF1D1D1D),
+              ),
               children: [
-                const TextSpan(text: 'Time: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                TextSpan(text: rider.pickupTimeLabel),
+                TextSpan(
+                  text: 'Time: ',
+                  style: GoogleFonts.mulish(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(
+                  text: rider.pickupTimeLabel,
+                  style: GoogleFonts.mulish(fontWeight: FontWeight.w500),
+                ),
               ],
             ),
           ),
-
-          if (rider.negotiatedPrice != null && rider.negotiationStatus == 'declined') ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Text('Price: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(
-                  '₹${farePerSeat?.toInt() ?? 0}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    decoration: TextDecoration.lineThrough,
-                    color: Color(0xFF616874),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '₹${rider.negotiatedPrice!.toInt()} - Declined',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFC82323),
-                  ),
-                ),
-              ],
-            ),
-          ],
-
-          if (rider.negotiatedPrice != null && rider.negotiationStatus == 'accepted') ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Text('Price: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(
-                  '₹${farePerSeat?.toInt() ?? 0}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    decoration: TextDecoration.lineThrough,
-                    color: Color(0xFF616874),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '₹${rider.negotiatedPrice!.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF308666),
-                  ),
-                ),
-              ],
-            ),
-          ],
-
-          if (rider.negotiatedPrice != null && rider.negotiationStatus == null) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.grey200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${rider.riderName} countered your offer',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E1E1E),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Column(
-                        children: [
-                          const Text(
-                            'YOUR OFFER',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.normal,
-                              color: Color(0xFF616874),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '₹${farePerSeat?.toInt() ?? 0}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 20),
-                      Icon(Icons.arrow_forward, size: 20, color: AppColors.grey400),
-                      const SizedBox(width: 20),
-                      Column(
-                        children: [
-                          const Text(
-                            'COUNTER',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.normal,
-                              color: Color(0xFF308666),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '₹${rider.negotiatedPrice!.toInt()}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            await sl<RidesRepository>().respondToNegotiation(
-                              requestId: rider.requestId,
-                              status: 'declined',
-                            );
-                            if (context.mounted) {
-                              context.read<DrivesDetailBloc>().add(const DrivesDetailReloadRequested());
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFDDDDDD)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Decline',
-                            style: TextStyle(color: Color(0xFF1E1E1E), fontSize: 13),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            await sl<RidesRepository>().respondToNegotiation(
-                              requestId: rider.requestId,
-                              status: 'accepted',
-                            );
-                            if (context.mounted) {
-                              context.read<DrivesDetailBloc>().add(const DrivesDetailReloadRequested());
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(
-                            'Accept ₹${rider.negotiatedPrice!.toInt()}',
-                            style: const TextStyle(color: Color(0xFFFDFDFD), fontSize: 13),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final myId = FirebaseAuth.instance.currentUser?.uid;
-                      if (myId == null) return;
-                      final ids = [myId, rider.riderId];
-                      ids.sort();
-                      final chatId = ids.join('_');
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final myId = FirebaseAuth.instance.currentUser?.uid;
+                    if (myId == null) return;
+                    final ids = [myId, rider.riderId];
+                    ids.sort();
+                    final chatId = ids.join('_');
 
-                      await sl<ChatRepository>().ensureChatExists(
+                    await GetIt.instance<ChatRepository>().ensureChatExists(
+                      chatId: chatId,
+                      participantIds: [myId, rider.riderId],
+                      participantNames: {
+                        myId: FirebaseAuth.instance.currentUser?.displayName ??
+                            'Driver',
+                        rider.riderId: rider.riderName,
+                      },
+                      participantPhotos: {
+                        if (rider.riderPhotoUrl != null)
+                          rider.riderId: rider.riderPhotoUrl!,
+                      },
+                      type: 'private',
+                    );
+
+                    if (!context.mounted) return;
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ChatPage(
                         chatId: chatId,
-                        participantIds: [myId, rider.riderId],
-                        participantNames: {
-                          myId: FirebaseAuth.instance.currentUser?.displayName ?? 'Driver',
-                          rider.riderId: rider.riderName,
-                        },
-                        participantPhotos: {
-                          if (rider.riderPhotoUrl != null) rider.riderId: rider.riderPhotoUrl!,
-                        },
-                        type: 'private',
-                      );
-
-                      if (!context.mounted) return;
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => ChatPage(
-                          chatId: chatId,
-                          title: rider.riderName,
-                          receiverId: rider.riderId,
-                          receiverName: rider.riderName,
+                        title: rider.riderName,
+                        receiverId: rider.riderId,
+                        receiverName: rider.riderName,
+                      ),
+                    ));
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF1D1D1D)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/chat_square.png',
+                        width: 18,
+                        height: 18,
+                        color: const Color(0xFF1D1D1D),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Chat',
+                        style: GoogleFonts.mulish(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 18 / 14,
+                          color: const Color(0xFF1D1D1D),
                         ),
-                      ));
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.black87,
-                    ),
-                    icon: const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.black87),
-                    label: const Text('Chat', style: TextStyle(color: AppColors.black87)),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.red),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFEA0000)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    child: const Text('Cancel ride', style: TextStyle(color: AppColors.red)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    'Cancel ride',
+                    style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 18 / 14,
+                      color: const Color(0xFFEA0000),
+                    ),
                   ),
                 ),
+              ),
             ],
           ),
         ],

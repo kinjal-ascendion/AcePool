@@ -15,9 +15,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.onViewAllTrips, this.onOpenProfile});
+  const HomePage({
+    super.key,
+    this.onViewAllTrips,
+    this.onViewAllMatchingRides,
+    this.onOpenProfile,
+  });
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onViewAllMatchingRides;
   final VoidCallback? onOpenProfile;
 
   @override
@@ -26,15 +32,21 @@ class HomePage extends StatelessWidget {
     // "Find ride" tab so both reflect the same search state.
     return _HomeView(
       onViewAllTrips: onViewAllTrips,
+      onViewAllMatchingRides: onViewAllMatchingRides,
       onOpenProfile: onOpenProfile,
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView({this.onViewAllTrips, this.onOpenProfile});
+  const _HomeView({
+    this.onViewAllTrips,
+    this.onViewAllMatchingRides,
+    this.onOpenProfile,
+  });
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onViewAllMatchingRides;
   final VoidCallback? onOpenProfile;
 
   Future<void> _pickDate(BuildContext context) async {
@@ -288,23 +300,7 @@ class _HomeView extends StatelessWidget {
                               currentLat: state.currentLat,
                               currentLng: state.currentLng,
                               onRequested: () => _handleFindRide(context, bloc),
-                              onViewAll: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => FindRideResultsPage(
-                                    fromAddress: state.fromAddress!,
-                                    toAddress: state.toAddress!,
-                                    fromLat: state.fromLat,
-                                    fromLng: state.fromLng,
-                                    toLat: state.toLat,
-                                    toLng: state.toLng,
-                                    date: state.selectedDate!,
-                                    time: state.selectedTime!,
-                                    vehicleType: state.vehicleType.name,
-                                    currentLat: state.currentLat,
-                                    currentLng: state.currentLng,
-                                  ),
-                                ),
-                              ),
+                              onViewAll: onViewAllMatchingRides,
                             ),
                             const SizedBox(height: 16),
                           ],

@@ -1,6 +1,7 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ScheduleRideButton extends StatelessWidget {
   const ScheduleRideButton({
@@ -24,7 +25,7 @@ class ScheduleRideButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.scheduleButtonColor,
           disabledBackgroundColor: AppColors.grey300,
-          foregroundColor: AppColors.white,
+          foregroundColor: const Color(0xFFFEFEFE),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
@@ -33,11 +34,15 @@ class ScheduleRideButton extends StatelessWidget {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFEFEFE)),
               )
             : Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                style: GoogleFonts.mulish(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  height: 1.0,
+                ),
               ),
       ),
     );

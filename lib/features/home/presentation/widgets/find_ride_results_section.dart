@@ -3,6 +3,7 @@ import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/widgets/ride_result_card.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class FindRideResultsSection extends StatelessWidget {
   const FindRideResultsSection({
@@ -79,7 +80,12 @@ class FindRideResultsSection extends StatelessWidget {
               riderFromLat!,
               riderFromLng!,
             ))} from your current location',
-            style: TextStyle(fontSize: 12.5, color: AppColors.grey600),
+            style: GoogleFonts.mulish(
+              fontSize: 12.5,
+              color: const Color(0xFF616874),
+              fontWeight: FontWeight.w400,
+              height: 18 / 12.5,
+            ),
           ),
         ],
         const SizedBox(height: 12),

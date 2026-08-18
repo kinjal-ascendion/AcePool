@@ -57,6 +57,7 @@ class TripsRepositoryImpl implements TripsRepository {
 
       final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
       final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
+      final fareMap = data['fare'] as Map<String, dynamic>?;
 
       return UpcomingTrip(
         id: doc.id,
@@ -73,9 +74,11 @@ class TripsRepositoryImpl implements TripsRepository {
         toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
         seatsFilled: (data['seatsFilled'] as int?) ?? 0,
         seatsTotal: data['seatCount'] as int,
+        farePerSeat: (fareMap?['farePerSeat'] as num?)?.toDouble(),
         note: data['note'] as String?,
         durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
         status: data['status'] as String? ?? 'upcoming',
+        vehicleType: data['vehicleType'] as String?,
       );
     }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
   }

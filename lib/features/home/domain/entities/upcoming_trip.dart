@@ -18,6 +18,7 @@ class UpcomingTrip extends Equatable {
   final String? note;
   final int? durationMinutes;
   final String status;
+  final String? vehicleType;
 
   const UpcomingTrip({
     required this.id,
@@ -35,10 +36,12 @@ class UpcomingTrip extends Equatable {
     this.note,
     this.durationMinutes,
     this.status = 'upcoming',
+    this.vehicleType,
   });
 
   UpcomingTrip copyWith({
     String? status,
+    String? vehicleType,
   }) {
     return UpcomingTrip(
       id: id,
@@ -56,6 +59,7 @@ class UpcomingTrip extends Equatable {
       note: note,
       durationMinutes: durationMinutes,
       status: status ?? this.status,
+      vehicleType: vehicleType ?? this.vehicleType,
     );
   }
 
@@ -81,5 +85,6 @@ class UpcomingTrip extends Equatable {
     note,
     durationMinutes,
     status,
+    vehicleType,
   ];
 }
