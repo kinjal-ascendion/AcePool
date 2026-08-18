@@ -15,6 +15,7 @@ import 'package:acepool/core/enums/ride_mode.dart';
 import 'ride_history_page.dart';
 import 'payment_page.dart';
 import 'package:acepool/features/rides/presentation/pages/security_page.dart';
+import 'package:acepool/features/profile/presentation/widgets/roles_section.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -209,6 +210,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                   const SizedBox(height: 28),
+                  RolesSection(
+                    isRider: summary.isRider,
+                    isDriver: summary.isDriver,
+                    currentPreference: travelPreference,
+                  ),
+                  const SizedBox(height: 8),
+                  Divider(color: AppColors.dividerGrey, height: 1),
                   _settingsRow(
                     title: 'Account settings',
                     subtitle: 'Name, Contact, Asc id, License, Role',
