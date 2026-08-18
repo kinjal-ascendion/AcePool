@@ -24,4 +24,6 @@ abstract class ProfileRepository {
   });
 
   Future<({String method, String upiId, String upiPhone})> getPaymentDetails();
+
+  Future<void> updateTravelPreference(String preference);
 }

@@ -23,6 +23,9 @@ class ProfileSummary {
   bool get isDriver =>
       travelPreference == 'drive' || travelPreference == 'both' || hasVehicles;
 
+  bool get isRider =>
+      travelPreference == 'ride' || travelPreference == 'both';
+
   String get initials => fullName.trim().isNotEmpty
       ? fullName
           .trim()

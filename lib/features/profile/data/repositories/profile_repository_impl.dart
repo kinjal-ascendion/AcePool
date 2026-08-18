@@ -126,4 +126,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
       upiPhone: data?['upiPhone'] as String? ?? '',
     );
   }
+
+  @override
+  Future<void> updateTravelPreference(String preference) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _db.collection('users').doc(uid).set(
+      {'travelPreference': preference},
+      SetOptions(merge: true),
+    );
+  }
 }
