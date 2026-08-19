@@ -42,28 +42,41 @@ class _TripsPageState extends State<TripsPage>
   late String _findRideFilter;
   static const _findRideFilters = ['Suggested Rides', 'Ride Requests'];
 
-  static const _tabs = ['Find ride', 'Offer ride'];
+  late final List<String> _tabs;
+  late final String? _travelPreference;
 
   @override
   void initState() {
     super.initState();
     _bloc = sl<TripsBloc>();
     final homeState = context.read<HomeBloc>().state;
-    final pref = homeState.travelPreference;
+    _travelPreference = homeState.travelPreference;
+
+    if (_travelPreference == 'ride') {
+      _tabs = ['Find ride'];
+    } else if (_travelPreference == 'drive') {
+      _tabs = ['Offer ride'];
+    } else {
+      _tabs = ['Find ride', 'Offer ride'];
+    }
+
     int initialIdx = 0;
 
-    if (widget.initialFilter != null) {
-      initialIdx = 0; // "Find ride" tab
-    } else if (pref == 'drive') {
-      initialIdx = 1;
-    } else if (pref == 'ride') {
-      initialIdx = 0;
+    if (_travelPreference == 'drive') {
+      initialIdx = 0; // The only tab is "Offer ride"
+    } else if (_travelPreference == 'ride') {
+      initialIdx = 0; // The only tab is "Find ride"
     } else {
-      initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
+      // Both
+      if (widget.initialFilter != null) {
+        initialIdx = 0; // "Find ride" tab
+      } else {
+        initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
+      }
     }
 
     _tabController = TabController(
-      length: 2,
+      length: _tabs.length,
       vsync: this,
       initialIndex: initialIdx,
     );
@@ -264,6 +277,27 @@ class _TripsPageState extends State<TripsPage>
   }
 
   Widget _buildTabToggle() {
+    if (_tabs.length == 1) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Text(
+            _tabs[0],
+            style: GoogleFonts.mulish(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              height: 1.0,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Container(
         height: 44,
@@ -355,78 +389,80 @@ class _TripsPageState extends State<TripsPage>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Find ride tab
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      height: 45,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F1F2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFDDDDDD)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _findRideFilter,
-                          isDense: true,
-                          items: _findRideFilters
-                              .map(
-                                (f) => DropdownMenuItem(
-                                  value: f,
-                                  child: Text(
-                                    f,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+          if (_travelPreference != 'drive')
+            // Find ride tab
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        height: 45,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F1F2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFDDDDDD)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _findRideFilter,
+                            isDense: true,
+                            items: _findRideFilters
+                                .map(
+                                  (f) => DropdownMenuItem(
+                                    value: f,
+                                    child: Text(
+                                      f,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _findRideFilter = val);
-                            }
-                          },
-                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _findRideFilter = val);
+                              }
+                            },
+                            icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _findRideFilter == 'Suggested Rides'
-                    ? _buildAvailableRidesSection(tripsState)
-                    : _buildRequestedRidesSection(tripsState),
-              ),
-            ],
-          ),
-
-          // Offer ride tab
-          _buildList(
-            tripsState.drivesStatus,
-            tripsState.drives,
-            'You haven\'t offered any rides yet.',
-            onTap: (trip) {
-              final homeBloc = context.read<HomeBloc>();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: homeBloc,
-                    child: DrivesDetailPage(trip: trip),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
+                Expanded(
+                  child: _findRideFilter == 'Suggested Rides'
+                      ? _buildAvailableRidesSection(tripsState)
+                      : _buildRequestedRidesSection(tripsState),
+                ),
+              ],
+            ),
+
+          if (_travelPreference != 'ride')
+            // Offer ride tab
+            _buildList(
+              tripsState.drivesStatus,
+              tripsState.drives,
+              'You haven\'t offered any rides yet.',
+              onTap: (trip) {
+                final homeBloc = context.read<HomeBloc>();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: homeBloc,
+                      child: DrivesDetailPage(trip: trip),
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

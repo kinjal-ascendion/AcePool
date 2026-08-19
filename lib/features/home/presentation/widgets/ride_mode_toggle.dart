@@ -4,13 +4,38 @@ import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class RideModeToggle extends StatelessWidget {
-  const RideModeToggle({super.key, required this.selected, required this.onChanged});
+  const RideModeToggle({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.showBoth = true,
+  });
 
   final RideMode selected;
   final ValueChanged<RideMode> onChanged;
+  final bool showBoth;
 
   @override
   Widget build(BuildContext context) {
+    if (!showBoth) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Text(
+          selected == RideMode.find ? 'Find ride' : 'Offer ride',
+          style: GoogleFonts.mulish(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            height: 1.0,
+          ),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
       child: Container(
@@ -18,7 +43,7 @@ class RideModeToggle extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0F1F2), // Updated to match requested neutral background
+          color: const Color(0xFFF0F1F2),
           borderRadius: BorderRadius.circular(32),
         ),
         child: Row(

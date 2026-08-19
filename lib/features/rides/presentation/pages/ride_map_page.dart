@@ -8,6 +8,7 @@ import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/rides/domain/repositories/rides_repository.dart';
 import 'package:acepool/features/rides/presentation/bloc/ride_map_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -604,7 +605,13 @@ class _RideMapPageState extends State<RideMapPage> {
                                 Expanded(
                                   child: Text(
                                     widget.trip.fromAddress,
-                                    style: const TextStyle(fontSize: 14),
+                                    style: GoogleFonts.mulish(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      height: 18 / 16,
+                                      letterSpacing: 0,
+                                      color: const Color(0xFF1D1D1D),
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -618,7 +625,13 @@ class _RideMapPageState extends State<RideMapPage> {
                                 Expanded(
                                   child: Text(
                                     widget.trip.toAddress,
-                                    style: const TextStyle(fontSize: 14),
+                                    style: GoogleFonts.mulish(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      height: 18 / 16,
+                                      letterSpacing: 0,
+                                      color: const Color(0xFF1D1D1D),
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -641,7 +654,13 @@ class _RideMapPageState extends State<RideMapPage> {
                       const SizedBox(width: 12),
                       Text(
                         widget.trip.dateLabel,
-                        style: const TextStyle(fontSize: 14),
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 20 / 16,
+                          letterSpacing: 0.01 * 16, // 1%
+                          color: const Color(0xFF1D1D1D),
+                        ),
                       ),
                     ],
                   ),
@@ -649,11 +668,17 @@ class _RideMapPageState extends State<RideMapPage> {
                   Row(
                     children: [
                       const Icon(Icons.access_time,
-                          size: 16, color: Colors.black87),
+                          size: 16, color: Color(0xFF757474)),
                       const SizedBox(width: 12),
                       Text(
                         widget.trip.timeLabel,
-                        style: const TextStyle(fontSize: 14),
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 20 / 16,
+                          letterSpacing: 0.01 * 16, // 1%
+                          color: const Color(0xFF1D1D1D),
+                        ),
                       ),
                       const Spacer(),
                       SizedBox(
@@ -712,17 +737,35 @@ class _RideMapPageState extends State<RideMapPage> {
                         children: [
                           const Icon(Icons.arrow_back, size: 20),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Transport details',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                              letterSpacing: 0,
+                              color: const Color(0xFF1D1D1D),
+                            ),
                           ),
                           const Spacer(),
-                          const Icon(Icons.share_outlined, size: 20),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Color(0xFFEA0000),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Icon(Icons.share_outlined, size: 16, color: Color(0xFF1D1D1D)),
                           const SizedBox(width: 16),
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
-                            child: const Icon(Icons.close, size: 20),
+                            child: const Icon(Icons.close, size: 16, color: Color(0xFF1D1D1D)),
                           ),
                         ],
                       ),
@@ -761,9 +804,13 @@ class _RideMapPageState extends State<RideMapPage> {
                           const Spacer(),
                           Text(
                             '${_formatDuration(widget.trip.durationMinutes)}*',
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold),
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                              letterSpacing: 0,
+                              color: const Color(0xFF1D1D1D),
+                            ),
                           ),
                         ],
                       ),
@@ -772,26 +819,39 @@ class _RideMapPageState extends State<RideMapPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${widget.trip.timeLabel} - ${_getArrivalTime(widget.trip.time, widget.trip.durationMinutes)}*',
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500),
+                            '${widget.trip.timeLabel} - ${_getArrivalTime(widget.trip.time, widget.trip.durationMinutes)}*'.toUpperCase(),
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              height: 20 / 16,
+                              letterSpacing: 0.01 * 16,
+                              color: const Color(0xFF1D1D1D),
+                            ),
                           ),
                           Text(
                             widget.trip.farePerSeat != null
                                 ? '₹${widget.trip.farePerSeat!.toStringAsFixed(2)} / seat'
                                 : 'Fare not set',
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold),
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                              letterSpacing: 0,
+                              color: const Color(0xFF1D1D1D),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
                         '*Actual arrival time may vary due to traffic and road conditions',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600),
+                        style: GoogleFonts.mulish(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          height: 20 / 14,
+                          letterSpacing: 0.01 * 14,
+                          color: const Color(0xFF1D1D1D),
+                        ),
                       ),
                       if (_isDriver || (_tripNote != null && _tripNote!.isNotEmpty)) ...[
                         const Divider(height: 32, color: Color(0xFFEEEEEE)),
@@ -808,13 +868,15 @@ class _RideMapPageState extends State<RideMapPage> {
                                       _tripNote == null || _tripNote!.isEmpty
                                           ? 'Add a Note'
                                           : 'Driver\'s Note',
-                                      style: TextStyle(
+                                      style: GoogleFonts.mulish(
                                           fontSize: 14,
-                                          color: Colors.grey.shade600,
+                                          color: const Color(0xFF1D1D1D),
+                                          height: 20 / 14,
+                                          letterSpacing: 0.01 * 14,
                                           fontWeight: _tripNote != null &&
                                                   _tripNote!.isNotEmpty
-                                              ? FontWeight.bold
-                                              : FontWeight.normal),
+                                              ? FontWeight.w600
+                                              : FontWeight.w400),
                                     ),
                                     if (_tripNote != null &&
                                         _tripNote!.isNotEmpty)
@@ -822,8 +884,12 @@ class _RideMapPageState extends State<RideMapPage> {
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Text(
                                           _tripNote!,
-                                          style: const TextStyle(
-                                              fontSize: 14, color: Colors.black),
+                                          style: GoogleFonts.mulish(
+                                              fontSize: 14,
+                                              color: const Color(0xFF1D1D1D),
+                                              height: 20 / 14,
+                                              letterSpacing: 0.01 * 14,
+                                              fontWeight: FontWeight.w400),
                                         ),
                                       ),
                                   ],
@@ -838,23 +904,27 @@ class _RideMapPageState extends State<RideMapPage> {
                       const Divider(height: 32, color: Color(0xFFEEEEEE)),
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             'PICKUP POINTS',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black),
+                            style: GoogleFonts.mulish(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                height: 19.5 / 14,
+                                letterSpacing: 0.5,
+                                color: const Color(0xFF1D1D1D)),
                           ),
                           const Spacer(),
                           Text(
                             '${_pickupPoints.where((p) => p.isPinned).length} pinned',
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold),
+                            style: GoogleFonts.mulish(
+                                fontSize: 14,
+                                color: const Color(0xFF1D1D1D),
+                                fontWeight: FontWeight.w600,
+                                height: 16.5 / 14,
+                                letterSpacing: 0),
                           ),
                           const Icon(Icons.keyboard_arrow_down,
-                              color: Colors.black),
+                              color: Color(0xFF1F1F1F)),
                         ],
                       ),
                       const Divider(height: 32, color: Color(0xFFEEEEEE)),
@@ -868,25 +938,48 @@ class _RideMapPageState extends State<RideMapPage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.near_me_outlined,
-                                size: 20, color: Colors.black87),
+                            Image.asset(
+                              'assets/images/direction_arrow.png',
+                              width: 20,
+                              height: 20,
+                              errorBuilder: (c, e, s) => const Icon(
+                                  Icons.near_me_outlined,
+                                  size: 20,
+                                  color: Colors.black87),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Starting point auto-detected',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600),
-                                  ),
                                   Text(
-                                    'Using your current location: ${widget.trip.fromAddress.split(',')[0]}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600),
+                                    'Starting point auto-detected',
+                                    style: GoogleFonts.mulish(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        height: 20 / 14,
+                                        letterSpacing: 0,
+                                        color: const Color(0xFF1D1D1D)),
+                                  ),
+                                  RichText(
+                                    text: TextSpan(
+                                      style: GoogleFonts.mulish(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w400,
+                                          height: 20 / 14,
+                                          letterSpacing: 0,
+                                          color: const Color(0xFF1D1D1D)),
+                                      children: [
+                                        const TextSpan(text: 'Using your current location: '),
+                                        TextSpan(
+                                          text: widget.trip.fromAddress.split(',')[0],
+                                          style: GoogleFonts.mulish(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -902,17 +995,27 @@ class _RideMapPageState extends State<RideMapPage> {
                           color: const Color(0xFFFFF7ED),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.lightbulb_outline,
-                                size: 18, color: Color(0xFFF97316)),
-                            SizedBox(width: 12),
+                            Image.asset(
+                              'assets/images/pin_icon.png',
+                              width: 18,
+                              height: 18,
+                              errorBuilder: (c, e, s) => const Icon(
+                                  Icons.lightbulb_outline,
+                                  size: 18,
+                                  color: Color(0xFFF97316)),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'Pin stops along the route so riders can choose to board at these locations.',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFFF97316)),
+                                style: GoogleFonts.mulish(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    height: 20 / 14,
+                                    letterSpacing: 0,
+                                    color: const Color(0xFFD97706)),
                               ),
                             ),
                           ],
@@ -1006,15 +1109,23 @@ class _RideMapPageState extends State<RideMapPage> {
                     Expanded(
                       child: Text(
                         location,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 18 / 16,
+                            letterSpacing: 0,
+                            color: const Color(0xFF1D1D1D)),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(time,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black87)),
+                        style: GoogleFonts.mulish(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            height: 18 / 14,
+                            letterSpacing: 0,
+                            color: const Color(0xFF1D1D1D))),
                     const SizedBox(width: 12),
                     if (!isLast)
                       GestureDetector(
@@ -1046,12 +1157,14 @@ class _RideMapPageState extends State<RideMapPage> {
                               const SizedBox(width: 4),
                               Text(
                                 isPinned ? 'Pinned' : 'Pin',
-                                style: TextStyle(
-                                  fontSize: 11,
+                                style: GoogleFonts.mulish(
+                                  fontSize: 14,
                                   color: isPinned
                                       ? const Color(0xFF2196F3)
-                                      : Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
+                                      : const Color(0xFF1D1D1D),
+                                  fontWeight: FontWeight.w600,
+                                  height: 16.5 / 14,
+                                  letterSpacing: 0,
                                 ),
                               ),
                             ],
@@ -1062,7 +1175,13 @@ class _RideMapPageState extends State<RideMapPage> {
                 ),
                 Text(
                   sub,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: GoogleFonts.mulish(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    height: 18 / 14,
+                    letterSpacing: 0,
+                    color: const Color(0xFF1D1D1D),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 if (!isLast) const Divider(height: 1, color: Color(0xFFEEEEEE)),

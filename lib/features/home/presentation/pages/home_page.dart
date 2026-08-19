@@ -183,6 +183,7 @@ class _HomeView extends StatelessWidget {
                             selected: state.rideMode,
                             onChanged: (mode) =>
                                 bloc.add(RideModeChanged(mode)),
+                            showBoth: state.travelPreference == 'both',
                           ),
                         ),
                       ],
