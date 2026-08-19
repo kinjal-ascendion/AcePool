@@ -81,6 +81,8 @@ class ReviewRidersBloc extends Bloc<ReviewRidersEvent, ReviewRidersState> {
       await _ratingsRepository.submitDriverRating(
         requestId: rider.requestId,
         rating: rating,
+        tags: state.selectedTags.toList(),
+        comment: state.comment.isEmpty ? null : state.comment,
       );
       final riders = List<RiderReview>.from(state.riders);
       riders[state.currentIndex] = rider.copyWith(driverRating: rating);

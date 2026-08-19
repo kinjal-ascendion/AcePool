@@ -23,15 +23,9 @@ class RatingsRepositoryImpl implements RatingsRepository {
   final FirebaseAuth _auth;
 
   @override
-  Future<RatingsSummary> getRatingsReceivedFromDrivers() async {
+  Future<List<ReceivedReviewFromDriver>> getRatingsReceivedFromDrivers() async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) {
-      return const RatingsSummary(averageRating: 0, totalReviews: 0, ratingCounts: {}, rides: []);
-    }
-
-    var totalReviews = 0;
-    var averageRating = 0.0;
-    final ratingCounts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    if (uid == null) return [];
 
     final requestSnapshot = await _db
         .collection('ride_requests')
@@ -39,7 +33,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         .where('status', isEqualTo: 'accepted')
         .get();
 
-    final rides = <ReceivedRatingRide>[];
+    final reviews = <ReceivedReviewFromDriver>[];
 
     for (final request in requestSnapshot.docs) {
       final requestData = request.data();
@@ -51,49 +45,58 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final rideData = rideDoc.data()!;
       if (rideData['status'] != 'completed') continue;
 
-      final driverRating = (requestData['driverRating'] as num).toDouble();
-      totalReviews++;
-      if (ratingCounts.containsKey(driverRating.toInt())) {
-        ratingCounts[driverRating.toInt()] = (ratingCounts[driverRating.toInt()] ?? 0) + 1;
-      }
+      final driverId = requestData['driverId'] as String? ?? '';
+      String driverName = requestData['driverName'] as String? ?? '';
+      String? driverPhotoUrl = requestData['driverPhotoUrl'] as String?;
+      String driverEmployeeId = '';
 
-      final rideTime = rideData['time'] as Map<String, dynamic>;
+      try {
+        final userDoc = await _db.collection('users').doc(driverId).get();
+        final userData = userDoc.data();
+        if (userData != null) {
+          if (driverName.isEmpty) driverName = userData['fullName'] as String? ?? '';
+          driverPhotoUrl = userData['profileImageUrl'] as String? ?? driverPhotoUrl;
+          driverEmployeeId = userData['employeeId'] as String? ?? '';
+        }
+      } catch (_) {}
 
-      rides.add(ReceivedRatingRide(
-        rideId: requestData['rideId'],
-        date: (rideData['date'] as Timestamp).toDate(),
-        time: TimeOfDay(hour: rideTime['hour'], minute: rideTime['minute']),
-        pickup: rideData['fromAddress'],
-        drop: rideData['toAddress'],
-        rating: driverRating,
-        reviews: 1,
+      final rideTime = rideData['time'] as Map<String, dynamic>?;
+      final date = rideData['date'] is Timestamp
+          ? (rideData['date'] as Timestamp).toDate()
+          : DateTime.now();
+      final time = rideTime != null
+          ? TimeOfDay(hour: rideTime['hour'] as int, minute: rideTime['minute'] as int)
+          : TimeOfDay.now();
+
+      final pickupRaw = rideData['fromAddress'] as String? ?? '';
+      final dropRaw = rideData['toAddress'] as String? ?? '';
+
+      final tagsRaw = requestData['driverReviewTags'];
+      final tags = tagsRaw is List ? tagsRaw.cast<String>() : <String>[];
+
+      reviews.add(ReceivedReviewFromDriver(
+        rideId: requestData['rideId'] as String? ?? '',
+        date: date,
+        time: time,
+        pickup: _shortPlaceName(pickupRaw),
+        drop: _shortPlaceName(dropRaw),
+        driverName: driverName,
+        driverPhotoUrl: driverPhotoUrl,
+        driverEmployeeId: driverEmployeeId,
+        sentiment: (requestData['driverRating'] as num?)?.toInt(),
+        tags: tags,
+        comment: requestData['driverReviewComment'] as String?,
       ));
     }
 
-    if (totalReviews > 0) {
-      double sum = 0;
-      ratingCounts.forEach((stars, count) => sum += stars * count);
-      averageRating = sum / totalReviews;
-    }
-
-    return RatingsSummary(
-      averageRating: averageRating,
-      totalReviews: totalReviews,
-      ratingCounts: ratingCounts,
-      rides: rides,
-    );
+    reviews.sort((a, b) => b.date.compareTo(a.date));
+    return reviews;
   }
 
   @override
-  Future<RatingsSummary> getRatingsReceivedFromRiders() async {
+  Future<List<ReceivedReviewRide>> getRatingsReceivedFromRiders() async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) {
-      return const RatingsSummary(averageRating: 0, totalReviews: 0, ratingCounts: {}, rides: []);
-    }
-
-    var totalReviews = 0;
-    var averageRating = 0.0;
-    final ratingCounts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    if (uid == null) return [];
 
     final requestSnapshot = await _db
         .collection('ride_requests')
@@ -101,12 +104,10 @@ class RatingsRepositoryImpl implements RatingsRepository {
         .where('status', isEqualTo: 'accepted')
         .get();
 
-    final rides = <ReceivedRatingRide>[];
+    final reviews = <ReceivedReviewRide>[];
 
     for (final request in requestSnapshot.docs) {
       final requestData = request.data();
-
-      // Ignore if the rider hasn't rated yet
       if (requestData['riderRating'] == null) continue;
 
       final rideDoc = await _db.collection('rides').doc(requestData['rideId']).get();
@@ -115,55 +116,59 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final rideData = rideDoc.data()!;
       if (rideData['status'] != 'completed') continue;
 
-      // Get all requests for this ride
-      final allRequests = await _db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: requestData['rideId'])
-          .where('status', isEqualTo: 'accepted')
-          .get();
+      final riderId = requestData['riderId'] as String? ?? '';
+      String riderName = requestData['riderName'] as String? ?? '';
+      String? riderPhotoUrl = requestData['riderPhotoUrl'] as String?;
+      String riderEmployeeId = '';
 
-      double totalRating = 0;
-      int reviewCount = 0;
-
-      for (final doc in allRequests.docs) {
-        final data = doc.data();
-        if (data['riderRating'] != null) {
-          final rating = (data['riderRating'] as num).toDouble();
-          totalRating += rating;
-          reviewCount++;
-          totalReviews++;
-          if (ratingCounts.containsKey(rating.toInt())) {
-            ratingCounts[rating.toInt()] = (ratingCounts[rating.toInt()] ?? 0) + 1;
-          }
+      try {
+        final userDoc = await _db.collection('users').doc(riderId).get();
+        final userData = userDoc.data();
+        if (userData != null) {
+          if (riderName.isEmpty) riderName = userData['fullName'] as String? ?? '';
+          riderPhotoUrl = userData['profileImageUrl'] as String? ?? riderPhotoUrl;
+          riderEmployeeId = userData['employeeId'] as String? ?? '';
         }
-      }
-      final rideAverageRating = reviewCount == 0 ? 0.0 : totalRating / reviewCount;
+      } catch (_) {}
 
-      final rideTime = requestData['rideTime'] as Map<String, dynamic>;
+      final rideTime = requestData['rideTime'] as Map<String, dynamic>?;
+      final date = requestData['rideDate'] is Timestamp
+          ? (requestData['rideDate'] as Timestamp).toDate()
+          : DateTime.now();
+      final time = rideTime != null
+          ? TimeOfDay(hour: rideTime['hour'] as int, minute: rideTime['minute'] as int)
+          : TimeOfDay.now();
 
-      rides.add(ReceivedRatingRide(
-        rideId: requestData['rideId'],
-        date: (requestData['rideDate'] as Timestamp).toDate(),
-        time: TimeOfDay(hour: rideTime['hour'], minute: rideTime['minute']),
-        pickup: requestData['rideFrom'],
-        drop: requestData['rideTo'],
-        rating: rideAverageRating,
-        reviews: reviewCount,
+      final pickupRaw = requestData['rideFrom'] as String? ?? '';
+      final dropRaw = requestData['rideTo'] as String? ?? '';
+
+      final tagsRaw = requestData['riderReviewTags'];
+      final tags = tagsRaw is List ? tagsRaw.cast<String>() : <String>[];
+
+      reviews.add(ReceivedReviewRide(
+        rideId: requestData['rideId'] as String? ?? '',
+        date: date,
+        time: time,
+        pickup: _shortPlaceName(pickupRaw),
+        drop: _shortPlaceName(dropRaw),
+        riderName: riderName,
+        riderPhotoUrl: riderPhotoUrl,
+        riderEmployeeId: riderEmployeeId,
+        sentiment: (requestData['riderRating'] as num?)?.toInt(),
+        tags: tags,
+        comment: requestData['riderReviewComment'] as String?,
       ));
     }
 
-    if (totalReviews > 0) {
-      double sum = 0;
-      ratingCounts.forEach((stars, count) => sum += stars * count);
-      averageRating = sum / totalReviews;
-    }
+    reviews.sort((a, b) => b.date.compareTo(a.date));
+    return reviews;
+  }
 
-    return RatingsSummary(
-      averageRating: averageRating,
-      totalReviews: totalReviews,
-      ratingCounts: ratingCounts,
-      rides: rides,
-    );
+  String _shortPlaceName(String address) {
+    if (address.isEmpty) return address;
+    final parts = address.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    if (parts.length <= 2) return address;
+    return parts.take(2).join(', ');
   }
 
   @override
@@ -216,14 +221,22 @@ class RatingsRepositoryImpl implements RatingsRepository {
       ));
     }
 
+    rides.sort((a, b) => b.date.compareTo(a.date));
     return rides;
   }
 
   @override
-  Future<void> submitRiderRating({required String requestId, required int rating}) async {
+  Future<void> submitRiderRating({
+    required String requestId,
+    required int rating,
+    List<String> tags = const [],
+    String? comment,
+  }) async {
     await _db.collection("ride_requests").doc(requestId).update({
       "riderRating": rating,
       "riderRatedAt": FieldValue.serverTimestamp(),
+      "riderReviewTags": tags,
+      "riderReviewComment": comment,
     });
   }
 
@@ -265,10 +278,17 @@ class RatingsRepositoryImpl implements RatingsRepository {
   }
 
   @override
-  Future<void> submitDriverRating({required String requestId, required int rating}) async {
+  Future<void> submitDriverRating({
+    required String requestId,
+    required int rating,
+    List<String> tags = const [],
+    String? comment,
+  }) async {
     await _db.collection('ride_requests').doc(requestId).update({
       "driverRating": rating,
       "driverRatedAt": FieldValue.serverTimestamp(),
+      "driverReviewTags": tags,
+      "driverReviewComment": comment,
     });
   }
 
@@ -386,6 +406,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
       ));
     }
 
+    rides.sort((a, b) => b.date.compareTo(a.date));
     return rides;
   }
 }
