@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/profile/presentation/bloc/ratings_summary_bloc.dart';
-import '../widgets/rating_summary_card.dart';
-import '../widgets/ride_card.dart';
-import 'package:intl/intl.dart';
+import 'package:acepool/features/profile/domain/repositories/ratings_repository.dart';
+import 'package:acepool/features/profile/presentation/bloc/reviews_from_riders_bloc.dart';
+import '../widgets/review_from_rider_card.dart';
 
 class RatingsByRidersPage extends StatefulWidget {
   const RatingsByRidersPage({super.key});
@@ -14,13 +13,14 @@ class RatingsByRidersPage extends StatefulWidget {
 }
 
 class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
-  late final RatingsSummaryBloc _bloc;
+  late final ReviewsFromRidersBloc _bloc;
 
   @override
   void initState() {
     super.initState();
-    _bloc = sl<RatingsSummaryBloc>()
-      ..add(const RatingsSummaryRequested(RatingsSummarySource.fromRiders));
+    _bloc = ReviewsFromRidersBloc(
+      ratingsRepository: sl<RatingsRepository>(),
+    )..add(const ReviewsFromRidersStarted());
   }
 
   @override
@@ -32,8 +32,7 @@ class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -48,64 +47,51 @@ class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              "RATINGS BY RIDERS",
+              "REVIEWS FROM YOUR RIDERS",
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1.2,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: Colors.black,
               ),
             ),
           ),
-
           Expanded(
             child: BlocProvider.value(
               value: _bloc,
-              child: BlocBuilder<RatingsSummaryBloc, RatingsSummaryState>(
+              child: BlocBuilder<ReviewsFromRidersBloc, ReviewsFromRidersState>(
                 builder: (context, state) {
-                  if (state.status == RatingsSummaryStatus.initial ||
-                      state.status == RatingsSummaryStatus.loading) {
+                  if (state.status == ReviewsFromRidersStatus.initial ||
+                      state.status == ReviewsFromRidersStatus.loading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state.reviews.isEmpty) {
                     return const Center(
-                      child: CircularProgressIndicator(),
+                      child: Text("No reviews received yet"),
                     );
                   }
 
-                  final summary = state.summary;
-                  final rides = summary?.rides ?? [];
-
-                  if (rides.isEmpty) {
-                    return const Center(
-                      child: Text("No ratings received yet"),
-                    );
-                  }
-
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      RatingSummaryCard(
-                        averageRating: summary!.averageRating,
-                        totalReviews: summary.totalReviews,
-                        ratingCounts: summary.ratingCounts,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      ...rides.map(
-                        (ride) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: RideCard(
-                            date: DateFormat('MMMM d, yyyy').format(ride.date),
-                            time: ride.time.format(context),
-                            pickup: ride.pickup,
-                            drop: ride.drop,
-                            rating: ride.rating,
-                            reviews: ride.reviews,
-                            showReviews: true,
-                          ),
-                        ),
-                      ),
-                    ],
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    itemCount: state.reviews.length,
+                    itemBuilder: (context, index) {
+                      final review = state.reviews[index];
+                      return ReviewFromRiderCard(
+                        riderName: review.riderName,
+                        riderPhotoUrl: review.riderPhotoUrl,
+                        riderEmployeeId: review.riderEmployeeId,
+                        sentiment: review.sentiment,
+                        pickup: review.pickup,
+                        drop: review.drop,
+                        date: review.date,
+                        time: review.time,
+                        tags: review.tags,
+                        comment: review.comment,
+                      );
+                    },
                   );
                 },
               ),

@@ -5,21 +5,29 @@ import 'package:acepool/features/profile/domain/entities/rider_ratable_ride.dart
 import 'package:acepool/features/profile/domain/entities/rider_review.dart';
 
 abstract class RatingsRepository {
-  /// Ratings the current user (as rider) received from drivers.
-  Future<RatingsSummary> getRatingsReceivedFromDrivers();
+  Future<List<ReceivedReviewFromDriver>> getRatingsReceivedFromDrivers();
 
-  /// Ratings the current user (as driver) received from riders.
-  Future<RatingsSummary> getRatingsReceivedFromRiders();
+  Future<List<ReceivedReviewRide>> getRatingsReceivedFromRiders();
 
   /// The current user's (rider's) completed rides available to rate.
   Future<List<RiderRatableRide>> getMyCompletedRidesToRate();
 
-  Future<void> submitRiderRating({required String requestId, required int rating});
+  Future<void> submitRiderRating({
+    required String requestId,
+    required int rating,
+    List<String> tags = const [],
+    String? comment,
+  });
 
   /// Riders on [rideId] the current user (driver) can rate.
   Future<List<RiderReview>> getRidersToReview(String rideId);
 
-  Future<void> submitDriverRating({required String requestId, required int rating});
+  Future<void> submitDriverRating({
+    required String requestId,
+    required int rating,
+    List<String> tags = const [],
+    String? comment,
+  });
 
   /// The current user's (driver's) completed offered rides, with review
   /// progress.
