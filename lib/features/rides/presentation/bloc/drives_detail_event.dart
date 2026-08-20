@@ -28,3 +28,16 @@ class DrivesDetailStatusChangeRequested extends DrivesDetailEvent {
   @override
   List<Object?> get props => [status];
 }
+
+class DrivesDetailNegotiationResponded extends DrivesDetailEvent {
+  const DrivesDetailNegotiationResponded({
+    required this.requestId,
+    required this.status,
+  });
+
+  final String requestId;
+  final String status;
+
+  @override
+  List<Object?> get props => [requestId, status];
+}

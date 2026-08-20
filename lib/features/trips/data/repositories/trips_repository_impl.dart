@@ -118,7 +118,7 @@ class TripsRepositoryImpl implements TripsRepository {
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
         .get();
 
-    Map<String, (double? price, String? status)> requestedRideNegotiations = {};
+    Map<String, (String id, double? price, String? status)> requestedRideNegotiations = {};
     try {
       final myRequestsSnap = await _db
           .collection('ride_requests')
@@ -128,6 +128,7 @@ class TripsRepositoryImpl implements TripsRepository {
         final data = d.data();
         if (data['status'] == 'cancelled') continue;
         requestedRideNegotiations[data['rideId'] as String] = (
+          d.id,
           (data['negotiatedPrice'] as num?)?.toDouble(),
           data['negotiationStatus'] as String?,
         );
@@ -243,8 +244,9 @@ class TripsRepositoryImpl implements TripsRepository {
         distanceKm: match.distanceKm,
         defaultPickupPoint: userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
         farePerSeat: farePerSeat,
-        negotiatedPrice: requestedRideNegotiations[doc.id]?.$1,
-        negotiationStatus: requestedRideNegotiations[doc.id]?.$2,
+        negotiatedPrice: requestedRideNegotiations[doc.id]?.$2,
+        negotiationStatus: requestedRideNegotiations[doc.id]?.$3,
+        requestId: requestedRideNegotiations[doc.id]?.$1,
         userFromAddress: userHomeAddress,
         userToAddress: userOfficeAddress,
         userFromLat: userHomeLat,
@@ -463,6 +465,7 @@ class TripsRepositoryImpl implements TripsRepository {
       'pickupTime': {'hour': ride.time.hour, 'minute': ride.time.minute},
       'message': message,
       'negotiatedPrice': negotiatedPrice,
+      'negotiationStatus': negotiatedPrice != null ? 'pending' : null,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,
@@ -494,6 +497,17 @@ class TripsRepositoryImpl implements TripsRepository {
       'seatsFilled': FieldValue.increment(-1),
     });
     await batch.commit();
+  }
+
+  @override
+  Future<void> reviseNegotiation({
+    required String requestId,
+    required double price,
+  }) async {
+    await _db.collection('ride_requests').doc(requestId).update({
+      'negotiatedPrice': price,
+      'negotiationStatus': 'pending',
+    });
   }
 
   @override

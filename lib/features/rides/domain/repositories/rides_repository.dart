@@ -92,6 +92,11 @@ abstract class RidesRepository {
     required String status, // 'accepted' or 'declined'
   });
 
+  Future<void> updateNegotiatedPrice({
+    required String requestId,
+    required double price,
+  });
+
   Future<bool> isRideOwnedByCurrentUser(String rideId);
 
   /// Live updates to a ride's driver-authored note.

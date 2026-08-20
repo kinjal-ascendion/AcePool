@@ -70,11 +70,12 @@ class RidesRepositoryImpl implements RidesRepository {
     final matchRadiusKm =
         (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
 
-    Map<String, (double? price, String? status)> requestedRideNegotiations = {};
+    Map<String, (String id, double? price, String? status)> requestedRideNegotiations = {};
     for (var d in myRequestsSnap.docs) {
       final data = d.data();
       if (data['status'] == 'cancelled') continue;
       requestedRideNegotiations[data['rideId'] as String] = (
+        d.id,
         (data['negotiatedPrice'] as num?)?.toDouble(),
         data['negotiationStatus'] as String?,
       );
@@ -200,8 +201,9 @@ class RidesRepositoryImpl implements RidesRepository {
         distanceKm: fromDistanceKm,
         matchPercent: matchPercent,
         farePerSeat: farePerSeat,
-        negotiatedPrice: requestedRideNegotiations[doc.id]?.$1,
-        negotiationStatus: requestedRideNegotiations[doc.id]?.$2,
+        negotiatedPrice: requestedRideNegotiations[doc.id]?.$2,
+        negotiationStatus: requestedRideNegotiations[doc.id]?.$3,
+        requestId: requestedRideNegotiations[doc.id]?.$1,
         fromLat: rideFromLat,
         fromLng: rideFromLng,
         toLat: rideToLat,
@@ -303,6 +305,7 @@ class RidesRepositoryImpl implements RidesRepository {
       'pickupTime': {'hour': riderTime.hour, 'minute': riderTime.minute},
       'message': message,
       'negotiatedPrice': negotiatedPrice,
+      'negotiationStatus': negotiatedPrice != null ? 'pending' : null,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,
@@ -531,6 +534,7 @@ class RidesRepositoryImpl implements RidesRepository {
       'pickupTime': {'hour': ride.time.hour, 'minute': ride.time.minute},
       'message': message,
       'negotiatedPrice': negotiatedPrice,
+      'negotiationStatus': negotiatedPrice != null ? 'pending' : null,
       'status': 'accepted',
       'createdAt': FieldValue.serverTimestamp(),
       'rideFrom': ride.fromAddress,
@@ -616,6 +620,17 @@ class RidesRepositoryImpl implements RidesRepository {
   }) async {
     await _db.collection('ride_requests').doc(requestId).update({
       'negotiationStatus': status,
+    });
+  }
+
+  @override
+  Future<void> updateNegotiatedPrice({
+    required String requestId,
+    required double price,
+  }) async {
+    await _db.collection('ride_requests').doc(requestId).update({
+      'negotiatedPrice': price,
+      'negotiationStatus': 'pending',
     });
   }
 

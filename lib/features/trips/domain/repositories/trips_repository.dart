@@ -52,5 +52,11 @@ abstract class TripsRepository {
     required String reason,
   });
 
+  /// Updates the negotiation price and sets status back to 'pending' for driver review.
+  Future<void> reviseNegotiation({
+    required String requestId,
+    required double price,
+  });
+
   Future<DriverProfileStats> getDriverProfileStats(String driverId);
 }

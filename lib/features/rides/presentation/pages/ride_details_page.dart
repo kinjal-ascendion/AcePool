@@ -467,8 +467,8 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      r.farePerSeat != null
-                          ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                      r.effectiveFare != null
+                          ? '₹${r.effectiveFare!.toStringAsFixed(2)} / seat'
                           : 'Fare not set',
                       style: GoogleFonts.mulish(
                         color: const Color(0xFF1B8A3F),
