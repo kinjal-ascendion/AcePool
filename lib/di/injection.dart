@@ -8,6 +8,7 @@ import 'package:acepool/features/auth/domain/repositories/auth_repository.dart';
 import 'package:acepool/features/auth/domain/usecases/cancel_signup_usecase.dart';
 import 'package:acepool/features/auth/domain/usecases/send_otp_usecase.dart';
 import 'package:acepool/features/auth/domain/usecases/sign_in_usecase.dart';
+import 'package:acepool/features/auth/domain/usecases/sign_in_with_microsoft_usecase.dart';
 import 'package:acepool/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:acepool/features/auth/domain/usecases/verify_otp_usecase.dart';
 import 'package:acepool/features/auth/presentation/bloc/login_bloc.dart';
@@ -116,6 +117,9 @@ void initDependencies() {
 
   // Auth use cases
   sl.registerLazySingleton<SignInUseCase>(() => SignInUseCase(sl()));
+  sl.registerLazySingleton<SignInWithMicrosoftUseCase>(
+    () => SignInWithMicrosoftUseCase(sl()),
+  );
   sl.registerLazySingleton<SignUpUseCase>(() => SignUpUseCase(sl()));
   sl.registerLazySingleton<SendOtpUseCase>(() => SendOtpUseCase(sl()));
   sl.registerLazySingleton<VerifyOtpUseCase>(() => VerifyOtpUseCase(sl()));
@@ -155,7 +159,9 @@ void initDependencies() {
   sl.registerFactory<ChatListBloc>(() => ChatListBloc(getChatRooms: sl()));
   sl.registerFactory<TravelPreferenceBloc>(() => TravelPreferenceBloc());
   sl.registerFactory<VehiclePreferenceBloc>(() => VehiclePreferenceBloc());
-  sl.registerFactory<LoginBloc>(() => LoginBloc(signIn: sl()));
+  sl.registerFactory<LoginBloc>(
+    () => LoginBloc(signIn: sl(), signInWithMicrosoft: sl()),
+  );
   sl.registerFactory<SignupBloc>(
     () => SignupBloc(signUp: sl(), scanLicense: sl()),
   );

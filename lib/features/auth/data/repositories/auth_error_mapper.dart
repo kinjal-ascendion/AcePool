@@ -16,6 +16,8 @@ class AuthErrorMapper {
         return 'An account with this email already exists.';
       case 'weak-password':
         return 'Password is too weak. Use at least 6 characters.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with this email using a different sign-in method.';
       default:
         return fallback;
     }

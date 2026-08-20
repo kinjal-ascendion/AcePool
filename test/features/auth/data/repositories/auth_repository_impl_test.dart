@@ -135,6 +135,120 @@ void main() {
     });
   });
 
+  group('AuthRepositoryImpl.signInWithMicrosoft', () {
+    test('returns AuthUser and creates a users doc on first sign-in', () async {
+      final mockUser = MockUser(
+        uid: 'uid-sso-1',
+        email: 'jdoe@ascendion.com',
+        displayName: 'Jane Doe',
+      );
+      final auth = MockFirebaseAuth(mockUser: mockUser);
+      final firestore = FakeFirebaseFirestore();
+      final repo = AuthRepositoryImpl(
+        db: firestore,
+        firebaseAuth: auth,
+        httpClient: _okClient(),
+      );
+
+      final result = await repo.signInWithMicrosoft();
+
+      expect(result.uid, 'uid-sso-1');
+      expect(result.email, 'jdoe@ascendion.com');
+      expect(result.displayName, 'Jane Doe');
+
+      final doc = await firestore.collection('users').doc('uid-sso-1').get();
+      expect(doc.exists, isTrue);
+      expect(doc.data()!['fullName'], 'Jane Doe');
+      expect(doc.data()!['email'], 'jdoe@ascendion.com');
+      expect(doc.data()!['authProvider'], 'microsoft');
+    });
+
+    test('does not overwrite an existing users doc on repeat sign-in', () async {
+      final mockUser = MockUser(uid: 'uid-sso-2', email: 'jdoe@ascendion.com');
+      final auth = MockFirebaseAuth(mockUser: mockUser);
+      final firestore = FakeFirebaseFirestore();
+      await firestore.collection('users').doc('uid-sso-2').set({
+        'fullName': 'Existing Name',
+        'employeeId': 'EMP999',
+      });
+      final repo = AuthRepositoryImpl(
+        db: firestore,
+        firebaseAuth: auth,
+        httpClient: _okClient(),
+      );
+
+      await repo.signInWithMicrosoft();
+
+      final doc = await firestore.collection('users').doc('uid-sso-2').get();
+      expect(doc.data()!['fullName'], 'Existing Name');
+      expect(doc.data()!['employeeId'], 'EMP999');
+    });
+
+    test('signs out and throws when the account is outside ascendion.com', () async {
+      final mockUser = MockUser(uid: 'uid-sso-3', email: 'jdoe@gmail.com');
+      final auth = MockFirebaseAuth(signedIn: true, mockUser: mockUser);
+      final repo = AuthRepositoryImpl(
+        db: FakeFirebaseFirestore(),
+        firebaseAuth: auth,
+        httpClient: _okClient(),
+      );
+
+      await expectLater(
+        repo.signInWithMicrosoft(),
+        throwsA(
+          isA<AuthException>().having(
+            (e) => e.message,
+            'message',
+            'Please sign in with your Ascendion work account.',
+          ),
+        ),
+      );
+      expect(auth.currentUser, isNull);
+    });
+
+    test('maps account-exists-with-different-credential to a user-facing message', () async {
+      final auth = MockFirebaseAuth();
+      whenCalling(Invocation.method(#signInWithProvider, null))
+          .on(auth)
+          .thenThrow(
+            FirebaseAuthException(code: 'account-exists-with-different-credential'),
+          );
+      final repo = AuthRepositoryImpl(
+        db: FakeFirebaseFirestore(),
+        firebaseAuth: auth,
+        httpClient: _okClient(),
+      );
+
+      await expectLater(
+        repo.signInWithMicrosoft(),
+        throwsA(
+          isA<AuthException>().having(
+            (e) => e.message,
+            'message',
+            'An account already exists with this email using a different sign-in method.',
+          ),
+        ),
+      );
+    });
+
+    test('throws SsoCancelledException when the user cancels the sign-in sheet', () async {
+      final auth = MockFirebaseAuth();
+      whenCalling(Invocation.method(#signInWithProvider, null))
+          .on(auth)
+          .thenThrow(FirebaseAuthException(code: 'web-context-canceled'));
+      final repo = AuthRepositoryImpl(
+        db: FakeFirebaseFirestore(),
+        firebaseAuth: auth,
+        httpClient: _okClient(),
+      );
+
+      await expectLater(
+        repo.signInWithMicrosoft(),
+        throwsA(isA<SsoCancelledException>()),
+      );
+    });
+  });
+
   group('AuthRepositoryImpl.signUp', () {
     const details = SignupDetails(
       fullName: 'Jane Doe',

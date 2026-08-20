@@ -6,19 +6,25 @@ import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
 import '../../domain/entities/auth_exception.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/usecases/sign_in_usecase.dart';
+import '../../domain/usecases/sign_in_with_microsoft_usecase.dart';
 
 part 'login_event.dart';
 part 'login_state.dart';
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  LoginBloc({required SignInUseCase signIn})
-    : _signIn = signIn,
-      super(const LoginInitial()) {
+  LoginBloc({
+    required SignInUseCase signIn,
+    required SignInWithMicrosoftUseCase signInWithMicrosoft,
+  }) : _signIn = signIn,
+       _signInWithMicrosoft = signInWithMicrosoft,
+       super(const LoginInitial()) {
     on<LoginSubmitted>(_onLoginSubmitted);
     on<LoginFieldEdited>(_onLoginFieldEdited);
+    on<LoginMicrosoftRequested>(_onLoginMicrosoftRequested);
   }
 
   final SignInUseCase _signIn;
+  final SignInWithMicrosoftUseCase _signInWithMicrosoft;
 
   Future<void> _onLoginSubmitted(
     LoginSubmitted event,
@@ -51,6 +57,23 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       emit(LoginFailure(e.message));
     } catch (_) {
       emit(const LoginFailure('Login failed. Please try again.'));
+    }
+  }
+
+  Future<void> _onLoginMicrosoftRequested(
+    LoginMicrosoftRequested event,
+    Emitter<LoginState> emit,
+  ) async {
+    emit(const LoginInProgress());
+    try {
+      final user = await _signInWithMicrosoft();
+      emit(LoginSuccess(user));
+    } on SsoCancelledException {
+      emit(const LoginInitial());
+    } on AuthException catch (e) {
+      emit(LoginFailure(e.message));
+    } catch (_) {
+      emit(const LoginFailure('Microsoft sign-in failed. Please try again.'));
     }
   }
 

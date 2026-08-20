@@ -1,6 +1,7 @@
 import 'package:acepool/features/auth/domain/entities/auth_exception.dart';
 import 'package:acepool/features/auth/domain/entities/auth_user.dart';
 import 'package:acepool/features/auth/domain/usecases/sign_in_usecase.dart';
+import 'package:acepool/features/auth/domain/usecases/sign_in_with_microsoft_usecase.dart';
 import 'package:acepool/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:acepool/features/onboarding/domain/entities/travel_preference.dart';
 import 'package:acepool/features/onboarding/domain/entities/vehicle_preference.dart';
@@ -11,8 +12,12 @@ import 'package:mocktail/mocktail.dart';
 
 class MockSignInUseCase extends Mock implements SignInUseCase {}
 
+class MockSignInWithMicrosoftUseCase extends Mock
+    implements SignInWithMicrosoftUseCase {}
+
 void main() {
   late MockSignInUseCase signIn;
+  late MockSignInWithMicrosoftUseCase signInWithMicrosoft;
 
   setUpAll(() {
     registerFallbackValue(
@@ -25,11 +30,13 @@ void main() {
 
   setUp(() {
     signIn = MockSignInUseCase();
+    signInWithMicrosoft = MockSignInWithMicrosoftUseCase();
   });
 
   const user = AuthUser(uid: 'uid-1', email: 'jdoe@ascendion.com');
 
-  LoginBloc buildBloc() => LoginBloc(signIn: signIn);
+  LoginBloc buildBloc() =>
+      LoginBloc(signIn: signIn, signInWithMicrosoft: signInWithMicrosoft);
 
   group('LoginEvent equality', () {
     test('LoginSubmitted supports value equality based on props', () {
@@ -268,6 +275,57 @@ void main() {
       expect: () => [
         const LoginInProgress(),
         const LoginFailure('Login failed. Please try again.'),
+      ],
+    );
+  });
+
+  group('LoginMicrosoftRequested', () {
+    blocTest<LoginBloc, LoginState>(
+      'emits [LoginInProgress, LoginSuccess] on success',
+      setUp: () {
+        when(() => signInWithMicrosoft()).thenAnswer((_) async => user);
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const LoginMicrosoftRequested()),
+      expect: () => [const LoginInProgress(), const LoginSuccess(user)],
+    );
+
+    blocTest<LoginBloc, LoginState>(
+      'emits [LoginInProgress, LoginFailure] with the AuthException message on failure',
+      setUp: () {
+        when(() => signInWithMicrosoft()).thenThrow(
+          const AuthException('Please sign in with your Ascendion work account.'),
+        );
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const LoginMicrosoftRequested()),
+      expect: () => [
+        const LoginInProgress(),
+        const LoginFailure('Please sign in with your Ascendion work account.'),
+      ],
+    );
+
+    blocTest<LoginBloc, LoginState>(
+      'emits [LoginInProgress, LoginInitial] when the user cancels the sign-in sheet',
+      setUp: () {
+        when(() => signInWithMicrosoft())
+            .thenThrow(const SsoCancelledException());
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const LoginMicrosoftRequested()),
+      expect: () => [const LoginInProgress(), const LoginInitial()],
+    );
+
+    blocTest<LoginBloc, LoginState>(
+      'emits [LoginInProgress, LoginFailure] with a generic message on unexpected errors',
+      setUp: () {
+        when(() => signInWithMicrosoft()).thenThrow(Exception('boom'));
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const LoginMicrosoftRequested()),
+      expect: () => [
+        const LoginInProgress(),
+        const LoginFailure('Microsoft sign-in failed. Please try again.'),
       ],
     );
   });

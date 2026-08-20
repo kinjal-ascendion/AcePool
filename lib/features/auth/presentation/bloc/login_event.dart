@@ -32,3 +32,7 @@ class LoginFieldEdited extends LoginEvent {
   @override
   List<Object?> get props => [field];
 }
+
+class LoginMicrosoftRequested extends LoginEvent {
+  const LoginMicrosoftRequested();
+}

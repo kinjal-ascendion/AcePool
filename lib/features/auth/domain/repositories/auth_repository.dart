@@ -15,6 +15,11 @@ abstract class AuthRepository {
 
   Future<AuthUser> signUp(SignupDetails details);
 
+  /// Signs in via Microsoft/Azure AD SSO. Restricts to @ascendion.com
+  /// accounts; throws [AuthException] and signs the user back out if a
+  /// non-ascendion.com account completes the OAuth flow.
+  Future<AuthUser> signInWithMicrosoft();
+
   /// Generates and sends a fresh OTP for [uid]/[email]. Failures are logged,
   /// not thrown, matching the original fire-and-forget send behavior.
   Future<void> sendOtp({required String email, required String uid});

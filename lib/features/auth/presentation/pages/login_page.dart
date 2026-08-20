@@ -9,8 +9,10 @@ import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
 import '../bloc/login_bloc.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/login_header.dart';
+import '../widgets/or_divider.dart';
 import '../widgets/signup_text.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/sso_button.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key, this.onboardingSelection});
@@ -131,6 +133,15 @@ class _LoginViewState extends State<_LoginView> {
                     onPressed: _login,
                     isLoading: isLoading,
                     label: 'Log In',
+                  ),
+                  const SizedBox(height: 20),
+                  const OrDivider(),
+                  const SizedBox(height: 20),
+                  SsoButton(
+                    onPressed: () => context
+                        .read<LoginBloc>()
+                        .add(const LoginMicrosoftRequested()),
+                    isLoading: isLoading,
                   ),
                   const SizedBox(height: 12),
                   SignupText(onboardingSelection: widget.onboardingSelection),

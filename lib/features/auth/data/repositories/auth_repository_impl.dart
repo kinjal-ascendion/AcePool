@@ -68,6 +68,62 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  static const _ssoCancelledCodes = {
+    'web-context-canceled',
+    'user-cancelled',
+    'canceled',
+    'cancelled',
+  };
+
+  @override
+  Future<AuthUser> signInWithMicrosoft() async {
+    final provider = OAuthProvider('microsoft.com')
+      ..setCustomParameters({
+        'tenant': ApiKeys.azureTenantId,
+        'domain_hint': 'ascendion.com',
+      });
+
+    try {
+      final credential = await _firebaseAuth.signInWithProvider(provider);
+      final user = credential.user!;
+      final email = user.email ?? '';
+
+      if (!email.toLowerCase().endsWith('@ascendion.com')) {
+        await _firebaseAuth.signOut();
+        throw const AuthException(
+          'Please sign in with your Ascendion work account.',
+        );
+      }
+
+      await _ensureUserDoc(user);
+
+      return AuthUser(uid: user.uid, email: email, displayName: user.displayName);
+    } on FirebaseAuthException catch (e) {
+      if (_ssoCancelledCodes.contains(e.code)) {
+        throw const SsoCancelledException();
+      }
+      throw AuthException(
+        AuthErrorMapper.map(
+          e,
+          fallback: 'Microsoft sign-in failed. Please try again.',
+        ),
+      );
+    }
+  }
+
+  Future<void> _ensureUserDoc(User user) async {
+    final ref = _db.collection('users').doc(user.uid);
+    final snapshot = await ref.get();
+    if (snapshot.exists) return;
+
+    await ref.set({
+      'fullName': user.displayName ?? '',
+      'email': user.email,
+      'authProvider': 'microsoft',
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   @override
   Future<AuthUser> signUp(SignupDetails details) async {
     try {

@@ -17,4 +17,9 @@ class ApiKeys {
   static const String emailJsTemplateId = 'template_swisqbp';
   static const String emailJsPublicKey = 'vRIlgFkMhRAFo3qLw';
   static const String emailJsPrivateKey = 'VAH8_1cp8ZNTB7M5_ck7w';
+
+  // Azure AD tenant ID for Microsoft SSO — Entra ID → Overview →
+  // Directory (tenant) ID. Restricts sign-in to the ascendion.com tenant;
+  // the client secret itself stays in Firebase Console, never in the app.
+  static const String azureTenantId = '55e2f1ac-92ae-472f-8691-a67732a53eec';
 }
