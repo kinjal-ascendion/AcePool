@@ -33,6 +33,11 @@ class RideRider {
   final double? negotiatedPrice;
   final String? negotiationStatus;
 
+  double? get effectiveFare =>
+      (negotiationStatus == 'accepted' && negotiatedPrice != null)
+          ? negotiatedPrice
+          : null;
+
   String get pickupTimeLabel {
     final h = pickupTime.hourOfPeriod == 0 ? 12 : pickupTime.hourOfPeriod;
     final m = pickupTime.minute.toString().padLeft(2, '0');

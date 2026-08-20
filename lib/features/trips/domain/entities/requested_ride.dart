@@ -31,6 +31,11 @@ class RequestedRide {
   final int matchPercent;
   final double? distanceKm;
 
+  double? get effectiveFare =>
+      (negotiationStatus == 'accepted' && negotiatedPrice != null)
+          ? negotiatedPrice
+          : farePerSeat;
+
   RequestedRide({
     required this.id,
     required this.rideId,

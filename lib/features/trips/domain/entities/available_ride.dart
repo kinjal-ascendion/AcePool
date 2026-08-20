@@ -30,6 +30,7 @@ class AvailableRide {
     this.farePerSeat,
     this.negotiatedPrice,
     this.negotiationStatus,
+    this.requestId,
     this.userFromAddress = '',
     this.userToAddress = '',
     this.userFromLat,
@@ -61,6 +62,7 @@ class AvailableRide {
   final double? farePerSeat;
   final double? negotiatedPrice;
   final String? negotiationStatus;
+  final String? requestId;
 
   /// The rider's own commute points at the time this match was computed
   /// (read from `HomeBloc`'s find-ride form) — needed again when creating
@@ -71,6 +73,11 @@ class AvailableRide {
   final double? userFromLng;
   final double? userToLat;
   final double? userToLng;
+
+  double? get effectiveFare =>
+      (negotiationStatus == 'accepted' && negotiatedPrice != null)
+          ? negotiatedPrice
+          : farePerSeat;
 
   String? get distanceLabel =>
       distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);

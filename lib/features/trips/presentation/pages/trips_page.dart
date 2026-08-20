@@ -162,7 +162,7 @@ class _TripsPageState extends State<TripsPage>
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: trips.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
@@ -497,7 +497,7 @@ class _TripsPageState extends State<TripsPage>
     return RefreshIndicator(
       onRefresh: () async => _requestAvailableRidesFromHomeState(),
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         itemCount: rides.length,
         separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) => _AvailableRideCard(
@@ -548,7 +548,7 @@ class _TripsPageState extends State<TripsPage>
     return RefreshIndicator(
       onRefresh: () async => _requestRideRequestsFromHomeState(),
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         itemCount: requests.length,
         separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) => _RequestedRideCard(
@@ -1038,8 +1038,8 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      r.farePerSeat != null
-                          ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                      r.effectiveFare != null
+                          ? '₹${r.effectiveFare!.toStringAsFixed(2)} / seat'
                           : 'Fare not set',
                       style: GoogleFonts.mulish(
                         color: const Color(0xFF1B8A3F),
@@ -1186,7 +1186,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                ] else if (_offerSent) ...[
+                ] else if (_offerSent && widget.ride.negotiationStatus != 'accepted') ...[
                   const SizedBox(height: 20),
                   Text(
                     'Offer Sent - waiting for driver to respond',
@@ -1233,30 +1233,69 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                   ),
                   const SizedBox(height: 12),
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _offerSent = true;
-                        _offeredPrice = _priceController.text;
-                        _negotiating = false;
-                      });
+                    onTap: () async {
+                      final price = double.tryParse(_priceController.text);
+                      if (price == null) return;
+
+                      if (widget.ride.requestId != null) {
+                        setState(() => _submitting = true);
+                        try {
+                          await sl<TripsRepository>().reviseNegotiation(
+                            requestId: widget.ride.requestId!,
+                            price: price,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _offerSent = true;
+                              _offeredPrice = _priceController.text;
+                              _negotiating = false;
+                              _submitting = false;
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _submitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to update offer: $e')),
+                            );
+                          }
+                        }
+                      } else {
+                        setState(() {
+                          _offerSent = true;
+                          _offeredPrice = _priceController.text;
+                          _negotiating = false;
+                        });
+                      }
                     },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
+                        color: _submitting ? const Color(0xFF757474) : const Color(0xFF1E1E1E),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.mulish(
-                          color: const Color(0xFFFEFEFE),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.0,
-                        ),
-                      ),
+                      child: _submitting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFFFEFEFE),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                height: 1.0,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -1368,9 +1407,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                           decoration: BoxDecoration(
                             color: _messageController.text.trim().isEmpty && requested
                                 ? Colors.transparent
-                                : (_messageController.text.trim().isEmpty && !requested
-                                    ? const Color(0xFFDDDDDD)
-                                    : AppColors.primaryGreen),
+                                : AppColors.primaryGreen,
                             borderRadius: BorderRadius.circular(30),
                             border: _messageController.text.trim().isEmpty && requested
                                 ? Border.all(color: AppColors.primaryGreen, width: 1.5)
@@ -1394,7 +1431,7 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
                                   : Text(
                                       _messageController.text.trim().isNotEmpty
                                           ? 'Send'
-                                          : 'Requested',
+                                          : (requested ? 'Requested' : 'Request ride'),
                                       style: GoogleFonts.mulish(
                                         color: Colors.white,
                                         fontSize: 14,
@@ -2117,8 +2154,8 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      r.farePerSeat != null
-                          ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                      r.effectiveFare != null
+                          ? '₹${r.effectiveFare!.toStringAsFixed(2)} / seat'
                           : 'Fare not set',
                       style: GoogleFonts.mulish(
                         color: const Color(0xFF1B8A3F),
@@ -2265,7 +2302,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                ] else if (_offerSent) ...[
+                ] else if (_offerSent && widget.request.negotiationStatus != 'accepted') ...[
                   const SizedBox(height: 20),
                   Text(
                     'Offer Sent - waiting for driver to respond',
@@ -2312,30 +2349,69 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   ),
                   const SizedBox(height: 12),
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _offerSent = true;
-                        _offeredPrice = _priceController.text;
-                        _negotiating = false;
-                      });
+                    onTap: () async {
+                      final price = double.tryParse(_priceController.text);
+                      if (price == null) return;
+
+                      if (widget.request.id.isNotEmpty) {
+                        setState(() => _submitting = true);
+                        try {
+                          await sl<TripsRepository>().reviseNegotiation(
+                            requestId: widget.request.id,
+                            price: price,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _offerSent = true;
+                              _offeredPrice = _priceController.text;
+                              _negotiating = false;
+                              _submitting = false;
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _submitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to update offer: $e')),
+                            );
+                          }
+                        }
+                      } else {
+                        setState(() {
+                          _offerSent = true;
+                          _offeredPrice = _priceController.text;
+                          _negotiating = false;
+                        });
+                      }
                     },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
+                        color: _submitting ? const Color(0xFF757474) : const Color(0xFF1E1E1E),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.mulish(
-                          color: const Color(0xFFFEFEFE),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.0,
-                        ),
-                      ),
+                      child: _submitting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFFFEFEFE),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                height: 1.0,
+                              ),
+                            ),
                     ),
                   ),
                 ],

@@ -15,9 +15,25 @@ class DrivesDetailBloc extends Bloc<DrivesDetailEvent, DrivesDetailState> {
     on<DrivesDetailStarted>(_onStarted);
     on<DrivesDetailReloadRequested>(_onReloadRequested);
     on<DrivesDetailStatusChangeRequested>(_onStatusChangeRequested);
+    on<DrivesDetailNegotiationResponded>(_onNegotiationResponded);
   }
 
   final RidesRepository _ridesRepository;
+
+  Future<void> _onNegotiationResponded(
+    DrivesDetailNegotiationResponded event,
+    Emitter<DrivesDetailState> emit,
+  ) async {
+    try {
+      await _ridesRepository.respondToNegotiation(
+        requestId: event.requestId,
+        status: event.status,
+      );
+      add(const DrivesDetailReloadRequested());
+    } catch (e) {
+      emit(state.copyWith(snackbarMessage: 'Failed to update negotiation: $e'));
+    }
+  }
 
   Future<void> _onStarted(
     DrivesDetailStarted event,
