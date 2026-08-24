@@ -47,6 +47,7 @@ class ReceivedReviewRide {
     this.sentiment,
     this.tags = const [],
     this.comment,
+    this.vehicleInfo,
   });
 
   final String rideId;
@@ -60,6 +61,7 @@ class ReceivedReviewRide {
   final int? sentiment;
   final List<String> tags;
   final String? comment;
+  final String? vehicleInfo;
 }
 
 class ReceivedReviewFromDriver {
@@ -75,6 +77,7 @@ class ReceivedReviewFromDriver {
     this.sentiment,
     this.tags = const [],
     this.comment,
+    this.vehicleInfo,
   });
 
   final String rideId;
@@ -88,4 +91,5 @@ class ReceivedReviewFromDriver {
   final int? sentiment;
   final List<String> tags;
   final String? comment;
+  final String? vehicleInfo;
 }

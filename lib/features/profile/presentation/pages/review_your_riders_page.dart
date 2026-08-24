@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/di/injection.dart';
@@ -45,6 +46,35 @@ class _ReviewYourRidersPageState extends State<ReviewYourRidersPage> {
         .toLowerCase();
   }
 
+  Widget _sectionHeader(String title, String status) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: const Color(0xFF1E1E1E),
+            ),
+          ),
+          Text(
+            status.toUpperCase(),
+            style: GoogleFonts.mulish(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: const Color(0xFF8A8A8A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,81 +83,105 @@ class _ReviewYourRidersPageState extends State<ReviewYourRidersPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          "Ride statistics",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
+          onPressed: () => Navigator.pop(context),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: Text(
+          "Ride statistics",
+          style: GoogleFonts.mulish(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 24,
+            height: 1.0,
+          ),
+        ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Text(
-              "FEEDBACK BY YOU",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: Colors.black,
-              ),
-            ),
-          ),
+      body: BlocProvider.value(
+        value: _bloc,
+        child: BlocBuilder<ReviewYourRidersBloc, ReviewYourRidersState>(
+          builder: (context, state) {
+            if (state.status == ReviewYourRidersStatus.initial ||
+                state.status == ReviewYourRidersStatus.loading) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
 
-          Expanded(
-            child: BlocProvider.value(
-              value: _bloc,
-              child: BlocBuilder<ReviewYourRidersBloc, ReviewYourRidersState>(
-                builder: (context, state) {
-                  if (state.status == ReviewYourRidersStatus.initial ||
-                      state.status == ReviewYourRidersStatus.loading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
+            final rides = state.rides;
 
-                  final rides = state.rides;
+            if (rides.isEmpty) {
+              return const Center(
+                child: Text("No completed rides found"),
+              );
+            }
 
-                  if (rides.isEmpty) {
-                    return const Center(
-                      child: Text("No completed rides found"),
-                    );
-                  }
+            final pending =
+                rides.where((r) => r.ratedRiders < r.totalRiders).toList();
+            final done =
+                rides.where((r) => r.ratedRiders == r.totalRiders).toList();
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: rides.length,
-                    itemBuilder: (context, index) {
-                      final ride = rides[index];
-
-                      return RideReviewCard(
-                        riderNames: ride.riderNames,
-                        riderPhotoUrls: ride.riderPhotoUrls,
-                        passengerCount: ride.totalRiders,
-                        dateTimeText:
-                            '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ReviewRidersPage(
-                                rideId: ride.rideId,
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                if (pending.isNotEmpty) ...[
+                  _sectionHeader("REVIEWS BY YOU", "PENDING"),
+                  ...pending.map((ride) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: RideReviewCard(
+                          riderNames: ride.riderNames,
+                          riderPhotoUrls: ride.riderPhotoUrls,
+                          passengerCount: ride.totalRiders,
+                          vehicleInfo: ride.vehicleInfo,
+                          dateTimeText:
+                              '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReviewRidersPage(
+                                  rideId: ride.rideId,
+                                ),
                               ),
-                            ),
-                          );
-                          if (mounted) {
-                            _bloc.add(const ReviewYourRidersStarted());
-                          }
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+                            );
+                            if (mounted) {
+                              _bloc.add(const ReviewYourRidersStarted());
+                            }
+                          },
+                        ),
+                      )),
+                ],
+                if (done.isNotEmpty) ...[
+                  _sectionHeader("REVIEWS BY YOU", "DONE"),
+                  ...done.map((ride) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: RideReviewCard(
+                          riderNames: ride.riderNames,
+                          riderPhotoUrls: ride.riderPhotoUrls,
+                          passengerCount: ride.totalRiders,
+                          vehicleInfo: ride.vehicleInfo,
+                          dateTimeText:
+                              '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReviewRidersPage(
+                                  rideId: ride.rideId,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
+                              _bloc.add(const ReviewYourRidersStarted());
+                            }
+                          },
+                        ),
+                      )),
+                ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -14,6 +14,7 @@ class RiderRatableRide {
     required this.riderRating,
     this.driverName = '',
     this.driverPhotoUrl,
+    this.vehicleInfo,
   });
 
   final String requestId;
@@ -26,8 +27,14 @@ class RiderRatableRide {
   final int? riderRating;
   final String driverName;
   final String? driverPhotoUrl;
+  final String? vehicleInfo;
 
-  RiderRatableRide copyWith({int? riderRating, String? driverName, String? driverPhotoUrl}) {
+  RiderRatableRide copyWith({
+    int? riderRating,
+    String? driverName,
+    String? driverPhotoUrl,
+    String? vehicleInfo,
+  }) {
     return RiderRatableRide(
       requestId: requestId,
       rideId: rideId,
@@ -39,6 +46,7 @@ class RiderRatableRide {
       riderRating: riderRating ?? this.riderRating,
       driverName: driverName ?? this.driverName,
       driverPhotoUrl: driverPhotoUrl ?? this.driverPhotoUrl,
+      vehicleInfo: vehicleInfo ?? this.vehicleInfo,
     );
   }
 }

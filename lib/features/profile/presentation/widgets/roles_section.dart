@@ -1,7 +1,11 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/profile/domain/repositories/profile_repository.dart';
+import 'package:acepool/features/trips/presentation/bloc/trips_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RolesSection extends StatefulWidget {
   final bool isRider;
@@ -44,6 +48,15 @@ class _RolesSectionState extends State<RolesSection> {
     final newPreference = _computeNewPreference(action, role);
     try {
       await sl<ProfileRepository>().updateTravelPreference(newPreference);
+      if (mounted) {
+        // Update Home and Trips blocs immediately
+        context.read<HomeBloc>().add(HomePreferenceUpdated(newPreference));
+        // Note: TripsBloc is usually provided higher up or handled by GoRouter 
+        // If it's in the widget tree, this will update it.
+        try {
+          context.read<TripsBloc>().add(TripsPreferenceUpdated(newPreference));
+        } catch (_) {}
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,13 +79,13 @@ class _RolesSectionState extends State<RolesSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Roles',
-                  style: TextStyle(
+                  style: GoogleFonts.mulish(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                    height: 1.1,
+                    color: const Color(0xFF000000),
+                    height: 18 / 20,
                   ),
                 ),
                 AnimatedRotation(
@@ -92,11 +105,11 @@ class _RolesSectionState extends State<RolesSection> {
         const SizedBox(height: 4),
         Text(
           'Manage ride preferences',
-          style: TextStyle(
-            color: AppColors.subheadingGrey,
+          style: GoogleFonts.mulish(
+            color: const Color(0xFF757474),
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            height: 1.285,
+            height: 18 / 14,
           ),
         ),
         AnimatedCrossFade(
@@ -159,39 +172,32 @@ class _RoleCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFBBBEC5)), // Neutral Border Subtle
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             roleName,
-            style: const TextStyle(
-              fontSize: 16,
+            style: GoogleFonts.mulish(
+              fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: const Color(0xFF000000),
+              height: 18 / 20,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             isActive ? 'Current role' : 'Not added',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF8A8A8A),
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF757474),
+              height: 18 / 14,
             ),
           ),
           const SizedBox(height: 14),
-          isActive
-              ? _buildActivePill(canDeactivate)
-              : _buildActivateButton(),
+          isActive ? _buildActivePill(canDeactivate) : _buildActivateButton(),
         ],
       ),
     );
@@ -203,15 +209,16 @@ class _RoleCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD8D8D8)),
+          border: Border.all(color: const Color(0xFF1E1E1E)),
           borderRadius: BorderRadius.circular(18),
         ),
-        child: const Text(
+        child: Text(
           'Active',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF1A1A1A),
+          style: GoogleFonts.mulish(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1E1E1E),
+            height: 16.5 / 12,
           ),
         ),
       ),
@@ -224,7 +231,7 @@ class _RoleCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(18),
         ),
         child: FittedBox(
@@ -232,10 +239,11 @@ class _RoleCard extends StatelessWidget {
           child: Text(
             'Become a $roleName',
             maxLines: 1,
-            style: const TextStyle(
-              fontSize: 13,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: const Color(0xFFFDFDFD),
+              height: 18 / 14,
             ),
           ),
         ),

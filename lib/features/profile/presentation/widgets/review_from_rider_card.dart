@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 
 const List<String> _sentimentEmojis = ['😠', '😞', '😐', '🙂', '😍'];
@@ -33,6 +34,7 @@ class ReviewFromRiderCard extends StatelessWidget {
   final TimeOfDay time;
   final List<String> tags;
   final String? comment;
+  final String? vehicleInfo;
 
   const ReviewFromRiderCard({
     super.key,
@@ -46,6 +48,7 @@ class ReviewFromRiderCard extends StatelessWidget {
     required this.time,
     this.tags = const [],
     this.comment,
+    this.vehicleInfo,
   });
 
   String _formatDate(DateTime d) {
@@ -80,14 +83,7 @@ class ReviewFromRiderCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _CardColors.borderGray),
-        boxShadow: const [
-          BoxShadow(
-            color: _CardColors.shadow,
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
+        border: Border.all(color: const Color(0x7ABBBEC5)), // Mixed solid #BBBEC57A
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,23 +93,25 @@ class ReviewFromRiderCard extends StatelessWidget {
             riderPhotoUrl: riderPhotoUrl,
             riderEmployeeId: riderEmployeeId,
             emoji: _emojiForSentiment(sentiment),
+            vehicleInfo: vehicleInfo,
           ),
           const SizedBox(height: 14),
           _RouteSection(pickup: pickup, drop: drop),
           const SizedBox(height: 14),
-          const Divider(height: 1, thickness: 1, color: _CardColors.borderGray),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFDDDDDD)),
           const SizedBox(height: 12),
           Text(
             '${_formatDate(date)} . ${_formatTime(time)}',
-            style: const TextStyle(
-              fontSize: 13,
+            style: GoogleFonts.mulish(
+              fontSize: 16,
               fontWeight: FontWeight.w400,
-              color: _CardColors.dateGray,
+              color: const Color(0xFF757474),
+              height: 18 / 16,
             ),
           ),
           if (tags.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Divider(height: 1, thickness: 1, color: _CardColors.borderGray),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFDDDDDD)),
             const SizedBox(height: 12),
             _TagsRow(tags: tags),
           ],
@@ -121,10 +119,11 @@ class ReviewFromRiderCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               comment!,
-              style: const TextStyle(
-                fontSize: 13,
+              style: GoogleFonts.mulish(
+                fontSize: 16,
                 fontWeight: FontWeight.w400,
-                color: _CardColors.bodyGray,
+                color: const Color(0xFF757474),
+                height: 19.5 / 16,
               ),
             ),
           ],
@@ -139,12 +138,14 @@ class _TopRow extends StatelessWidget {
   final String? riderPhotoUrl;
   final String? riderEmployeeId;
   final String emoji;
+  final String? vehicleInfo;
 
   const _TopRow({
     required this.riderName,
     this.riderPhotoUrl,
     this.riderEmployeeId,
     required this.emoji,
+    this.vehicleInfo,
   });
 
   @override
@@ -153,7 +154,7 @@ class _TopRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _Avatar(name: riderName, photoUrl: riderPhotoUrl),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,24 +163,38 @@ class _TopRow extends StatelessWidget {
                 riderName.isNotEmpty ? riderName : 'Rider',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: _CardColors.ink,
-                  height: 1.3,
+                  color: const Color(0xFF1D1D1D),
+                  height: 18 / 14,
                 ),
               ),
+              if (vehicleInfo != null && vehicleInfo!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  vehicleInfo!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.mulish(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF757474),
+                    height: 18 / 12,
+                  ),
+                ),
+              ],
               if (riderEmployeeId != null && riderEmployeeId!.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(
                   riderEmployeeId!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: GoogleFonts.mulish(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: _CardColors.bodyGray,
-                    height: 1.3,
+                    color: const Color(0xFF757474),
+                    height: 18 / 12,
                   ),
                 ),
               ],
@@ -266,7 +281,7 @@ class _RouteSection extends StatelessWidget {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: _CardColors.brandGreen, width: 1.5),
+                border: Border.all(color: const Color(0xFF1E8E5A), width: 1.5),
               ),
             ),
             SizedBox(
@@ -279,7 +294,7 @@ class _RouteSection extends StatelessWidget {
               height: 8,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: _CardColors.brandGreen,
+                color: Color(0xFF1E8E5A),
               ),
             ),
           ],
@@ -293,11 +308,11 @@ class _RouteSection extends StatelessWidget {
                 pickup,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: _CardColors.ink,
-                  height: 1.2,
+                style: GoogleFonts.mulish(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF757474),
+                  height: 18 / 16,
                 ),
               ),
               const SizedBox(height: 8),
@@ -305,11 +320,11 @@ class _RouteSection extends StatelessWidget {
                 drop,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: _CardColors.ink,
-                  height: 1.2,
+                style: GoogleFonts.mulish(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF757474),
+                  height: 18 / 16,
                 ),
               ),
             ],
@@ -360,14 +375,15 @@ class _TagsRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _CardColors.chipBorder, width: 1),
+            border: Border.all(color: const Color(0xFFD8D8D8), width: 1),
           ),
           child: Text(
             tag,
-            style: const TextStyle(
-              fontSize: 13,
+            style: GoogleFonts.mulish(
+              fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: _CardColors.ink,
+              color: const Color(0xFF1E1E1E),
+              height: 1.3,
             ),
           ),
         );

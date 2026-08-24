@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/di/injection.dart';
@@ -37,24 +38,33 @@ class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          "Ride statistics",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
+          onPressed: () => Navigator.pop(context),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: Text(
+          "Ride statistics",
+          style: GoogleFonts.mulish(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 24,
+            height: 1.0,
+          ),
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              "REVIEWS FROM YOUR RIDERS",
-              style: TextStyle(
+              "REVIEWS BY RIDERS",
+              style: GoogleFonts.mulish(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: const Color(0xFF1E1E1E),
+                height: 15 / 14,
               ),
             ),
           ),
@@ -90,6 +100,7 @@ class _RatingsByRidersPageState extends State<RatingsByRidersPage> {
                         time: review.time,
                         tags: review.tags,
                         comment: review.comment,
+                        vehicleInfo: review.vehicleInfo,
                       );
                     },
                   );
