@@ -16,6 +16,7 @@ class DriverRatableRide {
     required this.totalRiders,
     this.riderNames = const [],
     this.riderPhotoUrls = const [],
+    this.vehicleInfo,
   });
 
   final String requestId;
@@ -28,6 +29,7 @@ class DriverRatableRide {
   final int? driverRating;
   final int ratedRiders;
   final int totalRiders;
+  final String? vehicleInfo;
 
   /// Accepted passengers on this ride, in request order.
   final List<String> riderNames;

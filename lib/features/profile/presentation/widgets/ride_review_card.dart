@@ -1,7 +1,8 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 
 /// Avatar circle diameter (40px design token, bumped slightly per feedback).
-const double _avatarDiameter = 50;
+const double _avatarDiameter = 44;
 
 /// Local design tokens for the ride review summary card. Kept here (not in
 /// AppColors) until these values are confirmed against the design system.
@@ -44,6 +45,9 @@ class RideReviewCard extends StatelessWidget {
   /// Pre-formatted "{date} . {time}" subtitle line (e.g. "Today . 9.30 am").
   final String dateTimeText;
 
+  /// Optional vehicle info (e.g. "Honda City . KA 01 AB 2026").
+  final String? vehicleInfo;
+
   final VoidCallback onTap;
 
   const RideReviewCard({
@@ -52,6 +56,7 @@ class RideReviewCard extends StatelessWidget {
     required this.riderPhotoUrls,
     required this.passengerCount,
     required this.dateTimeText,
+    this.vehicleInfo,
     required this.onTap,
   });
 
@@ -61,23 +66,16 @@ class RideReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _ReviewCardColors.borderGray),
-        boxShadow: const [
-          BoxShadow(
-            color: _ReviewCardColors.cardShadow,
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x7ABBBEC5)), // Mixed solid #BBBEC57A
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
               children: [
                 _AvatarStack(
@@ -87,54 +85,66 @@ class RideReviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _namesText(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _ReviewCardColors.ink,
-                            height: 1.3,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _namesText(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF000000),
+                          height: 18 / 16,
                         ),
-                        const SizedBox(height: 2),
-                        if (passengerCount > 0)
-                          Text(
-                            "$passengerCount passenger${passengerCount == 1 ? '' : 's'}",
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: _ReviewCardColors.bodyGray,
-                              height: 1.3,
-                            ),
-                          ),
+                      ),
+                      if (vehicleInfo != null && vehicleInfo!.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
-                          dateTimeText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
+                          vehicleInfo!,
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
                             fontWeight: FontWeight.w400,
-                            color: _ReviewCardColors.bodyGray,
-                            height: 1.3,
+                            color: const Color(0xFF757474),
+                            height: 18 / 16,
                           ),
                         ),
                       ],
-                    ),
+                      if (passengerCount > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          "$passengerCount passenger${passengerCount == 1 ? '' : 's'}",
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF757474),
+                            height: 18 / 16,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 2),
+                      Text(
+                        dateTimeText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF757474),
+                          height: 18 / 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 30,
-                  color: _ReviewCardColors.ink,
+                const SizedBox(width: 12),
+                Image.asset(
+                  'assets/images/next.png',
+                  width: 9,
+                  height: 18,
+                  color: const Color(0xFF000000),
                 ),
               ],
             ),
@@ -197,8 +207,11 @@ class _AvatarStack extends StatelessWidget {
       );
     }
 
+    final isStack = showSecondPhoto || passengerCount >= 3;
+    final double stackWidth = isStack ? 76 : _avatarDiameter;
+
     return SizedBox(
-      width: 76,
+      width: stackWidth,
       height: _avatarDiameter,
       child: Stack(
         clipBehavior: Clip.none,

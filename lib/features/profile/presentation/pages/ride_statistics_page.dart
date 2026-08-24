@@ -1,5 +1,6 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'ratings_by_riders_page.dart';
 import 'ratings_by_you_page.dart';
 import 'package:acepool/core/enums/ride_mode.dart';
@@ -50,9 +51,13 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           "Ride statistics",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          style: GoogleFonts.mulish(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
         ),
       ),
       body: Column(
@@ -176,17 +181,32 @@ class _RideStatisticsPageState extends State<RideStatisticsPage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                    style: GoogleFonts.mulish(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF000000),
+                      height: 18 / 20,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: AppColors.grey600)),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.mulish(
+                      color: const Color(0xFF757474),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 18 / 14,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right),
+            Image.asset(
+              'assets/images/next.png',
+              width: 9,
+              height: 18,
+              color: const Color(0xFF000000),
+            ),
           ],
         ),
       ),
@@ -217,10 +237,11 @@ class _ToggleItem extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.mulish(
             color: isSelected ? Colors.white : AppColors.black87,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             fontSize: 14,
+            height: 1.0,
           ),
         ),
       ),

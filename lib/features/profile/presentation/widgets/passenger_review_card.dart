@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class _CardColors {
   _CardColors._();
@@ -48,6 +49,7 @@ class PassengerReviewCard extends StatefulWidget {
   final int? selectedEmoji;
   final Set<String> selectedTags;
   final String comment;
+  final String? vehicleInfo;
   final bool isRated;
   final bool isSubmitting;
   final bool isDriverReview;
@@ -66,6 +68,7 @@ class PassengerReviewCard extends StatefulWidget {
     required this.selectedEmoji,
     required this.selectedTags,
     required this.comment,
+    this.vehicleInfo,
     required this.isRated,
     required this.isSubmitting,
     this.isDriverReview = false,
@@ -105,6 +108,7 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x7ABBBEC5)),
         boxShadow: const [
           BoxShadow(
             color: _CardColors.shadow,
@@ -129,23 +133,37 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
                       widget.riderName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: _CardColors.ink,
-                        height: 1.3,
+                        color: const Color(0xFF1E1E1E),
+                        height: 18 / 14,
                       ),
                     ),
                     const SizedBox(height: 2),
+                    if (widget.vehicleInfo != null && widget.vehicleInfo!.isNotEmpty) ...[
+                      Text(
+                        widget.vehicleInfo!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.mulish(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF757474),
+                          height: 18 / 12,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                    ],
                     Text(
                       widget.employeeId,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
+                      style: GoogleFonts.mulish(
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        color: _CardColors.bodyGray,
-                        height: 1.3,
+                        color: const Color(0xFF757474),
+                        height: 18 / 12,
                       ),
                     ),
                   ],
@@ -159,7 +177,7 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
             dropOffPoint: widget.dropOffPoint,
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, thickness: 1, color: _CardColors.divider),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFDDDDDD)),
           const SizedBox(height: 16),
           _SentimentPicker(
             selectedEmoji: widget.selectedEmoji,
@@ -167,14 +185,15 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
             onSelected: widget.onEmojiSelected,
           ),
           const SizedBox(height: 24),
-          const Divider(height: 1, thickness: 1, color: _CardColors.divider),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFDDDDDD)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'What went well?',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: _CardColors.ink,
+            style: GoogleFonts.mulish(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: const Color(0xFF1E1E1E),
+              height: 19.5 / 16,
             ),
           ),
           const SizedBox(height: 12),
@@ -189,12 +208,19 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
             onChanged: widget.onCommentChanged,
             minLines: 3,
             maxLines: 6,
-            style: const TextStyle(fontSize: 14, color: _CardColors.ink),
+            style: GoogleFonts.mulish(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: const Color(0xFF1D1D1D),
+              height: 21 / 16,
+            ),
             decoration: InputDecoration(
               hintText: 'Add a comment (optional)...',
-              hintStyle: const TextStyle(
-                fontSize: 14,
-                color: _CardColors.placeholder,
+              hintStyle: GoogleFonts.mulish(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: const Color(0x801D1D1D),
+                height: 21 / 16,
               ),
               filled: true,
               fillColor: Colors.white,
@@ -204,15 +230,15 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _CardColors.fieldBorder),
+                borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _CardColors.fieldBorder),
+                borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _CardColors.fieldBorder),
+                borderSide: const BorderSide(color: Color(0xFFDDDDDD), width: 1),
               ),
             ),
           ),
@@ -223,15 +249,18 @@ class _PassengerReviewCardState extends State<PassengerReviewCard> {
             child: ElevatedButton(
               onPressed: canSubmit ? widget.onSubmit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _CardColors.ink,
-                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFF1E1E1E),
+                foregroundColor: const Color(0xFFFDFDFD),
+                disabledBackgroundColor: const Color(0xFF1E1E1E).withOpacity(0.12),
+                disabledForegroundColor: const Color(0xFFFDFDFD).withOpacity(0.38),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                textStyle: const TextStyle(
-                  fontSize: 15,
+                textStyle: GoogleFonts.mulish(
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
+                  height: 20 / 16,
                 ),
               ),
               child: const Text('Submit Feedback'),
@@ -369,11 +398,11 @@ class _RouteMarkers extends StatelessWidget {
       label,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontSize: 14,
-        height: 1.2,
-        fontWeight: FontWeight.w400,
-        color: _CardColors.ink,
+      style: GoogleFonts.mulish(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: const Color(0xFF757474),
+        height: 18 / 16,
       ),
     );
   }
@@ -444,13 +473,14 @@ class _SentimentPicker extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'How was your experience?',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: _CardColors.labelGray,
+              style: GoogleFonts.mulish(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF757474),
+                height: 19.5 / 16,
               ),
             ),
             const SizedBox(height: 20),
@@ -511,24 +541,22 @@ class _TagChips extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: selectedTags.contains(tag)
-                    ? _CardColors.ink
+                    ? const Color(0xFF1E1E1E)
                     : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: selectedTags.contains(tag)
-                      ? _CardColors.ink
-                      : _CardColors.chipBorder,
-                  width: 1,
+                  color: const Color(0xFFDDDDDD),
+                  width: 0.73,
                 ),
               ),
               child: Text(
                 tag,
-                style: TextStyle(
-                  fontSize: 14,
+                style: GoogleFonts.mulish(
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: selectedTags.contains(tag)
                       ? Colors.white
-                      : _CardColors.ink,
+                      : const Color(0xFF1E1E1E),
                 ),
               ),
             ),

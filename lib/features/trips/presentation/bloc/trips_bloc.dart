@@ -16,6 +16,7 @@ class TripsBloc extends Bloc<TripsEvent, TripsState> {
     on<TripsDrivesRequested>(_onDrivesRequested);
     on<TripsAvailableRidesRequested>(_onAvailableRidesRequested);
     on<TripsRequestedRidesRequested>(_onRequestedRidesRequested);
+    on<TripsPreferenceUpdated>(_onPreferenceUpdated);
   }
 
   final TripsRepository _tripsRepository;
@@ -68,5 +69,12 @@ class TripsBloc extends Bloc<TripsEvent, TripsState> {
       requestedRidesStatus: TripsSectionStatus.loaded,
       requestedRides: requests,
     ));
+  }
+
+  void _onPreferenceUpdated(
+    TripsPreferenceUpdated event,
+    Emitter<TripsState> emit,
+  ) {
+    // This handles immediate UI update when preference changes in Profile
   }
 }

@@ -53,3 +53,11 @@ class TripsRequestedRidesRequested extends TripsEvent {
   List<Object?> get props =>
       [homeFromAddress, homeToAddress, homeFromLat, homeFromLng, homeToLat, homeToLng];
 }
+
+class TripsPreferenceUpdated extends TripsEvent {
+  final String? preference;
+  const TripsPreferenceUpdated(this.preference);
+
+  @override
+  List<Object?> get props => [preference];
+}

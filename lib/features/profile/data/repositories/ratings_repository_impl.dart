@@ -74,6 +74,9 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final tagsRaw = requestData['driverReviewTags'];
       final tags = tagsRaw is List ? tagsRaw.cast<String>() : <String>[];
 
+      final fare = rideData['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
+
       reviews.add(ReceivedReviewFromDriver(
         rideId: requestData['rideId'] as String? ?? '',
         date: date,
@@ -86,6 +89,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         sentiment: (requestData['driverRating'] as num?)?.toInt(),
         tags: tags,
         comment: requestData['driverReviewComment'] as String?,
+        vehicleInfo: vehicleInfo,
       ));
     }
 
@@ -145,6 +149,9 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final tagsRaw = requestData['riderReviewTags'];
       final tags = tagsRaw is List ? tagsRaw.cast<String>() : <String>[];
 
+      final fare = rideData['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
+
       reviews.add(ReceivedReviewRide(
         rideId: requestData['rideId'] as String? ?? '',
         date: date,
@@ -157,6 +164,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         sentiment: (requestData['riderRating'] as num?)?.toInt(),
         tags: tags,
         comment: requestData['riderReviewComment'] as String?,
+        vehicleInfo: vehicleInfo,
       ));
     }
 
@@ -195,6 +203,8 @@ class RatingsRepositoryImpl implements RatingsRepository {
 
       final rideTime = requestData['rideTime'] as Map<String, dynamic>;
       final driverId = requestData['driverId'] as String? ?? '';
+      final fare = rideData['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
 
       String driverName = '';
       String? driverPhotoUrl;
@@ -218,6 +228,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         riderRating: requestData['riderRating'],
         driverName: driverName,
         driverPhotoUrl: driverPhotoUrl,
+        vehicleInfo: vehicleInfo,
       ));
     }
 
@@ -260,6 +271,11 @@ class RatingsRepositoryImpl implements RatingsRepository {
       final riderPhotoUrl = (data['riderPhotoUrl'] as String?) ??
           (userData?['profileImageUrl'] as String?);
 
+      final rideDoc = await _db.collection('rides').doc(rideId).get();
+      final rideData = rideDoc.data();
+      final fare = rideData?['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
+
       riders.add(RiderReview(
         requestId: doc.id,
         riderId: data['riderId'],
@@ -271,6 +287,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         dropOffPoint: data['dropOffPoint'] ?? '',
         driverRating: data['driverRating'],
         riderPhotoUrl: riderPhotoUrl,
+        vehicleInfo: vehicleInfo,
       ));
     }
 
@@ -324,6 +341,11 @@ class RatingsRepositoryImpl implements RatingsRepository {
         }
       } catch (_) {}
 
+      final rideDoc = await _db.collection('rides').doc(rideId).get();
+      final rideData = rideDoc.data();
+      final fare = rideData?['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
+
       drivers.add(DriverReview(
         requestId: doc.id,
         rideId: rideId,
@@ -334,6 +356,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         dropOffPoint: data['dropOffPoint'] as String? ?? data['rideTo'] as String? ?? '',
         driverPhotoUrl: driverPhotoUrl,
         riderRating: data['riderRating'] as int?,
+        vehicleInfo: vehicleInfo,
       ));
     }
 
@@ -390,6 +413,9 @@ class RatingsRepositoryImpl implements RatingsRepository {
         riderPhotoUrls.add(photo);
       }
 
+      final fare = rideData['fare'] as Map<String, dynamic>?;
+      final vehicleInfo = fare?['vehicleLabel'] as String?;
+
       rides.add(DriverRatableRide(
         requestId: '', // Not needed yet
         rideId: ride.id,
@@ -403,6 +429,7 @@ class RatingsRepositoryImpl implements RatingsRepository {
         totalRiders: totalRiders, // We'll calculate this later
         riderNames: riderNames,
         riderPhotoUrls: riderPhotoUrls,
+        vehicleInfo: vehicleInfo,
       ));
     }
 

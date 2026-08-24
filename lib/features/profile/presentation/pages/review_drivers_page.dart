@@ -5,6 +5,7 @@ import 'package:acepool/features/profile/presentation/pages/all_done_page.dart';
 import 'package:acepool/features/profile/presentation/widgets/passenger_review_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ReviewDriversPage extends StatefulWidget {
   final String rideId;
@@ -85,13 +86,14 @@ class _ReviewDriversPageState extends State<ReviewDriversPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'REVIEW YOUR DRIVER',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: Color(0xFF1A1A1A),
+                    style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: const Color(0xFF1E1E1E),
+                      height: 15 / 14,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -102,6 +104,7 @@ class _ReviewDriversPageState extends State<ReviewDriversPage> {
                     riderPhotoUrl: driver.driverPhotoUrl,
                     pickupPoint: driver.pickupPoint,
                     dropOffPoint: driver.dropOffPoint,
+                    vehicleInfo: driver.vehicleInfo,
                     selectedEmoji: state.selectedEmoji,
                     selectedTags: state.selectedTags,
                     comment: state.comment,
@@ -121,14 +124,15 @@ class _ReviewDriversPageState extends State<ReviewDriversPage> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _bloc.add(const ReviewDriversSkipped()),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(
                           'Skip',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF8A8A8A),
+                            color: const Color(0xFF616874),
+                            height: 21 / 16,
                           ),
                         ),
                       ),

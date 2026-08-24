@@ -42,6 +42,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<RideFormReset>(_onRideFormReset);
     on<FindRidesRequested>(_onFindRidesRequested);
     on<RefreshUpcomingTrips>(_onRefreshUpcomingTrips);
+    on<HomePreferenceUpdated>(_onPreferenceUpdated);
     on<CurrentLocationFetched>(_onCurrentLocationFetched);
   }
 
@@ -94,6 +95,22 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     Emitter<HomeState> emit,
   ) {
     emit(state.copyWith(currentLat: event.lat, currentLng: event.lng));
+  }
+
+  void _onPreferenceUpdated(
+    HomePreferenceUpdated event,
+    Emitter<HomeState> emit,
+  ) {
+    RideMode newMode = state.rideMode;
+    if (event.preference == 'ride') {
+      newMode = RideMode.find;
+    } else if (event.preference == 'drive') {
+      newMode = RideMode.offer;
+    }
+    emit(state.copyWith(
+      travelPreference: event.preference,
+      rideMode: newMode,
+    ));
   }
 
   void _onRideModeChanged(RideModeChanged event, Emitter<HomeState> emit) {
