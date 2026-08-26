@@ -20,6 +20,10 @@ class PricingStarted extends PricingEvent {
   final String vehicleType;
   final String rideMode;
 
+  final bool hasReturnRide;
+  final TimeOfDay? returnTime;
+  final int returnSeatCount;
+
   const PricingStarted({
     required this.fromAddress,
     required this.toAddress,
@@ -32,22 +36,36 @@ class PricingStarted extends PricingEvent {
     required this.seatCount,
     required this.vehicleType,
     required this.rideMode,
+    this.hasReturnRide = false,
+    this.returnTime,
+    this.returnSeatCount = 1,
   });
 
   @override
   List<Object?> get props => [
-    fromAddress,
-    toAddress,
-    fromLat,
-    fromLng,
-    toLat,
-    toLng,
-    date,
-    time,
-    seatCount,
-    vehicleType,
-    rideMode,
-  ];
+        fromAddress,
+        toAddress,
+        fromLat,
+        fromLng,
+        toLat,
+        toLng,
+        date,
+        time,
+        seatCount,
+        vehicleType,
+        rideMode,
+        hasReturnRide,
+        returnTime,
+        returnSeatCount,
+      ];
+}
+
+class PricingTabChanged extends PricingEvent {
+  final PricingTab tab;
+  const PricingTabChanged(this.tab);
+
+  @override
+  List<Object?> get props => [tab];
 }
 
 class VehicleSelected extends PricingEvent {

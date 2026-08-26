@@ -75,6 +75,30 @@ class SeatCountChanged extends HomeEvent {
   List<Object?> get props => [seatCount];
 }
 
+class ScheduleReturnToggled extends HomeEvent {
+  final bool shouldScheduleReturn;
+  const ScheduleReturnToggled(this.shouldScheduleReturn);
+
+  @override
+  List<Object?> get props => [shouldScheduleReturn];
+}
+
+class ReturnTimeSelected extends HomeEvent {
+  final TimeOfDay time;
+  const ReturnTimeSelected(this.time);
+
+  @override
+  List<Object?> get props => [time];
+}
+
+class ReturnSeatCountChanged extends HomeEvent {
+  final int seatCount;
+  const ReturnSeatCountChanged(this.seatCount);
+
+  @override
+  List<Object?> get props => [seatCount];
+}
+
 class RideFormReset extends HomeEvent {
   const RideFormReset();
 }

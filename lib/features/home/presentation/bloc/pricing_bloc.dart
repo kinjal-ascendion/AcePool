@@ -31,10 +31,15 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
         _getVehicleOptions = getVehicleOptions,
         super(const PricingState()) {
     on<PricingStarted>(_onPricingStarted);
+    on<PricingTabChanged>(_onPricingTabChanged);
     on<VehicleSelected>(_onVehicleSelected);
     on<RatePerKmChanged>(_onRatePerKmChanged);
     on<VehiclesRefreshRequested>(_onVehiclesRefreshRequested);
     on<PublishRideRequested>(_onPublishRideRequested);
+  }
+
+  void _onPricingTabChanged(PricingTabChanged event, Emitter<PricingState> emit) {
+    emit(state.copyWith(activeTab: event.tab));
   }
 
   Future<void> _onPricingStarted(
@@ -55,11 +60,14 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       date: event.date,
       time: event.time,
       seatCount: event.seatCount,
+      hasReturnRide: event.hasReturnRide,
+      returnTime: event.returnTime,
+      returnSeatCount: event.returnSeatCount,
       vehicleType: _vehicleType,
     ));
 
-    var distanceKm = 0.0;
-    var durationMinutes = 0;
+    double distanceKm = 0.0;
+    int durationMinutes = 0;
     if (_fromLat != null && _fromLng != null && _toLat != null && _toLng != null) {
       final route = await _estimateRoute(
         originLat: _fromLat!,
@@ -71,6 +79,11 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       durationMinutes = route.durationMinutes;
     }
 
+    // Return ride estimation (assuming swapped route for simplicity,
+    // though real traffic might differ).
+    double returnDistanceKm = distanceKm;
+    int returnDurationMinutes = durationMinutes;
+
     final vehicles = await _getVehicleOptions(_vehicleType);
 
     emit(state.copyWith(
@@ -80,22 +93,49 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
         durationMinutes: durationMinutes,
         ratePerKm: 0,
       ),
+      returnFare: event.hasReturnRide
+          ? FareBreakdown(
+              distanceKm: returnDistanceKm,
+              durationMinutes: returnDurationMinutes,
+              ratePerKm: 0,
+            )
+          : null,
       vehicles: vehicles,
     ));
   }
 
   void _onVehicleSelected(VehicleSelected event, Emitter<PricingState> emit) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(
-      fare: fare.copyWith(vehicleId: event.vehicleId, vehicleLabel: event.label),
-    ));
+    if (state.activeTab == PricingTab.current) {
+      final fare = state.fare;
+      if (fare == null) return;
+      emit(state.copyWith(
+        fare: fare.copyWith(
+          vehicleId: event.vehicleId,
+          vehicleLabel: event.label,
+        ),
+      ));
+    } else {
+      final fare = state.returnFare;
+      if (fare == null) return;
+      emit(state.copyWith(
+        returnFare: fare.copyWith(
+          vehicleId: event.vehicleId,
+          vehicleLabel: event.label,
+        ),
+      ));
+    }
   }
 
   void _onRatePerKmChanged(RatePerKmChanged event, Emitter<PricingState> emit) {
-    final fare = state.fare;
-    if (fare == null) return;
-    emit(state.copyWith(fare: fare.copyWith(ratePerKm: event.value)));
+    if (state.activeTab == PricingTab.current) {
+      final fare = state.fare;
+      if (fare == null) return;
+      emit(state.copyWith(fare: fare.copyWith(ratePerKm: event.value)));
+    } else {
+      final fare = state.returnFare;
+      if (fare == null) return;
+      emit(state.copyWith(returnFare: fare.copyWith(ratePerKm: event.value)));
+    }
   }
 
   Future<void> _onVehiclesRefreshRequested(
@@ -119,8 +159,16 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       return;
     }
 
+    if (state.hasReturnRide) {
+      final rf = state.returnFare;
+      if (rf == null || rf.vehicleId == null || rf.ratePerKm <= 0) {
+        return;
+      }
+    }
+
     emit(state.copyWith(status: PricingStatus.publishing));
     try {
+      // 1. Publish main ride
       final farePerSeat = fare.totalCost / state.seatCount;
       final driverEarnings = fare.totalCost;
       await _scheduleRide(
@@ -146,9 +194,43 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
           'driverEarnings': driverEarnings,
         },
       );
+
+      // 2. Publish return ride if requested
+      if (state.hasReturnRide) {
+        final rf = state.returnFare!;
+        final rfPerSeat = rf.totalCost / state.returnSeatCount;
+        final rfEarnings = rf.totalCost;
+        await _scheduleRide(
+          rideMode: _rideMode,
+          vehicleType: _vehicleType,
+          fromAddress: state.toAddress,
+          toAddress: state.fromAddress,
+          fromLat: _toLat,
+          fromLng: _toLng,
+          toLat: _fromLat,
+          toLng: _fromLng,
+          date: state.date!,
+          time: state.returnTime!,
+          seatCount: state.returnSeatCount,
+          routeDistanceKm: rf.distanceKm,
+          routeDurationMinutes: rf.durationMinutes,
+          fare: {
+            'vehicleId': rf.vehicleId,
+            'vehicleLabel': rf.vehicleLabel,
+            'ratePerKm': rf.ratePerKm,
+            'totalCost': rf.totalCost,
+            'farePerSeat': rfPerSeat,
+            'driverEarnings': rfEarnings,
+          },
+        );
+      }
+
       emit(state.copyWith(status: PricingStatus.published));
     } catch (e) {
-      emit(state.copyWith(status: PricingStatus.failure, errorMessage: e.toString()));
+      emit(state.copyWith(
+        status: PricingStatus.failure,
+        errorMessage: e.toString(),
+      ));
     }
   }
 }

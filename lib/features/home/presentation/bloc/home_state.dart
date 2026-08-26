@@ -21,6 +21,9 @@ class HomeState extends Equatable {
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final int seatCount;
+  final bool shouldScheduleReturn;
+  final TimeOfDay? returnTime;
+  final int returnSeatCount;
   final List<UpcomingTrip> upcomingTrips;
   final String? errorMessage;
   final HomeStatus findStatus;
@@ -43,6 +46,9 @@ class HomeState extends Equatable {
     this.selectedDate,
     this.selectedTime,
     this.seatCount = 1,
+    this.shouldScheduleReturn = false,
+    this.returnTime,
+    this.returnSeatCount = 1,
     this.upcomingTrips = const [],
     this.errorMessage,
     this.findStatus = HomeStatus.initial,
@@ -59,7 +65,8 @@ class HomeState extends Equatable {
       toAddress != null &&
       toAddress!.trim().isNotEmpty &&
       selectedDate != null &&
-      selectedTime != null;
+      selectedTime != null &&
+      (!shouldScheduleReturn || returnTime != null);
 
   HomeState copyWith({
     HomeStatus? status,
@@ -74,6 +81,9 @@ class HomeState extends Equatable {
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
     int? seatCount,
+    bool? shouldScheduleReturn,
+    TimeOfDay? returnTime,
+    int? returnSeatCount,
     List<UpcomingTrip>? upcomingTrips,
     Object? errorMessage = _unset,
     HomeStatus? findStatus,
@@ -96,6 +106,9 @@ class HomeState extends Equatable {
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
       seatCount: seatCount ?? this.seatCount,
+      shouldScheduleReturn: shouldScheduleReturn ?? this.shouldScheduleReturn,
+      returnTime: returnTime ?? this.returnTime,
+      returnSeatCount: returnSeatCount ?? this.returnSeatCount,
       upcomingTrips: upcomingTrips ?? this.upcomingTrips,
       errorMessage: errorMessage == _unset ? this.errorMessage : errorMessage as String?,
       findStatus: findStatus ?? this.findStatus,
@@ -121,6 +134,9 @@ class HomeState extends Equatable {
       selectedDate: selectedDate,
       selectedTime: selectedTime,
       seatCount: seatCount,
+      shouldScheduleReturn: shouldScheduleReturn,
+      returnTime: returnTime,
+      returnSeatCount: returnSeatCount,
       upcomingTrips: upcomingTrips,
       errorMessage: errorMessage,
       findStatus: findStatus,
@@ -128,6 +144,7 @@ class HomeState extends Equatable {
       hasSearchedRides: hasSearchedRides,
       currentLat: currentLat,
       currentLng: currentLng,
+      travelPreference: travelPreference,
     );
   }
 
@@ -157,6 +174,9 @@ class HomeState extends Equatable {
     selectedDate,
     selectedTime,
     seatCount,
+    shouldScheduleReturn,
+    returnTime,
+    returnSeatCount,
     upcomingTrips,
     errorMessage,
     findStatus,
