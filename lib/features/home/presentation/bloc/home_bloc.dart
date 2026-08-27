@@ -97,8 +97,17 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   void _onRideModeChanged(RideModeChanged event, Emitter<HomeState> emit) {
-    emit(state.copyWith(rideMode: event.mode));
+  if (event.mode == RideMode.find &&
+      state.vehicleType == VehicleType.cab) {
+    emit(state.copyWith(
+      rideMode: event.mode,
+      vehicleType: VehicleType.car,
+    ));
+    return;
   }
+
+  emit(state.copyWith(rideMode: event.mode));
+}
 
   void _onVehicleTypeChanged(VehicleTypeChanged event, Emitter<HomeState> emit) {
     final maxSeats = event.vehicleType == VehicleType.bike ? 1 : 4;
