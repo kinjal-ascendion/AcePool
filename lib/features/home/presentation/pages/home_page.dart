@@ -13,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({
@@ -111,6 +112,23 @@ class _HomeView extends StatelessWidget {
       await Geolocator.openLocationSettings();
     }
   }
+
+Future<PickedLocation?> _pickCabLocation(
+  BuildContext context, {
+  required String title,
+  String? current,
+}) async {
+  return Navigator.of(context).push<PickedLocation>(
+    MaterialPageRoute(
+      builder: (_) => LocationSearchPage(
+        title: title,
+        initialValue: current,
+        biasLat: context.read<HomeBloc>().state.currentLat,
+        biasLng: context.read<HomeBloc>().state.currentLng,
+      ),
+    ),
+  );
+}
 
   Future<void> _pickLocation(
     BuildContext context, {
@@ -230,6 +248,7 @@ class _HomeView extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            
                             onToTap: () => _pickLocation(
                               context,
                               title: 'Office location',
@@ -244,6 +263,34 @@ class _HomeView extends StatelessWidget {
                                 ),
                               ),
                             ),
+ onCabLocationTap: (title, current) {
+    return _pickCabLocation(
+      context,
+      title: title,
+      current: current,
+    );
+  },
+
+  onCabBookPressed: () {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PricingPage(
+        fromAddress: state.fromAddress!,
+        toAddress: state.toAddress!,
+        fromLat: state.fromLat,
+        fromLng: state.fromLng,
+        toLat: state.toLat,
+        toLng: state.toLng,
+        date: state.selectedDate!,
+        time: state.selectedTime!,
+        seatCount: state.seatCount,
+        vehicleType: state.vehicleType.name,
+        rideMode: 'cab',
+      ),
+    ),
+  );
+},
+
                             onSwap: () => bloc.add(const LocationsSwapped()),
                             onDateTap: () => _pickDate(context),
                             onTimeTap: () => _pickTime(context),

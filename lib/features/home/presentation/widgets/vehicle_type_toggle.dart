@@ -3,10 +3,11 @@ import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class VehicleTypeToggle extends StatelessWidget {
-  const VehicleTypeToggle({super.key, required this.selected, required this.onChanged});
+  const VehicleTypeToggle({super.key, required this.selected, required this.onChanged, required this.rideMode});
 
   final VehicleType selected;
   final ValueChanged<VehicleType> onChanged;
+  final RideMode rideMode;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +24,14 @@ class VehicleTypeToggle extends StatelessWidget {
           selected: selected == VehicleType.bike,
           onTap: () => onChanged(VehicleType.bike),
         ),
+        if (rideMode == RideMode.offer) ...[
+          const SizedBox(width: 24),
+          _RadioOption(
+           label: 'Cab',
+           selected: selected == VehicleType.cab,
+           onTap: () => onChanged(VehicleType.cab),
+          ),
+        ],
       ],
     );
   }

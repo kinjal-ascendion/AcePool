@@ -7,6 +7,8 @@ import 'package:acepool/features/home/presentation/widgets/location_swap_row.dar
 import 'package:acepool/features/home/presentation/widgets/schedule_date_time_row.dart';
 import 'package:acepool/features/home/presentation/widgets/schedule_ride_button.dart';
 import 'package:acepool/features/home/presentation/widgets/vehicle_type_toggle.dart';
+import 'package:acepool/features/home/domain/entities/picked_location.dart';
+import 'package:acepool/features/home/presentation/widgets/cab_booking_form.dart';
 
 class RideScheduleForm extends StatelessWidget {
   const RideScheduleForm({
@@ -32,6 +34,8 @@ class RideScheduleForm extends StatelessWidget {
     required this.onSeatCountChanged,
     required this.onSchedulePressed,
     required this.rideMode,
+    required this.onCabLocationTap,
+required this.onCabBookPressed,
   });
 
   final RideMode rideMode;
@@ -55,9 +59,34 @@ class RideScheduleForm extends StatelessWidget {
   final VoidCallback onTimeTap;
   final ValueChanged<int> onSeatCountChanged;
   final VoidCallback onSchedulePressed;
+final Future<PickedLocation?> Function(
+  String title,
+  String? current,
+) onCabLocationTap;
 
+final VoidCallback onCabBookPressed;
   @override
   Widget build(BuildContext context) {
+
+if (vehicleType == VehicleType.cab) {
+  return CabBookingForm(
+    rideMode: rideMode,
+    onVehicleTypeChanged: onVehicleTypeChanged,
+    startAddress: fromAddress,
+    destinationAddress: toAddress,
+    onStartTap: onFromTap,
+    onDestinationTap: onToTap,
+    onLocationTap: onCabLocationTap,
+    selectedDate: selectedDate,
+    selectedTime: selectedTime,
+    onDateTap: onDateTap,
+    onTimeTap: onTimeTap,
+     passengerCount: seatCount,
+  onPassengerCountChanged: onSeatCountChanged,
+    onBookPressed: onCabBookPressed,
+  );
+}
+
     double? distanceKm;
     if (fromLat != null && fromLng != null && toLat != null && toLng != null) {
       distanceKm = RideMatcher.distanceKm(fromLat!, fromLng!, toLat!, toLng!);
@@ -70,7 +99,7 @@ class RideScheduleForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          VehicleTypeToggle(selected: vehicleType, onChanged: onVehicleTypeChanged),
+          VehicleTypeToggle(selected: vehicleType, rideMode: rideMode, onChanged: onVehicleTypeChanged),
           const SizedBox(height: 16),
           LocationSwapRow(
             fromAddress: fromAddress,
