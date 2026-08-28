@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:acepool/features/home/presentation/pages/cab_booked_page.dart';
 
 class PricingPage extends StatelessWidget {
   const PricingPage({
@@ -69,13 +70,34 @@ class PricingPage extends StatelessWidget {
             returnSeatCount: returnSeatCount,
           ),
         ),
-      child: const _PricingView(),
+      child: _PricingView(
+  rideMode: rideMode,
+  fromAddress: fromAddress,
+  toAddress: toAddress,
+  date: date,
+  time: time,
+  seatCount: seatCount,
+),
     );
   }
 }
 
 class _PricingView extends StatefulWidget {
-  const _PricingView();
+  const _PricingView({
+    required this.rideMode,
+    required this.fromAddress,
+    required this.toAddress,
+    required this.date,
+    required this.time,
+    required this.seatCount,
+  });
+
+  final String rideMode;
+  final String fromAddress;
+  final String toAddress;
+  final DateTime date;
+  final TimeOfDay time;
+  final int seatCount;
 
   @override
   State<_PricingView> createState() => _PricingViewState();
@@ -253,13 +275,16 @@ class _PricingViewState extends State<_PricingView> {
                                 child: _RateInputBox(
                                   value: fare.ratePerKm,
                                   onChanged: (v) => bloc.add(RatePerKmChanged(v)),
+                                  rideMode: widget.rideMode,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Note: Rate per km changes based on the vehicle type you select',
+                             widget.rideMode == 'cab'
+      ? 'Note: The pricing shown is current as of now and may change in the future'
+      : 'Note: Rate per km changes based on the vehicle type you select',
                             style: GoogleFonts.mulish(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
@@ -278,7 +303,26 @@ class _PricingViewState extends State<_PricingView> {
                         : state.returnSeatCount,
                     isPublishing: state.status == PricingStatus.publishing,
                     canContinue: state.isFormValid,
-                    onContinue: () => bloc.add(const PublishRideRequested()),
+                    rideMode: widget.rideMode,
+                   onContinue: () {
+  if (widget.rideMode == 'cab') {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CabBookedPage(
+          fromAddress: widget.fromAddress,
+          toAddress: widget.toAddress,
+          estimatedFare: fare.totalCost,
+          seatCount: state.seatCount,
+          date: widget.date,
+          time: widget.time,
+        ),
+      ),
+    );
+    return;
+  }
+
+  bloc.add(const PublishRideRequested());
+},
                   ),
                 ],
               );
@@ -620,10 +664,11 @@ class _VehicleDropdown extends StatelessWidget {
 }
 
 class _RateInputBox extends StatelessWidget {
-  const _RateInputBox({required this.value, required this.onChanged});
+  const _RateInputBox({required this.value, required this.onChanged, required this.rideMode,});
 
   final double value;
   final ValueChanged<double> onChanged;
+  final String rideMode;
 
   @override
   Widget build(BuildContext context) {
@@ -650,7 +695,9 @@ class _RateInputBox extends StatelessWidget {
           isDense: true,
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,
-          hintText: 'Enter Rate/km',
+          hintText: rideMode == 'cab'
+    ? 'Enter Price'
+    : 'Enter Rate/km',
           hintStyle: GoogleFonts.mulish(
             color: const Color(0xFFB6B6B6),
             fontSize: 14,
@@ -669,6 +716,7 @@ class _BottomBar extends StatelessWidget {
     required this.seatCount,
     required this.isPublishing,
     required this.canContinue,
+    required this.rideMode,
     required this.onContinue,
   });
 
@@ -676,6 +724,7 @@ class _BottomBar extends StatelessWidget {
   final int seatCount;
   final bool isPublishing;
   final bool canContinue;
+  final String rideMode;
   final VoidCallback onContinue;
 
   @override
@@ -748,7 +797,9 @@ class _BottomBar extends StatelessWidget {
             const SizedBox(height: 16),
             ScheduleRideButton(
               onPressed: (isPublishing || !canContinue) ? null : onContinue,
-              label: 'Continue to Offer Ride',
+              label: rideMode == 'cab'
+              ? 'Book Cab'
+              : 'Continue to Offer Ride',
               isLoading: isPublishing,
             ),
           ],

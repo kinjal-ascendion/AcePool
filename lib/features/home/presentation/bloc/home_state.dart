@@ -6,7 +6,7 @@ enum HomeStatus { initial, loading, success, failure }
 
 enum RideMode { find, offer }
 
-enum VehicleType { car, bike }
+enum VehicleType { car, bike, cab }
 
 class HomeState extends Equatable {
   final HomeStatus status;
