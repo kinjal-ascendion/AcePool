@@ -27,6 +27,9 @@ class PricingPage extends StatelessWidget {
     required this.seatCount,
     required this.vehicleType,
     required this.rideMode,
+    this.hasReturnRide = false,
+    this.returnTime,
+    this.returnSeatCount = 1,
   });
 
   final String fromAddress;
@@ -40,6 +43,10 @@ class PricingPage extends StatelessWidget {
   final int seatCount;
   final String vehicleType;
   final String rideMode;
+
+  final bool hasReturnRide;
+  final TimeOfDay? returnTime;
+  final int returnSeatCount;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +65,9 @@ class PricingPage extends StatelessWidget {
             seatCount: seatCount,
             vehicleType: vehicleType,
             rideMode: rideMode,
+            hasReturnRide: hasReturnRide,
+            returnTime: returnTime,
+            returnSeatCount: returnSeatCount,
           ),
         ),
       child: _PricingView(
@@ -129,17 +139,35 @@ class _PricingViewState extends State<_PricingView> {
                   current.status == PricingStatus.failure),
           listener: (context, state) {
             if (state.status == PricingStatus.published) {
+              final rides = <RideSummary>[];
+
+              // Add main ride
               final fare = state.fare!;
-              final farePerSeat = fare.totalCost / state.seatCount;
+              rides.add(RideSummary(
+                label: 'Going',
+                fromAddress: state.fromAddress,
+                toAddress: state.toAddress,
+                farePerSeat: fare.totalCost / state.seatCount,
+                seatsOffered: state.seatCount,
+                estimatedEarnings: fare.totalCost,
+              ));
+
+              // Add return ride if scheduled
+              if (state.hasReturnRide && state.returnFare != null) {
+                final rf = state.returnFare!;
+                rides.add(RideSummary(
+                  label: 'Return',
+                  fromAddress: state.toAddress,
+                  toAddress: state.fromAddress,
+                  farePerSeat: rf.totalCost / state.returnSeatCount,
+                  seatsOffered: state.returnSeatCount,
+                  estimatedEarnings: rf.totalCost,
+                ));
+              }
+
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
-                  builder: (_) => RidePublishedPage(
-                    fromAddress: state.fromAddress,
-                    toAddress: state.toAddress,
-                    farePerSeat: farePerSeat,
-                    seatsOffered: state.seatCount,
-                    estimatedEarnings: fare.totalCost,
-                  ),
+                  builder: (_) => RidePublishedPage(rides: rides),
                 ),
                 result: true,
               );
@@ -187,13 +215,23 @@ class _PricingViewState extends State<_PricingView> {
         body: SafeArea(
           child: BlocBuilder<PricingBloc, PricingState>(
             builder: (context, state) {
-              final fare = state.fare;
+              final fare = state.activeTab == PricingTab.current
+                  ? state.fare
+                  : state.returnFare;
               if (fare == null) {
                 return const Center(child: CircularProgressIndicator());
               }
               final bloc = context.read<PricingBloc>();
+
               return Column(
                 children: [
+                  if (state.hasReturnRide) ...[
+                    const SizedBox(height: 16),
+                    _RideToggle(
+                      activeTab: state.activeTab,
+                      onChanged: (tab) => bloc.add(PricingTabChanged(tab)),
+                    ),
+                  ],
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -208,8 +246,12 @@ class _PricingViewState extends State<_PricingView> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: _RouteSummarySection(
-                              fromAddress: state.fromAddress,
-                              toAddress: state.toAddress,
+                              fromAddress: state.activeTab == PricingTab.current
+                                  ? state.fromAddress
+                                  : state.toAddress,
+                              toAddress: state.activeTab == PricingTab.current
+                                  ? state.toAddress
+                                  : state.fromAddress,
                               fare: fare,
                             ),
                           ),
@@ -256,6 +298,9 @@ class _PricingViewState extends State<_PricingView> {
                   ),
                   _BottomBar(
                     fare: fare,
+                    seatCount: state.activeTab == PricingTab.current
+                        ? state.seatCount
+                        : state.returnSeatCount,
                     isPublishing: state.status == PricingStatus.publishing,
                     canContinue: state.isFormValid,
                     rideMode: widget.rideMode,
@@ -304,6 +349,83 @@ class _SectionLabel extends StatelessWidget {
         height: 15 / 14,
         color: const Color(0xFF4C515B),
         letterSpacing: 0.8,
+      ),
+    );
+  }
+}
+
+class _RideToggle extends StatelessWidget {
+  final PricingTab activeTab;
+  final ValueChanged<PricingTab> onChanged;
+
+  const _RideToggle({required this.activeTab, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 250,
+      height: 40,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F1F1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 200),
+            alignment: activeTab == PricingTab.current
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: Container(
+              width: 125,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onChanged(PricingTab.current),
+                  behavior: HitTestBehavior.opaque,
+                  child: Center(
+                    child: Text(
+                      'Current Ride',
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: activeTab == PricingTab.current
+                            ? Colors.white
+                            : const Color(0xFF1E1E1E),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onChanged(PricingTab.returnRide),
+                  behavior: HitTestBehavior.opaque,
+                  child: Center(
+                    child: Text(
+                      'Return Ride',
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: activeTab == PricingTab.returnRide
+                            ? Colors.white
+                            : const Color(0xFF1E1E1E),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -591,6 +713,7 @@ class _RateInputBox extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.fare,
+    required this.seatCount,
     required this.isPublishing,
     required this.canContinue,
     required this.rideMode,
@@ -598,6 +721,7 @@ class _BottomBar extends StatelessWidget {
   });
 
   final FareBreakdown fare;
+  final int seatCount;
   final bool isPublishing;
   final bool canContinue;
   final String rideMode;
@@ -605,6 +729,9 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final earnings = fare.totalCost;
+    final perPassenger = seatCount > 0 ? earnings / seatCount : 0.0;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: const BoxDecoration(
@@ -619,34 +746,55 @@ class _BottomBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your earnings',
+                      style: GoogleFonts.mulish(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF757474),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹${earnings.toStringAsFixed(0)}',
+                      style: GoogleFonts.mulish(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0D9488), // primaryGreen-like
+                      ),
+                    ),
+                  ],
+                ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Total Cost',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
+                      'Per passenger',
+                      style: GoogleFonts.mulish(
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
-                        height: 16.5 / 11,
-                        color: const Color(0xFF7A8494),
+                        color: const Color(0xFF757474),
                       ),
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      '₹${fare.totalCost.toStringAsFixed(0)}',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
+                      '₹${perPassenger.toStringAsFixed(0)}',
+                      style: GoogleFonts.mulish(
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        height: 28 / 18,
-                        color: const Color(0xFF0F1923),
+                        color: const Color(0xFF1E1E1E),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ScheduleRideButton(
               onPressed: (isPublishing || !canContinue) ? null : onContinue,
               label: rideMode == 'cab'

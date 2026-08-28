@@ -1,5 +1,6 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LocationSwapRow extends StatelessWidget {
   const LocationSwapRow({
@@ -19,6 +20,13 @@ class LocationSwapRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final addressStyle = GoogleFonts.mulish(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      height: 20 / 16,
+      letterSpacing: 16 * 0.01,
+      color: const Color(0xFF1E1E1E),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -66,8 +74,8 @@ class LocationSwapRow extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4, bottom: 6),
                   child: Text(
                     fromAddress ?? 'Enter start location',
-                    style: TextStyle(
-                      color: fromAddress != null ? AppColors.black87 : AppColors.black45,
+                    style: addressStyle.copyWith(
+                      color: fromAddress != null ? const Color(0xFF1E1E1E) : AppColors.black45,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -81,8 +89,8 @@ class LocationSwapRow extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 10, bottom: 2),
                   child: Text(
                     toAddress ?? 'Enter office location',
-                    style: TextStyle(
-                      color: toAddress != null ? AppColors.black87 : AppColors.black45,
+                    style: addressStyle.copyWith(
+                      color: toAddress != null ? const Color(0xFF1E1E1E) : AppColors.black45,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

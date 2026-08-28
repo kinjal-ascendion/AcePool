@@ -62,13 +62,17 @@ class _HomeView extends StatelessWidget {
     }
   }
 
-  Future<void> _pickTime(BuildContext context) async {
+  Future<void> _pickTime(BuildContext context, {bool isReturn = false}) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
     if (picked != null && context.mounted) {
-      context.read<HomeBloc>().add(TimeSelected(picked));
+      if (isReturn) {
+        context.read<HomeBloc>().add(ReturnTimeSelected(picked));
+      } else {
+        context.read<HomeBloc>().add(TimeSelected(picked));
+      }
     }
   }
 
@@ -228,6 +232,9 @@ Future<PickedLocation?> _pickCabLocation(
                             selectedDate: state.selectedDate,
                             selectedTime: state.selectedTime,
                             seatCount: state.seatCount,
+                            shouldScheduleReturn: state.shouldScheduleReturn,
+                            returnTime: state.returnTime,
+                            returnSeatCount: state.returnSeatCount,
                             isScheduling: state.rideMode == RideMode.find
                                 ? state.findStatus == HomeStatus.loading
                                 : false,
@@ -296,6 +303,12 @@ Future<PickedLocation?> _pickCabLocation(
                             onTimeTap: () => _pickTime(context),
                             onSeatCountChanged: (count) =>
                                 bloc.add(SeatCountChanged(count)),
+                            onScheduleReturnToggled: (val) =>
+                                bloc.add(ScheduleReturnToggled(val)),
+                            onReturnTimeTap: () =>
+                                _pickTime(context, isReturn: true),
+                            onReturnSeatCountChanged: (count) =>
+                                bloc.add(ReturnSeatCountChanged(count)),
                             onSchedulePressed: () async {
                               if (state.rideMode == RideMode.find) {
                                 await _handleFindRide(context, bloc);
@@ -316,6 +329,9 @@ Future<PickedLocation?> _pickCabLocation(
                                         seatCount: state.seatCount,
                                         vehicleType: state.vehicleType.name,
                                         rideMode: state.rideMode.name,
+                                        hasReturnRide: state.shouldScheduleReturn,
+                                        returnTime: state.returnTime,
+                                        returnSeatCount: state.returnSeatCount,
                                       ),
                                     ),
                                   );

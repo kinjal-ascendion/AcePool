@@ -39,6 +39,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<DateSelected>(_onDateSelected);
     on<TimeSelected>(_onTimeSelected);
     on<SeatCountChanged>(_onSeatCountChanged);
+    on<ScheduleReturnToggled>(_onScheduleReturnToggled);
+    on<ReturnTimeSelected>(_onReturnTimeSelected);
+    on<ReturnSeatCountChanged>(_onReturnSeatCountChanged);
     on<RideFormReset>(_onRideFormReset);
     on<FindRidesRequested>(_onFindRidesRequested);
     on<RefreshUpcomingTrips>(_onRefreshUpcomingTrips);
@@ -164,6 +167,27 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
   void _onSeatCountChanged(SeatCountChanged event, Emitter<HomeState> emit) {
     emit(state.copyWith(seatCount: event.seatCount));
+  }
+
+  void _onScheduleReturnToggled(
+    ScheduleReturnToggled event,
+    Emitter<HomeState> emit,
+  ) {
+    emit(state.copyWith(shouldScheduleReturn: event.shouldScheduleReturn));
+  }
+
+  void _onReturnTimeSelected(
+    ReturnTimeSelected event,
+    Emitter<HomeState> emit,
+  ) {
+    emit(state.copyWith(returnTime: event.time));
+  }
+
+  void _onReturnSeatCountChanged(
+    ReturnSeatCountChanged event,
+    Emitter<HomeState> emit,
+  ) {
+    emit(state.copyWith(returnSeatCount: event.seatCount));
   }
 
   Future<void> _onRideFormReset(

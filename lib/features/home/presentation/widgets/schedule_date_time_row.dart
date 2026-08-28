@@ -29,9 +29,10 @@ class ScheduleDateTimeRow extends StatelessWidget {
     final maxSeats = vehicleType == VehicleType.bike ? 1 : 4;
     final TextStyle fieldStyle = GoogleFonts.mulish(
       fontSize: 16,
-      fontWeight: FontWeight.w400,
-      height: 1.25,
+      fontWeight: FontWeight.w600,
+      height: 20 / 16,
       letterSpacing: 16 * 0.01,
+      color: const Color(0xFF1E1E1E),
     );
 
     return Column(
@@ -48,7 +49,7 @@ class ScheduleDateTimeRow extends StatelessWidget {
                     ? DateTimeFormatter.monthDayYear(selectedDate!)
                     : 'Select date',
                 style: fieldStyle.copyWith(
-                  color: selectedDate != null ? AppColors.black87 : const Color(0xFF757474),
+                  color: selectedDate != null ? const Color(0xFF1E1E1E) : const Color(0xFF757474),
                 ),
               ),
             ],
@@ -72,7 +73,7 @@ class ScheduleDateTimeRow extends StatelessWidget {
                           ? DateTimeFormatter.time12h(selectedTime!)
                           : 'Choose time',
                       style: fieldStyle.copyWith(
-                        color: selectedTime != null ? AppColors.black87 : const Color(0xFF757474),
+                        color: selectedTime != null ? const Color(0xFF1E1E1E) : const Color(0xFF757474),
                       ),
                     ),
                   ],
