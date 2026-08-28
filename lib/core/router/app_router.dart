@@ -1,15 +1,15 @@
-import 'package:acepool/features/auth/presentation/pages/otp_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:go_router/go_router.dart';
-import 'package:acepool/features/splash/presentation/pages/splash_page.dart';
-import 'package:acepool/features/home/presentation/pages/main_shell_page.dart';
 import 'package:acepool/features/auth/presentation/pages/login_page.dart';
+import 'package:acepool/features/auth/presentation/pages/otp_page.dart';
 import 'package:acepool/features/auth/presentation/pages/signup_page.dart';
+import 'package:acepool/features/home/presentation/pages/main_shell_page.dart';
+import 'package:acepool/features/onboarding/domain/entities/travel_preference.dart';
+import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
 import 'package:acepool/features/onboarding/presentation/pages/travel_preference_page.dart';
 import 'package:acepool/features/onboarding/presentation/pages/vehicle_preference_page.dart';
-import 'package:acepool/features/onboarding/domain/onboarding_selection.dart';
+import 'package:acepool/features/splash/presentation/pages/splash_page.dart';
 import 'package:acepool/features/trips/presentation/pages/ride_cancelled_page.dart';
-import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 
 class AppRouter {
   AppRouter._();
@@ -46,9 +46,8 @@ class AppRouter {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => LoginPage(
-          onboardingSelection: state.extra as OnboardingSelection?,
-        ),
+        builder: (context, state) =>
+            LoginPage(onboardingSelection: state.extra as OnboardingSelection?),
       ),
       GoRoute(
         path: '/signup',
@@ -83,8 +82,9 @@ class AppRouter {
         name: 'home',
         builder: (context, state) {
           final tabIndexStr = state.uri.queryParameters['tab'];
-          final initialIndex =
-              tabIndexStr != null ? int.tryParse(tabIndexStr) : null;
+          final initialIndex = tabIndexStr != null
+              ? int.tryParse(tabIndexStr)
+              : null;
           return MainShellPage(initialIndex: initialIndex);
         },
       ),

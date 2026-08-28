@@ -87,6 +87,14 @@ class RefreshUpcomingTrips extends HomeEvent {
   const RefreshUpcomingTrips();
 }
 
+class HomePreferenceUpdated extends HomeEvent {
+  final String? preference;
+  const HomePreferenceUpdated(this.preference);
+
+  @override
+  List<Object?> get props => [preference];
+}
+
 class CurrentLocationFetched extends HomeEvent {
   final double? lat;
   final double? lng;

@@ -21,6 +21,9 @@ class RideMatch {
     required this.distanceKm,
     required this.matchPercent,
     this.farePerSeat,
+    this.negotiatedPrice,
+    this.negotiationStatus,
+    this.requestId,
     this.fromLat,
     this.fromLng,
     this.toLat,
@@ -47,6 +50,14 @@ class RideMatch {
   final double? distanceKm;
   final int matchPercent;
   final double? farePerSeat;
+  final double? negotiatedPrice;
+  final String? negotiationStatus;
+  final String? requestId;
+
+  double? get effectiveFare =>
+      (negotiationStatus == 'accepted' && negotiatedPrice != null)
+          ? negotiatedPrice
+          : farePerSeat;
 
   String get timeLabel => DateTimeFormatter.time12h(time);
   String get dateLabel =>

@@ -1,0 +1,52 @@
+import 'package:flutter/material.dart';
+
+/// One of the current user's (rider's) completed rides, which they can
+/// optionally rate the driver on, if not already rated.
+class RiderRatableRide {
+  RiderRatableRide({
+    required this.requestId,
+    required this.rideId,
+    required this.driverId,
+    required this.date,
+    required this.time,
+    required this.pickup,
+    required this.drop,
+    required this.riderRating,
+    this.driverName = '',
+    this.driverPhotoUrl,
+    this.vehicleInfo,
+  });
+
+  final String requestId;
+  final String rideId;
+  final String driverId;
+  final DateTime date;
+  final TimeOfDay time;
+  final String pickup;
+  final String drop;
+  final int? riderRating;
+  final String driverName;
+  final String? driverPhotoUrl;
+  final String? vehicleInfo;
+
+  RiderRatableRide copyWith({
+    int? riderRating,
+    String? driverName,
+    String? driverPhotoUrl,
+    String? vehicleInfo,
+  }) {
+    return RiderRatableRide(
+      requestId: requestId,
+      rideId: rideId,
+      driverId: driverId,
+      date: date,
+      time: time,
+      pickup: pickup,
+      drop: drop,
+      riderRating: riderRating ?? this.riderRating,
+      driverName: driverName ?? this.driverName,
+      driverPhotoUrl: driverPhotoUrl ?? this.driverPhotoUrl,
+      vehicleInfo: vehicleInfo ?? this.vehicleInfo,
+    );
+  }
+}

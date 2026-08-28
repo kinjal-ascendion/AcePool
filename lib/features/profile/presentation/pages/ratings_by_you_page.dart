@@ -1,10 +1,11 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
-import '../widgets/ride_card.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/presentation/bloc/ratings_by_you_bloc.dart';
+import '../widgets/ride_review_card.dart';
 import 'package:intl/intl.dart';
-import '../widgets/rating_panel.dart';
+import 'review_drivers_page.dart';
 
 class RatingsByYouPage extends StatefulWidget {
   const RatingsByYouPage({super.key});
@@ -14,269 +15,173 @@ class RatingsByYouPage extends StatefulWidget {
 }
 
 class _RatingsByYouPageState extends State<RatingsByYouPage> {
+  late final RatingsByYouBloc _bloc;
 
-static final _db = FirebaseFirestore.instanceFor(
-  app: Firebase.app(),
-  databaseId: 'acepool',
-);
-
-late Future<List<RatedRide>> _ridesFuture;
-
-String? _expandedRideId;
-int _selectedRating = 0;
-
-@override
-void initState() {
-  super.initState();
-  _ridesFuture = _fetchCompletedRides();
-}
-
-Future<List<RatedRide>> _fetchCompletedRides() async {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return [];
-
-  final requestSnapshot = await _db
-      .collection('ride_requests')
-      .where('riderId', isEqualTo: uid)
-      .where('status', isEqualTo: 'accepted')
-      .get();
-
-  List<RatedRide> rides = [];
-
-  for (final request in requestSnapshot.docs) {
-    final requestData = request.data();
-
-    final rideDoc = await _db
-        .collection('rides')
-        .doc(requestData['rideId'])
-        .get();
-
-    if (!rideDoc.exists) continue;
-
-    final rideData = rideDoc.data()!;
-
-    if (rideData['status'] != 'completed') continue;
-
-    final rideTime = requestData['rideTime'] as Map<String, dynamic>;
-
-rides.add(
-  RatedRide(
-    requestId: request.id,
-    rideId: requestData['rideId'],
-    driverId: requestData['driverId'],
-    date: (requestData['rideDate'] as Timestamp).toDate(),
-    time: TimeOfDay(
-      hour: rideTime['hour'],
-      minute: rideTime['minute'],
-    ),
-    pickup: requestData['rideFrom'],
-    
-    drop: requestData['rideTo'],
-    riderRating: requestData['riderRating'],
-  ),
-);
+  @override
+  void initState() {
+    super.initState();
+    _bloc = sl<RatingsByYouBloc>()..add(const RatingsByYouStarted());
   }
 
-  return rides;
-}
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (isToday) return 'Today';
+    return DateFormat('EEE d MMM').format(date);
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return DateFormat('h.mm a')
+        .format(DateTime(2000, 1, 1, time.hour, time.minute))
+        .toLowerCase();
+  }
+
+  Widget _sectionHeader(String title, String status) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: const Color(0xFF1E1E1E),
+            ),
+          ),
+          Text(
+            status.toUpperCase(),
+            style: GoogleFonts.mulish(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: const Color(0xFF8A8A8A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 26),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
           "Ride statistics",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-        ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-
-    const Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Text(
-        "RATINGS BY YOU",
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 1.2,
+          style: GoogleFonts.mulish(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 24,
+            height: 1.0,
+          ),
         ),
       ),
-    ),
+      body: BlocProvider.value(
+        value: _bloc,
+        child: BlocBuilder<RatingsByYouBloc, RatingsByYouState>(
+          builder: (context, state) {
+            if (state.status == RatingsByYouStatus.initial ||
+                state.status == RatingsByYouStatus.loading) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
 
-    Expanded(
-      child: FutureBuilder<List<RatedRide>>(
-  future: _ridesFuture,
-  builder: (context, snapshot) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
+            final rides = state.rides;
 
-    if (snapshot.hasError) {
-      return Center(
-        child: Text(snapshot.error.toString()),
-      );
-    }
+            if (rides.isEmpty) {
+              return const Center(
+                child: Text("No completed rides found"),
+              );
+            }
 
-    final rides = snapshot.data ?? [];
+            final pending = rides.where((r) => r.riderRating == null).toList();
+            final done = rides.where((r) => r.riderRating != null).toList();
 
-    if (rides.isEmpty) {
-      return const Center(
-        child: Text("No completed rides found"),
-      );
-    }
-
-       return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: rides.length,
-      itemBuilder: (context, index) {
-        final ride = rides[index];
-
-       return Column(
-  children: [
-    RideCard(
-      date: DateFormat('MMMM d, yyyy').format(ride.date),
-      time: ride.time.format(context),
-      pickup: ride.pickup,
-      drop: ride.drop,
-      rating: (ride.riderRating ?? 0).toDouble(),
-      reviews: 0,
-      showReviews: false,
-      trailing: ride.riderRating == null
-          ? ElevatedButton.icon(
-    onPressed: () {
-      setState(() {
-        if (_expandedRideId == ride.requestId) {
-          _expandedRideId = null;
-        } else {
-          _expandedRideId = ride.requestId;
-          _selectedRating = 0;
-        }
-      });
-    },
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.black,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
-    ),
-    icon: const Icon(
-      Icons.add,
-      size: 14,
-    ),
-    label: const Text(
-      "Review your Driver",
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  )
-          : null,
-    ),
-
-    if (_expandedRideId == ride.requestId)
-      RatingPanel(
-        selectedRating: _selectedRating,
-        onRatingChanged: (rating) {
-          setState(() {
-            _selectedRating = rating;
-          });
-        },
-       onSubmit: () async {
-  try {
-    await _db
-        .collection("ride_requests")
-        .doc(ride.requestId)
-        .update({
-      "riderRating": _selectedRating,
-      "riderRatedAt": FieldValue.serverTimestamp(),
-    });
-
-    if (!mounted) return;
-
-    final rides = await _ridesFuture;
-
-final index = rides.indexWhere(
-  (r) => r.requestId == ride.requestId,
-);
-
-if (index != -1) {
-  rides[index] = RatedRide(
-    requestId: rides[index].requestId,
-    rideId: rides[index].rideId,
-    driverId: rides[index].driverId,
-    date: rides[index].date,
-    time: rides[index].time,
-    pickup: rides[index].pickup,
-    drop: rides[index].drop,
-    riderRating: _selectedRating,
-  );
-}
-
-setState(() {
-  _expandedRideId = null;
-  _selectedRating = 0;
-  _ridesFuture = Future.value(rides);
-});
-
-  } catch (e) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString()),
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                if (pending.isNotEmpty) ...[
+                  _sectionHeader("REVIEWS BY YOU", "PENDING"),
+                  ...pending.map((ride) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: RideReviewCard(
+                          riderNames: [
+                            ride.driverName.isNotEmpty ? ride.driverName : 'Driver'
+                          ],
+                          riderPhotoUrls: [ride.driverPhotoUrl],
+                          passengerCount: 0,
+                          vehicleInfo: ride.vehicleInfo,
+                          dateTimeText:
+                              '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReviewDriversPage(
+                                  rideId: ride.rideId,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
+                              _bloc.add(const RatingsByYouStarted());
+                            }
+                          },
+                        ),
+                      )),
+                ],
+                if (done.isNotEmpty) ...[
+                  _sectionHeader("REVIEWS BY YOU", "DONE"),
+                  ...done.map((ride) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: RideReviewCard(
+                          riderNames: [
+                            ride.driverName.isNotEmpty ? ride.driverName : 'Driver'
+                          ],
+                          riderPhotoUrls: [ride.driverPhotoUrl],
+                          passengerCount: 0,
+                          vehicleInfo: ride.vehicleInfo,
+                          dateTimeText:
+                              '${_formatDate(ride.date)} . ${_formatTime(ride.time)}',
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReviewDriversPage(
+                                  rideId: ride.rideId,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
+                              _bloc.add(const RatingsByYouStarted());
+                            }
+                          },
+                        ),
+                      )),
+                ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
-},
-      ),
-
-    const SizedBox(height: 16),
-  ],
-);
-      },
-    );
-  },
-),
-    ),
-  ],
-),
-    );
-  }
-}
-class RatedRide {
-  final String requestId;
-  final String rideId;
-  final String driverId;
-  final DateTime date;
-  final TimeOfDay time;
-  final String pickup;
-  final String drop;
-  final int? riderRating;
-
-  RatedRide({
-    required this.requestId,
-    required this.rideId,
-    required this.driverId,
-    required this.date,
-    required this.time,
-    required this.pickup,
-    required this.drop,
-    required this.riderRating,
-  });
 }

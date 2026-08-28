@@ -1,5 +1,5 @@
-import '../presentation/pages/travel_preference_page.dart';
-import '../presentation/pages/vehicle_preference_page.dart';
+import 'entities/travel_preference.dart';
+import 'entities/vehicle_preference.dart';
 
 class OnboardingSelection {
   const OnboardingSelection({

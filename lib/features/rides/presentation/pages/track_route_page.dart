@@ -2,14 +2,15 @@ import 'dart:ui';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/presentation/bloc/track_route_bloc.dart';
 import 'package:acepool/features/rides/presentation/pages/security_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:acepool/features/profile/presentation/pages/route_matching_page.dart';
 import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -38,10 +39,7 @@ class TrackRoutePage extends StatefulWidget {
 }
 
 class _TrackRoutePageState extends State<TrackRoutePage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  final _bloc = sl<TrackRouteBloc>();
 
   late GoogleMapController _mapController;
   Position? _currentPosition;
@@ -78,90 +76,56 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     _fetchJourneyData();
   }
 
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
+
   Future<void> _fetchJourneyData() async {
     if (!mounted) return;
     setState(() => _loadingData = true);
-    
+
     // 1. Determine Current Location
     await _determinePosition();
 
-    // 2. Fetch User's Ride Request
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final requestSnap = await _db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: widget.ride.id)
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .limit(1)
-          .get();
+    // 2+3. Fetch rider's pickup/drop-off (or driver's endpoints as fallback)
+    // plus the driver's pinned location/route duration.
+    _bloc.add(TrackRouteStarted(
+      ride: widget.ride,
+      riderFromAddress: widget.riderFromAddress,
+      riderFromLat: widget.riderFromLat,
+      riderFromLng: widget.riderFromLng,
+      riderToAddress: widget.riderToAddress,
+      riderToLat: widget.riderToLat,
+      riderToLng: widget.riderToLng,
+    ));
+    final trackState =
+        await _bloc.stream.firstWhere((s) => s.status != TrackRouteStatus.loading);
+    final journey = trackState.journey;
+    if (journey != null) {
+      _riderPickupPoint = journey.pickupPoint;
+      _riderDropPoint = journey.dropOffPoint;
+      _riderStartAddress = journey.riderStartAddress;
+      _riderEndAddress = journey.riderEndAddress;
 
-      if (requestSnap.docs.isNotEmpty) {
-        final d = requestSnap.docs.first.data();
-        _riderPickupPoint = d['pickupPoint'] as String? ?? '';
-        _riderDropPoint = d['dropOffPoint'] as String? ?? '';
-        
-        // Only overwrite if not provided via constructor
-        if (_riderStartAddress.isEmpty) {
-          _riderStartAddress = d['riderStartAddress'] as String? ?? '';
-        }
-        if (_riderEndAddress.isEmpty) {
-          _riderEndAddress = d['riderEndAddress'] as String? ?? '';
-        }
-        
-        if (d['pickupLatLng'] != null) {
-          final latLngMap = d['pickupLatLng'] as Map<String, dynamic>;
-          _riderPickupLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-        
-        if (d['dropOffLatLng'] != null) {
-          final latLngMap = d['dropOffLatLng'] as Map<String, dynamic>;
-          _riderDropLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-
-        if (_riderStartLatLng == null && d['riderStartLatLng'] != null) {
-          final latLngMap = d['riderStartLatLng'] as Map<String, dynamic>;
-          _riderStartLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-
-        if (_riderEndLatLng == null && d['riderEndLatLng'] != null) {
-          final latLngMap = d['riderEndLatLng'] as Map<String, dynamic>;
-          _riderEndLatLng = LatLng(
-            (latLngMap['latitude'] as num).toDouble(),
-            (latLngMap['longitude'] as num).toDouble(),
-          );
-        }
-      } else {
-        // If no accepted request, use driver's start/end as default pickup/drop-off for visualization
-        _riderPickupPoint = widget.ride.fromAddress;
-        _riderDropPoint = widget.ride.toAddress;
+      if (journey.pickupLat != null && journey.pickupLng != null) {
+        _riderPickupLatLng = LatLng(journey.pickupLat!, journey.pickupLng!);
       }
-    }
-
-    // 3. Fetch Pinned location and route info from Driver's Ride
-    final rideDoc = await _db.collection('rides').doc(widget.ride.id).get();
-    if (rideDoc.exists) {
-      final d = rideDoc.data();
-      if (d?['pinnedLatLng'] != null) {
-        final latLngMap = d!['pinnedLatLng'] as Map<String, dynamic>;
-        _pinnedLatLng = LatLng(
-          (latLngMap['latitude'] as num).toDouble(),
-          (latLngMap['longitude'] as num).toDouble(),
-        );
-        _pinnedName = d['pinnedName'] as String?;
+      if (journey.dropOffLat != null && journey.dropOffLng != null) {
+        _riderDropLatLng = LatLng(journey.dropOffLat!, journey.dropOffLng!);
       }
-      if (d?['routeDurationMinutes'] != null) {
-        _driveDurationMinutes = (d!['routeDurationMinutes'] as num).toInt();
+      if (journey.riderStartLat != null && journey.riderStartLng != null) {
+        _riderStartLatLng = LatLng(journey.riderStartLat!, journey.riderStartLng!);
       }
+      if (journey.riderEndLat != null && journey.riderEndLng != null) {
+        _riderEndLatLng = LatLng(journey.riderEndLat!, journey.riderEndLng!);
+      }
+      if (journey.pinnedLat != null && journey.pinnedLng != null) {
+        _pinnedLatLng = LatLng(journey.pinnedLat!, journey.pinnedLng!);
+        _pinnedName = journey.pinnedName;
+      }
+      _driveDurationMinutes = journey.driveDurationMinutes;
     }
 
     _calculateRoadsidePoints();
@@ -380,13 +344,9 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.white,
-                            radius: 20,
-                            child: IconButton(
-                              icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
-                              onPressed: () => Navigator.pop(context),
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Color(0xFF1D1D1D), size: 24),
+                            onPressed: () => Navigator.pop(context),
                           ),
                         ],
                       ),
@@ -441,12 +401,17 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
               Expanded(
                 child: Text(
                   r.fromAddress,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.black87),
+                  style: GoogleFonts.mulish(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                    height: 18 / 14,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.map_outlined, size: 16, color: AppColors.black26),
+              const Icon(Icons.map_outlined, size: 16, color: Color(0xFF757474)),
             ],
           ),
           
@@ -490,12 +455,17 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
               Expanded(
                 child: Text(
                   r.toAddress,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.black87),
+                  style: GoogleFonts.mulish(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                    height: 18 / 14,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.map_outlined, size: 16, color: AppColors.black26),
+              const Icon(Icons.map_outlined, size: 16, color: Color(0xFF757474)),
             ],
           ),
           
@@ -503,9 +473,17 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           
           Row(
             children: [
-              Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.grey600),
+              const Icon(Icons.calendar_today_outlined, size: 20, color: Color(0xFF757474)),
               const SizedBox(width: 8),
-              Text(r.dateLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                r.dateLabel,
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 20 / 14,
+                  letterSpacing: 0.01,
+                ),
+              ),
             ],
           ),
           
@@ -513,9 +491,15 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
 
           Row(
             children: [
-              Icon(Icons.access_time, size: 16, color: AppColors.grey600),
+              const Icon(Icons.access_time, size: 20, color: Color(0xFF757474)),
               const SizedBox(width: 8),
-              Text(r.timeLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                r.timeLabel,
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const Spacer(),
               Container(
                 width: 1,
@@ -588,12 +572,13 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Your Stop',
-                            style: TextStyle(
-                              fontSize: 15,
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.black87,
+                              color: const Color(0xFF1E1E1E),
+                              height: 24 / 16,
                             ),
                           ),
                           const SizedBox(height: 1),
@@ -601,7 +586,10 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                             _riderDropPoint.isNotEmpty
                                 ? _riderDropPoint.split(',')[0]
                                 : 'Calculating...',
-                            style: TextStyle(fontSize: 13, color: AppColors.grey600),
+                            style: GoogleFonts.mulish(
+                              fontSize: 13,
+                              color: const Color(0xFF4C515B),
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -612,20 +600,25 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                     ElevatedButton(
                       onPressed: _navigateToPayment,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.black,
-                        foregroundColor: AppColors.white,
+                        backgroundColor: const Color(0xFFFDFDFD),
+                        foregroundColor: const Color(0xFF1E1E1E),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
+                        side: const BorderSide(color: Color(0xFFDDDDDD)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
+                      child: Text(
                         'End Ride',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: GoogleFonts.mulish(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          height: 20 / 16,
+                        ),
                       ),
                     ),
                   ],
@@ -647,7 +640,13 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                 const SizedBox(height: 12),
                 Text(
                   '*Actual arrival time may vary due to traffic and road conditions',
-                  style: TextStyle(fontSize: 11, color: AppColors.grey400),
+                  style: GoogleFonts.mulish(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF1D1D1D),
+                    height: 20 / 14,
+                    letterSpacing: 0.01,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 _buildPickupPointsHeader(),
@@ -758,54 +757,44 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     );
   }
 
-  Future<void> _updateRideStatus(String status) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    try {
-      final requestSnap = await _db
-          .collection('ride_requests')
-          .where('rideId', isEqualTo: widget.ride.id)
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .limit(1)
-          .get();
-
-      if (requestSnap.docs.isNotEmpty) {
-        await requestSnap.docs.first.reference.update({'status': status});
-      }
-
-      if (mounted && status == 'completed') {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
-      }
-    }
-  }
-
   Widget _buildTransportDetailsHeader(BuildContext context) {
     return Row(
       children: [
-        const Text('Transport details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          'Transport details',
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            height: 1.0,
+          ),
+        ),
         const Spacer(),
         GestureDetector(
           onTap: () => _showSOSDialog(context),
-          child: const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 24),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFC82323).withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFC82323),
+              size: 16,
+            ),
+          ),
         ),
         const SizedBox(width: 16),
         GestureDetector(
           onTap: () => LocationShareHelper.shareCurrentLocation(context),
-          child: const Icon(Icons.share_outlined, size: 22),
+          child: const Icon(Icons.share_outlined, size: 22, color: Color(0xFF1D1D1D)),
         ),
         const SizedBox(width: 16),
         IconButton(
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-          icon: const Icon(Icons.close, size: 22),
+          icon: const Icon(Icons.close, size: 22, color: Color(0xFF1D1D1D)),
           onPressed: () => Navigator.pop(context),
         ),
       ],
@@ -908,19 +897,53 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
   Widget _buildJourneySummaryIcons(double walkTo, double walkFrom, int totalJourneyMin) {
     return Row(
       children: [
-        Icon(Icons.directions_walk, size: 24, color: AppColors.black87),
+        const Icon(Icons.directions_walk, size: 24, color: Color(0xFF1D1D1D)),
         const SizedBox(width: 4),
-        Text(RideMatcher.formatDistance(walkTo), style: TextStyle(fontSize: 12, color: AppColors.grey600)),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Icon(Icons.chevron_right, size: 16, color: AppColors.grey400)),
-        const Icon(Icons.directions_car, size: 24, color: AppColors.black87),
-        if (walkFrom > 0.1) ...[
-          Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Icon(Icons.chevron_right, size: 16, color: AppColors.grey400)),
-          Icon(Icons.directions_walk, size: 24, color: AppColors.black87),
+        Text(
+          '${(walkTo * 1000).round()} m',
+          style: GoogleFonts.mulish(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1D1D1D),
+            height: 1.0,
+            letterSpacing: 0.01,
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8.0),
+          child: Icon(Icons.chevron_right, size: 16, color: Color(0xFFDDDDDD)),
+        ),
+        const Icon(Icons.directions_car, size: 24, color: Color(0xFF1D1D1D)),
+        if (walkFrom > 0.001) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0),
+            child: Icon(Icons.chevron_right, size: 16, color: Color(0xFFDDDDDD)),
+          ),
+          const Icon(Icons.directions_walk, size: 24, color: Color(0xFF1D1D1D)),
           const SizedBox(width: 4),
-          Text(RideMatcher.formatDistance(walkFrom), style: TextStyle(fontSize: 12, color: AppColors.grey600)),
+          Text(
+            walkFrom >= 1.0
+                ? '${walkFrom.toStringAsFixed(1)} km'
+                : '${(walkFrom * 1000).round()} m',
+            style: GoogleFonts.mulish(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1D1D1D),
+              height: 1.0,
+              letterSpacing: 0.01,
+            ),
+          ),
         ],
         const Spacer(),
-        Text('${RideMatcher.formatDuration(totalJourneyMin)}*', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          '${totalJourneyMin} min*',
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            height: 1.0,
+          ),
+        ),
       ],
     );
   }
@@ -929,8 +952,26 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('$timeRangeLabel*', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        Text('₹ ${r.farePerSeat?.toInt() ?? 0} / seat', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+        Text(
+          '${timeRangeLabel.toUpperCase()}*',
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1D1D1D),
+            height: 20 / 16,
+            letterSpacing: 0.01,
+          ),
+        ),
+        Text(
+          '₹ ${r.farePerSeat?.toInt() ?? 0} / seat',
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1D1D1D),
+            height: 20 / 16,
+            letterSpacing: 0.01,
+          ),
+        ),
       ],
     );
   }
@@ -939,11 +980,28 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('PICKUP POINTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.black54, letterSpacing: 1)),
+        Text(
+          'PICKUP POINTS',
+          style: GoogleFonts.mulish(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1D1D1D),
+            height: 19.5 / 14,
+            letterSpacing: 0.5,
+          ),
+        ),
         Row(
           children: [
-            Text('${_pinnedLatLng != null ? 1 : 0} pinned', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const Icon(Icons.keyboard_arrow_down, size: 20),
+            Text(
+              '${_pinnedLatLng != null ? 1 : 0} pinned',
+              style: GoogleFonts.mulish(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1D1D1D),
+                height: 16.5 / 14,
+              ),
+            ),
+            const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF1F1F1F)),
           ],
         ),
       ],
@@ -960,19 +1018,27 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           dashSpace: 3,
           borderRadius: 30,
         ),
-        child: TextButton.icon(
+        child: TextButton(
           onPressed: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const RouteMatchingPage()),
             );
           },
-          icon: Icon(Icons.location_searching, size: 18, color: AppColors.black87),
-          label: const Text(
-            'Adjust Radius',
-            style: TextStyle(
-              color: AppColors.black87,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/images/maps_pointer.png', width: 18, height: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Adjust Radius',
+                style: GoogleFonts.mulish(
+                  color: const Color(0xFF1D1D1D),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  height: 24 / 14,
+                ),
+              ),
+            ],
           ),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -981,32 +1047,6 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildRouteItem(String address, {required bool isStart}) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: isStart ? Border.all(color: AppColors.primaryGreen, width: 2) : null,
-            color: isStart ? Colors.transparent : AppColors.primaryGreen,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            address,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.black87),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        Icon(Icons.map_outlined, size: 18, color: AppColors.grey400),
-      ],
     );
   }
 
@@ -1045,17 +1085,46 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                    Text(time, style: TextStyle(fontSize: 12, color: AppColors.grey600)),
+                    Text(
+                      title,
+                      style: GoogleFonts.mulish(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        height: 18 / 16,
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: GoogleFonts.mulish(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                        height: 1.0,
+                      ),
+                    ),
                   ],
                 ),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.grey500)),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.mulish(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                    height: 18 / 14,
+                  ),
+                ),
                 if (description != null && description.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       description,
-                      style: TextStyle(fontSize: 11, color: AppColors.grey500, height: 1.3),
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black,
+                        height: 18 / 14,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -1072,9 +1141,17 @@ class _TrackRoutePageState extends State<TrackRoutePage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          Icon(Icons.directions_walk, size: 18, color: AppColors.grey400),
+          const Icon(Icons.directions_walk, size: 18, color: Color(0xFF4C515B)),
           const SizedBox(width: 12),
-          Text(text, style: TextStyle(fontSize: 13, color: AppColors.grey600)),
+          Text(
+            text,
+            style: GoogleFonts.mulish(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Colors.black,
+              height: 18 / 14,
+            ),
+          ),
         ],
       ),
     );

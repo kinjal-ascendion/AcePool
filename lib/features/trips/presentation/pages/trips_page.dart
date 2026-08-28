@@ -1,29 +1,32 @@
-import 'package:acepool/core/services/directions_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
-import 'package:acepool/core/utils/ride_matcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:acepool/di/injection.dart';
-import 'package:acepool/features/chat/domain/entities/chat_message.dart';
-import 'package:acepool/features/chat/domain/repositories/chat_repository.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
+import 'package:acepool/features/rides/domain/repositories/rides_repository.dart';
 import 'package:acepool/features/rides/presentation/pages/drives_detail_page.dart';
 import 'package:acepool/features/rides/presentation/pages/ride_details_page.dart';
-import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
+import 'package:acepool/features/trips/domain/entities/available_ride.dart';
+import 'package:acepool/features/trips/domain/entities/driver_profile_stats.dart';
+import 'package:acepool/features/trips/domain/entities/requested_ride.dart';
+import 'package:acepool/features/trips/domain/repositories/trips_repository.dart';
+import 'package:acepool/features/trips/presentation/bloc/trips_bloc.dart';
 import 'package:acepool/features/trips/presentation/widgets/cancel_ride_dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:acepool/features/trips/presentation/widgets/drive_trip_card.dart';
+import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
+import 'package:acepool/features/rides/presentation/pages/payment_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TripsPage extends StatefulWidget {
-  const TripsPage({super.key, this.onBack});
+  const TripsPage({super.key, this.onBack, this.initialFilter});
 
   final VoidCallback? onBack;
+  final String? initialFilter;
 
   @override
   State<TripsPage> createState() => _TripsPageState();
@@ -32,439 +35,182 @@ class TripsPage extends StatefulWidget {
 class _TripsPageState extends State<TripsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final TripsBloc _bloc;
 
-  late Future<List<_AvailableRide>> _ridesFuture;
-  late Future<List<UpcomingTrip>> _drivesFuture;
-  late Future<List<_RequestedRide>> _requestsFuture;
   bool _hasCommuteLocation = false;
 
   late String _findRideFilter;
   static const _findRideFilters = ['Suggested Rides', 'Ride Requests'];
 
-  static const _tabs = ['Find ride', 'Offer ride'];
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
-  static final _directions = DirectionsService();
+  late final List<String> _tabs;
+  late final String? _travelPreference;
 
   @override
   void initState() {
     super.initState();
+    _bloc = sl<TripsBloc>();
     final homeState = context.read<HomeBloc>().state;
-    final pref = homeState.travelPreference;
-    int initialIdx = 0;
-    if (pref == 'drive') {
-      initialIdx = 1;
-    } else if (pref == 'ride') {
-      initialIdx = 0;
+    _travelPreference = homeState.travelPreference;
+
+    if (_travelPreference == 'ride') {
+      _tabs = ['Find ride'];
+    } else if (_travelPreference == 'drive') {
+      _tabs = ['Offer ride'];
     } else {
-      // For 'both' or null, default to current rideMode from bloc
-      initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
+      _tabs = ['Find ride', 'Offer ride'];
     }
 
-    _tabController = TabController(length: 2, vsync: this, initialIndex: initialIdx);
+    int initialIdx = 0;
+
+    if (_travelPreference == 'drive') {
+      initialIdx = 0; // The only tab is "Offer ride"
+    } else if (_travelPreference == 'ride') {
+      initialIdx = 0; // The only tab is "Find ride"
+    } else {
+      // Both
+      if (widget.initialFilter != null) {
+        initialIdx = 0; // "Find ride" tab
+      } else {
+        initialIdx = homeState.rideMode == RideMode.offer ? 1 : 0;
+      }
+    }
+
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: initialIdx,
+    );
     _tabController.addListener(() => setState(() {}));
 
-    _hasCommuteLocation = (homeState.fromAddress?.trim().isNotEmpty ?? false) &&
+    _hasCommuteLocation =
+        (homeState.fromAddress?.trim().isNotEmpty ?? false) &&
         (homeState.toAddress?.trim().isNotEmpty ?? false);
 
-    _findRideFilter = _hasCommuteLocation ? 'Suggested Rides' : 'Ride Requests';
+    if (widget.initialFilter != null && _findRideFilters.contains(widget.initialFilter)) {
+      _findRideFilter = widget.initialFilter!;
+    } else {
+      _findRideFilter = _hasCommuteLocation ? 'Suggested Rides' : 'Ride Requests';
+    }
 
-    _ridesFuture = _fetchAvailableRidesFromHomeState();
-    _drivesFuture = _fetchTrips('offer');
-    _requestsFuture = _fetchRideRequests();
+    _requestAvailableRidesFromHomeState();
+    _bloc.add(const TripsDrivesRequested());
+    _requestRideRequestsFromHomeState();
   }
 
-  /// Re-reads whatever's currently on Home's Find-ride form (shared
-  /// `HomeBloc`) and fetches matches for it — blank form means no rides.
-  Future<List<_AvailableRide>> _fetchAvailableRidesFromHomeState() {
+  void _requestAvailableRidesFromHomeState() {
     final homeState = context.read<HomeBloc>().state;
-    return _fetchAvailableRides(
-      fromAddress: homeState.fromAddress,
-      toAddress: homeState.toAddress,
-      fromLat: homeState.fromLat,
-      fromLng: homeState.fromLng,
-      toLat: homeState.toLat,
-      toLng: homeState.toLng,
+    _bloc.add(
+      TripsAvailableRidesRequested(
+        fromAddress: homeState.fromAddress,
+        toAddress: homeState.toAddress,
+        fromLat: homeState.fromLat,
+        fromLng: homeState.fromLng,
+        toLat: homeState.toLat,
+        toLng: homeState.toLng,
+      ),
+    );
+  }
+
+  void _requestRideRequestsFromHomeState() {
+    final homeState = context.read<HomeBloc>().state;
+    _bloc.add(
+      TripsRequestedRidesRequested(
+        homeFromAddress: homeState.fromAddress,
+        homeToAddress: homeState.toAddress,
+        homeFromLat: homeState.fromLat,
+        homeFromLng: homeState.fromLng,
+        homeToLat: homeState.toLat,
+        homeToLng: homeState.toLng,
+      ),
     );
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _bloc.close();
     super.dispose();
   }
 
-  Future<List<UpcomingTrip>> _fetchTrips(String rideMode) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-
-    final snapshot = await _db
-        .collection('rides')
-        .where('uid', isEqualTo: uid)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-        .orderBy('date')
-        .get();
-
-    return snapshot.docs
-        .where((doc) => doc.data()['rideMode'] == rideMode)
-        .map((doc) {
-      final data = doc.data();
-      final date = (data['date'] as Timestamp).toDate();
-      final timeMap = data['time'] as Map<String, dynamic>;
-      
-      final fromLat = (data['fromLat'] as num?)?.toDouble();
-      final fromLng = (data['fromLng'] as num?)?.toDouble();
-      final toLat = (data['toLat'] as num?)?.toDouble();
-      final toLng = (data['toLng'] as num?)?.toDouble();
-
-      final fromLatLngMap = data['fromLatLng'] as Map<String, dynamic>?;
-      final toLatLngMap = data['toLatLng'] as Map<String, dynamic>?;
-
-      return UpcomingTrip(
-        id: doc.id,
-        date: DateTime(date.year, date.month, date.day),
-        time: TimeOfDay(
-          hour: timeMap['hour'] as int,
-          minute: timeMap['minute'] as int,
-        ),
-        fromAddress: data['fromAddress'] as String,
-        toAddress: data['toAddress'] as String,
-        fromLat: fromLat ?? (fromLatLngMap?['latitude'] as num?)?.toDouble(),
-        fromLng: fromLng ?? (fromLatLngMap?['longitude'] as num?)?.toDouble(),
-        toLat: toLat ?? (toLatLngMap?['latitude'] as num?)?.toDouble(),
-        toLng: toLng ?? (toLatLngMap?['longitude'] as num?)?.toDouble(),
-        seatsFilled: (data['seatsFilled'] as int?) ?? 0,
-        seatsTotal: data['seatCount'] as int,
-        note: data['note'] as String?,
-        durationMinutes: (data['routeDurationMinutes'] as num?)?.toInt(),
-        status: data['status'] as String? ?? 'upcoming',
-      );
-    }).where((trip) => trip.status != 'completed' && trip.status != 'cancelled').toList();
-  }
-
-  /// [fromAddress]/[toAddress] are whatever's currently entered on Home's
-  /// Find-ride form (shared `HomeBloc`, see [_currentFindRideState]) — this
-  /// tab only shows matches once that form actually has both set, and
-  /// re-reads it fresh every time this future is (re)built.
-  Future<List<_AvailableRide>> _fetchAvailableRides({
-    String? fromAddress,
-    String? toAddress,
-    double? fromLat,
-    double? fromLng,
-    double? toLat,
-    double? toLng,
-  }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-    final userDoc = await _db.collection('users').doc(uid).get();
-
-final matchRadiusKm =
-    (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
-
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-
-    _hasCommuteLocation = (fromAddress?.trim().isNotEmpty ?? false) &&
-        (toAddress?.trim().isNotEmpty ?? false);
-    if (!_hasCommuteLocation) return [];
-
-    final userHomeAddress = fromAddress!;
-    final userOfficeAddress = toAddress!;
-    final userHomeLat = fromLat;
-    final userHomeLng = fromLng;
-    final userOfficeLat = toLat;
-    final userOfficeLng = toLng;
-
-    final snap = await _db
-        .collection('rides')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-        .get();
-
-    Set<String> requestedRideIds = {};
-    try {
-      final myRequestsSnap = await _db
-          .collection('ride_requests')
-          .where('riderId', isEqualTo: uid)
-          .where('status', isEqualTo: 'accepted')
-          .get();
-      requestedRideIds = myRequestsSnap.docs
-          .map((d) => d.data()['rideId'] as String)
-          .toSet();
-    } catch (_) {}
-
-    final rides = <_AvailableRide>[];
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      if (d['rideMode'] != 'offer') continue;
-      if (d['uid'] == uid) continue;
-      final seatCount = d['seatCount'] as int;
-      final seatsFilled = (d['seatsFilled'] as int?) ?? 0;
-      if (seatsFilled >= seatCount) continue;
-
-      String driverName = '';
-      String driverPhotoUrl = '';
-      String driverPhone = '';
-      try {
-        final driverDoc =
-            await _db.collection('users').doc(d['uid'] as String).get();
-        driverName = driverDoc.data()?['fullName'] as String? ?? '';
-        driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
-        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
-      } catch (_) {}
-      if (driverName.isEmpty) driverName = 'Driver';
-
-      final date = (d['date'] as Timestamp).toDate();
-      final timeMap = d['time'] as Map<String, dynamic>;
-      final rideFrom = d['fromAddress'] as String;
-      final rideTo = d['toAddress'] as String;
-      final rideFromLat = (d['fromLat'] as num?)?.toDouble() ?? 
-          (d['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideFromLng = (d['fromLng'] as num?)?.toDouble() ?? 
-          (d['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideToLat = (d['toLat'] as num?)?.toDouble() ?? 
-          (d['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideToLng = (d['toLng'] as num?)?.toDouble() ?? 
-          (d['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideRouteDistanceKm = (d['routeDistanceKm'] as num?)?.toDouble();
-      final fareMap = d['fare'] as Map<String, dynamic>?;
-      final farePerSeat = (fareMap?['farePerSeat'] as num?)?.toDouble();
-
-      // Only worth a live Google Directions call when the user's commute
-      // points aren't already close to the ride's own endpoints — that case
-      // is already a match without needing a real-route detour check.
-      double? liveDetourKm;
-      final haveUserCoords = userHomeLat != null &&
-          userHomeLng != null &&
-          userOfficeLat != null &&
-          userOfficeLng != null;
-      final haveRideCoords = rideFromLat != null &&
-          rideFromLng != null &&
-          rideToLat != null &&
-          rideToLng != null;
-      if (haveUserCoords && haveRideCoords && rideRouteDistanceKm != null) {
-        final endpointsClose =
-            RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
-                    matchRadiusKm &&
-                RideMatcher.distanceKm(userOfficeLat, userOfficeLng, rideToLat, rideToLng) <=
-                    matchRadiusKm;
-        if (!endpointsClose) {
-          final viaDistanceKm = await _directions.fetchRouteDistanceKm(
-            originLat: rideFromLat,
-            originLng: rideFromLng,
-            destLat: rideToLat,
-            destLng: rideToLng,
-            waypoints: [
-              [userHomeLat, userHomeLng],
-              [userOfficeLat, userOfficeLng],
-            ],
-          );
-          if (viaDistanceKm != null) {
-            liveDetourKm = viaDistanceKm - rideRouteDistanceKm;
-          }
-        }
-      }
-
-      final match = RideMatcher.computeMatch(
-        userFromAddress: userHomeAddress,
-        userToAddress: userOfficeAddress,
-        userFromLat: userHomeLat,
-        userFromLng: userHomeLng,
-        userToLat: userOfficeLat,
-        userToLng: userOfficeLng,
-        rideFromAddress: rideFrom,
-        rideToAddress: rideTo,
-        rideFromLat: rideFromLat,
-        rideFromLng: rideFromLng,
-        rideToLat: rideToLat,
-        rideToLng: rideToLng,
-        liveDetourKm: liveDetourKm,
-        matchRadiusKm: matchRadiusKm,
-      );
-      if (!match.isMatch) continue;
-
-      final endpointsClose =
-          userHomeLat != null && userHomeLng != null &&
-          rideFromLat != null && rideFromLng != null &&
-          RideMatcher.distanceKm(userHomeLat, userHomeLng, rideFromLat, rideFromLng) <=
-                  RideMatcher.maxMatchDistanceKm;
-
-      rides.add(_AvailableRide(
-        id: doc.id,
-        driverId: d['uid'] as String,
-        driverName: driverName,
-        driverPhotoUrl: driverPhotoUrl,
-        driverPhone: driverPhone,
-        date: date,
-        time: TimeOfDay(
-            hour: timeMap['hour'] as int, minute: timeMap['minute'] as int),
-        fromAddress: rideFrom,
-        toAddress: rideTo,
-        fromLat: rideFromLat,
-        fromLng: rideFromLng,
-        toLat: rideToLat,
-        toLng: rideToLng,
-        seatsFilled: seatsFilled,
-        seatsTotal: seatCount,
-        vehicleType: d['vehicleType'] as String? ?? 'car',
-        alreadyRequested: requestedRideIds.contains(doc.id),
-        matchPercent: match.matchPercent,
-        distanceKm: match.distanceKm,
-        defaultPickupPoint:
-            userHomeAddress.isNotEmpty ? userHomeAddress : rideFrom,
-        farePerSeat: farePerSeat,
-        userFromAddress: userHomeAddress,
-        userToAddress: userOfficeAddress,
-        userFromLat: userHomeLat,
-        userFromLng: userHomeLng,
-        userToLat: userOfficeLat,
-        userToLng: userOfficeLng,
-      ));
-    }
-
-    rides.sort((a, b) => b.matchPercent.compareTo(a.matchPercent));
-    return rides;
-  }
-
-  Future<List<_RequestedRide>> _fetchRideRequests() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    final homeState = context.read<HomeBloc>().state;
-    final userDoc = await _db.collection('users').doc(uid).get();
-    final matchRadiusKm = (userDoc.data()?['routeMatchingRadius'] as num?)?.toDouble() ?? 5.0;
-
-    final snap = await _db
-        .collection('ride_requests')
-        .where('riderId', isEqualTo: uid)
-        .orderBy('rideDate', descending: true)
-        .get();
-
-    final requests = <_RequestedRide>[];
-    for (final doc in snap.docs) {
-      final d = doc.data();
-      if (d['status'] == 'completed' || d['status'] == 'cancelled') continue;
-      final rideId = d['rideId'] as String;
-
-      final rideDoc = await _db.collection('rides').doc(rideId).get();
-      final rideData = rideDoc.data();
-      if (rideData == null) continue;
-
-      String driverPhotoUrl = '';
-      String driverPhone = '';
-      try {
-        final driverDoc =
-            await _db.collection('users').doc(d['driverId'] as String).get();
-        driverPhotoUrl = driverDoc.data()?['profileImageUrl'] as String? ?? '';
-        driverPhone = driverDoc.data()?['phone'] as String? ?? '';
-      } catch (_) {}
-
-      final rideTime = d['rideTime'] as Map<String, dynamic>;
-      final storedDriverName = d['driverName'] as String?;
-
-      final rideFromLat = (rideData['fromLat'] as num?)?.toDouble() ?? 
-          (rideData['fromLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideFromLng = (rideData['fromLng'] as num?)?.toDouble() ?? 
-          (rideData['fromLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-      final rideToLat = (rideData['toLat'] as num?)?.toDouble() ?? 
-          (rideData['toLatLng'] as Map<String, dynamic>?)?['latitude'] as double?;
-      final rideToLng = (rideData['toLng'] as num?)?.toDouble() ?? 
-          (rideData['toLatLng'] as Map<String, dynamic>?)?['longitude'] as double?;
-
-      final match = RideMatcher.computeMatch(
-        userFromAddress: homeState.fromAddress ?? '',
-        userToAddress: homeState.toAddress ?? '',
-        userFromLat: homeState.fromLat,
-        userFromLng: homeState.fromLng,
-        userToLat: homeState.toLat,
-        userToLng: homeState.toLng,
-        rideFromAddress: rideData['fromAddress'] as String? ?? '',
-        rideToAddress: rideData['toAddress'] as String? ?? '',
-        rideFromLat: rideFromLat,
-        rideFromLng: rideFromLng,
-        rideToLat: rideToLat,
-        rideToLng: rideToLng,
-        matchRadiusKm: matchRadiusKm,
-      );
-
-      requests.add(_RequestedRide(
-        id: doc.id,
-        rideId: rideId,
-        driverId: d['driverId'] as String? ?? '',
-        driverName: (storedDriverName != null && storedDriverName.isNotEmpty)
-            ? storedDriverName
-            : 'Driver',
-        driverPhotoUrl: driverPhotoUrl,
-        driverPhone: driverPhone,
-        date: (d['rideDate'] as Timestamp).toDate(),
-        time: TimeOfDay(
-          hour: rideTime['hour'] as int,
-          minute: rideTime['minute'] as int,
-        ),
-        fromAddress: d['rideFrom'] as String,
-        toAddress: d['rideTo'] as String,
-        riderStartAddress: d['riderStartAddress'] as String? ?? '',
-        riderEndAddress: d['riderEndAddress'] as String? ?? '',
-        seatsFilled: rideData['seatsFilled'] as int? ?? 0,
-        seatsTotal: rideData['seatCount'] as int? ?? 0,
-        status: d['status'] as String? ?? 'pending',
-        farePerSeat: (rideData['fare'] as Map?)?['farePerSeat'] as double?,
-        vehicleType: rideData['vehicleType'] as String? ?? 'car',
-        matchPercent: match.matchPercent,
-        distanceKm: match.distanceKm,
-      ));
-    }
-    return requests;
-  }
-
   Widget _buildList(
-    Future<List<UpcomingTrip>> future,
+    TripsSectionStatus status,
+    List<UpcomingTrip> trips,
     String emptyLabel, {
     void Function(UpcomingTrip)? onTap,
   }) {
-    return FutureBuilder<List<UpcomingTrip>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final trips = snapshot.data ?? [];
-        if (trips.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.directions_car_outlined,
-                  size: 64,
-                  color: AppColors.grey300,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  emptyLabel,
-                  style: TextStyle(color: AppColors.grey500, fontSize: 16),
-                ),
-              ],
+    if (status == TripsSectionStatus.initial ||
+        status == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (trips.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.directions_car_outlined,
+              size: 64,
+              color: AppColors.grey300,
             ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          itemCount: trips.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final trip = trips[index];
-            return DriveTripCard(
-              trip: trip,
-              onTap: () => onTap?.call(trip),
-              onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
-              onEndRide: () => _updateTripStatus(trip.id, 'completed'),
-              onCancel: () => _handleCancelRide(trip),
+            const SizedBox(height: 16),
+            Text(
+              emptyLabel,
+              style: TextStyle(color: AppColors.grey500, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: trips.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final trip = trips[index];
+        return DriveTripCard(
+          trip: trip,
+          onTap: () => onTap?.call(trip),
+          onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
+          onEndRide: () => _updateTripStatus(trip.id, 'completed'),
+          onCancel: () => _handleCancelRide(trip),
+          onEditFare: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PricingPage(
+                  fromAddress: trip.fromAddress,
+                  toAddress: trip.toAddress,
+                  fromLat: trip.fromLat,
+                  fromLng: trip.fromLng,
+                  toLat: trip.toLat,
+                  toLng: trip.toLng,
+                  date: trip.date,
+                  time: trip.time,
+                  seatCount: trip.seatsTotal,
+                  vehicleType: trip.vehicleType ?? 'car',
+                  rideMode: 'offer',
+                ),
+              ),
+            );
+          },
+          onEditPayment: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentPage(
+                  rideId: trip.id,
+                  rideData: {
+                    'fromAddress': trip.fromAddress,
+                    'toAddress': trip.toAddress,
+                    'date': trip.date,
+                    'time': {
+                      'hour': trip.time.hour,
+                      'minute': trip.time.minute,
+                    },
+                    'fare': {'farePerSeat': trip.farePerSeat},
+                  },
+                ),
+              ),
             );
           },
         );
@@ -483,25 +229,10 @@ final matchRadiusKm =
         coPassengersCount: trip.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            await _db.collection('rides').doc(trip.id).update({
-              'status': 'cancelled',
-              'cancellationReason': reason,
-              'cancelledAt': FieldValue.serverTimestamp(),
-            });
-
-            final requests = await _db
-                .collection('ride_requests')
-                .where('rideId', isEqualTo: trip.id)
-                .get();
-
-            final batch = _db.batch();
-            for (var doc in requests.docs) {
-              batch.update(doc.reference, {
-                'status': 'cancelled',
-                'cancellationReason': 'Driver cancelled: $reason',
-              });
-            }
-            await batch.commit();
+            await sl<TripsRepository>().cancelOfferedRide(
+              trip.id,
+              reason: reason,
+            );
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
@@ -512,16 +243,15 @@ final matchRadiusKm =
                   'toAddress': trip.toAddress,
                 },
               );
-              setState(() {
-                _drivesFuture = _fetchTrips('offer');
-              });
+              _bloc.add(const TripsDrivesRequested());
               tripsContext.read<HomeBloc>().add(const RefreshUpcomingTrips());
             }
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(tripsContext).showSnackBar(
                 const SnackBar(
-                    content: Text('Could not cancel ride. Please try again.')),
+                  content: Text('Could not cancel ride. Please try again.'),
+                ),
               );
             }
           }
@@ -532,23 +262,42 @@ final matchRadiusKm =
 
   Future<void> _updateTripStatus(String tripId, String status) async {
     try {
-      await _db.collection('rides').doc(tripId).update({'status': status});
+      await sl<TripsRepository>().updateTripStatus(tripId, status);
       if (mounted) {
         context.read<HomeBloc>().add(const RefreshUpcomingTrips());
       }
-      setState(() {
-        _drivesFuture = _fetchTrips('offer');
-      });
+      _bloc.add(const TripsDrivesRequested());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update trip: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update trip: $e')));
       }
     }
   }
 
   Widget _buildTabToggle() {
+    if (_tabs.length == 1) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Text(
+            _tabs[0],
+            style: GoogleFonts.mulish(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              height: 1.0,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Container(
         height: 44,
@@ -584,11 +333,13 @@ final matchRadiusKm =
                     ),
                     child: Text(
                       _tabs[i],
-                      style: TextStyle(
+                      style: GoogleFonts.mulish(
                         color: selected ? AppColors.white : AppColors.black87,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 14,
+                        height: 1.0,
                       ),
                     ),
                   ),
@@ -603,6 +354,15 @@ final matchRadiusKm =
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocBuilder<TripsBloc, TripsState>(
+        builder: (context, tripsState) => _buildScaffold(context, tripsState),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, TripsState tripsState) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -610,304 +370,258 @@ final matchRadiusKm =
           icon: const Icon(Icons.arrow_back, color: AppColors.black),
           onPressed: widget.onBack ?? () => Navigator.of(context).pop(),
         ),
-        title: const Text('Trips',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        title: const Text(
+          'Trips',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
         centerTitle: true,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        bottom: context.read<HomeBloc>().state.travelPreference == 'both'
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(60),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-                  child: _buildTabToggle(),
-                ),
-              )
-            : null,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: _buildTabToggle(),
+          ),
+        ),
       ),
       body: TabBarView(
         controller: _tabController,
-        physics: context.read<HomeBloc>().state.travelPreference == 'both'
-            ? null
-            : const NeverScrollableScrollPhysics(),
         children: [
-          // Find ride tab
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      height: 45,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.grey200),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _findRideFilter,
-                          isDense: true,
-                          items: _findRideFilters
-                              .map((f) => DropdownMenuItem(
+          if (_travelPreference != 'drive')
+            // Find ride tab
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        height: 45,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F1F2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFDDDDDD)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _findRideFilter,
+                            isDense: true,
+                            items: _findRideFilters
+                                .map(
+                                  (f) => DropdownMenuItem(
                                     value: f,
-                                    child: Text(f,
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500)),
-                                  ))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _findRideFilter = val);
-                            }
-                          },
-                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                                    child: Text(
+                                      f,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _findRideFilter = val);
+                              }
+                            },
+                            icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _findRideFilter == 'Suggested Rides'
-                    ? FutureBuilder<List<_AvailableRide>>(
-                        future: _ridesFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          final rides = snapshot.data ?? [];
-                          if (!_hasCommuteLocation) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(32.0),
-                                child: Text(
-                                  'Enter your commute details on the Home tab to find matching rides.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      color: AppColors.grey600, fontSize: 16),
-                                ),
-                              ),
-                            );
-                          }
-                          if (rides.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'No matching rides found for your commute.',
-                                style: TextStyle(
-                                    color: AppColors.grey500, fontSize: 16),
-                              ),
-                            );
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              setState(() {
-                                _ridesFuture =
-                                    _fetchAvailableRidesFromHomeState();
-                              });
-                            },
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 16),
-                              itemCount: rides.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 14),
-                              itemBuilder: (context, index) =>
-                                  _AvailableRideCard(
-                                ride: rides[index],
-                                db: _db,
-                                onRequested: () {
-                                  setState(() {
-                                    _ridesFuture =
-                                        _fetchAvailableRidesFromHomeState();
-                                    _requestsFuture = _fetchRideRequests();
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    : FutureBuilder<List<_RequestedRide>>(
-                        future: _requestsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          final requests = snapshot.data ?? [];
-                          if (requests.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'You haven\'t requested any rides yet.',
-                                style: TextStyle(
-                                    color: AppColors.grey500, fontSize: 16),
-                              ),
-                            );
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              setState(() {
-                                _requestsFuture = _fetchRideRequests();
-                              });
-                            },
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 16),
-                              itemCount: requests.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 14),
-                              itemBuilder: (context, index) =>
-                                  _RequestedRideCard(
-                                request: requests[index],
-                                db: _db,
-                                onCancelled: () {
-                                  setState(() {
-                                    _requestsFuture = _fetchRideRequests();
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-
-          // Offer ride tab
-          _buildList(
-            _drivesFuture,
-            'You haven\'t offered any rides yet.',
-            onTap: (trip) {
-              final homeBloc = context.read<HomeBloc>();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: homeBloc,
-                    child: DrivesDetailPage(trip: trip),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
+                Expanded(
+                  child: _findRideFilter == 'Suggested Rides'
+                      ? _buildAvailableRidesSection(tripsState)
+                      : _buildRequestedRidesSection(tripsState),
+                ),
+              ],
+            ),
+
+          if (_travelPreference != 'ride')
+            // Offer ride tab
+            _buildList(
+              tripsState.drivesStatus,
+              tripsState.drives,
+              'You haven\'t offered any rides yet.',
+              onTap: (trip) {
+                final homeBloc = context.read<HomeBloc>();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: homeBloc,
+                      child: DrivesDetailPage(trip: trip),
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
-}
 
-class _AvailableRide {
-  const _AvailableRide({
-    required this.id,
-    required this.driverId,
-    required this.driverName,
-    this.driverPhotoUrl = '',
-    this.driverPhone = '',
-    required this.date,
-    required this.time,
-    required this.fromAddress,
-    required this.toAddress,
-    this.fromLat,
-    this.fromLng,
-    this.toLat,
-    this.toLng,
-    required this.seatsFilled,
-    required this.seatsTotal,
-    required this.vehicleType,
-    required this.alreadyRequested,
-    required this.matchPercent,
-    required this.defaultPickupPoint,
-    required this.distanceKm,
-    this.farePerSeat,
-    this.userFromAddress = '',
-    this.userToAddress = '',
-    this.userFromLat,
-    this.userFromLng,
-    this.userToLat,
-    this.userToLng,
-  });
-
-  final String id;
-  final String driverId;
-  final String driverName;
-  final String driverPhotoUrl;
-  final String driverPhone;
-  final DateTime date;
-  final TimeOfDay time;
-  final String fromAddress;
-  final String toAddress;
-  final double? fromLat;
-  final double? fromLng;
-  final double? toLat;
-  final double? toLng;
-  final int seatsFilled;
-  final int seatsTotal;
-  final String vehicleType;
-  final bool alreadyRequested;
-  final int matchPercent;
-  final String defaultPickupPoint;
-  final double? distanceKm;
-  final double? farePerSeat;
-  final String userFromAddress;
-  final String userToAddress;
-  final double? userFromLat;
-  final double? userFromLng;
-  final double? userToLat;
-  final double? userToLng;
-
-  String? get distanceLabel =>
-      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
-
-  String get timeLabel {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final m = time.minute.toString().padLeft(2, '0');
-    final p = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
+  Widget _buildAvailableRidesSection(TripsState tripsState) {
+    if (tripsState.availableRidesStatus == TripsSectionStatus.initial ||
+        tripsState.availableRidesStatus == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!tripsState.hasCommuteLocation) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            'Enter your commute details on the Home tab to find matching rides.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.grey600, fontSize: 16),
+          ),
+        ),
+      );
+    }
+    final rides = tripsState.availableRides;
+    if (rides.isEmpty) {
+      return Center(
+        child: Text(
+          'No matching rides found for your commute.',
+          style: TextStyle(color: AppColors.grey500, fontSize: 16),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => _requestAvailableRidesFromHomeState(),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: rides.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) => _AvailableRideCard(
+          ride: rides[index],
+          onRequested: () {
+            _requestAvailableRidesFromHomeState();
+            _requestRideRequestsFromHomeState();
+          },
+          onFindDriver: () {
+            final r = rides[index];
+            final homeBloc = context.read<HomeBloc>();
+            homeBloc.add(FromAddressChanged(r.userFromAddress, lat: r.userFromLat, lng: r.userFromLng));
+            homeBloc.add(ToAddressChanged(r.userToAddress, lat: r.userToLat, lng: r.userToLng));
+            
+            _bloc.add(
+              TripsAvailableRidesRequested(
+                fromAddress: r.userFromAddress,
+                toAddress: r.userToAddress,
+                fromLat: r.userFromLat,
+                fromLng: r.userFromLng,
+                toLat: r.userToLat,
+                toLng: r.userToLng,
+              ),
+            );
+            setState(() {
+              _findRideFilter = 'Suggested Rides';
+            });
+          },
+        ),
+      ),
+    );
   }
 
-  String get dateLabel {
-    const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month]} ${date.day}, ${date.year}';
+  Widget _buildRequestedRidesSection(TripsState tripsState) {
+    if (tripsState.requestedRidesStatus == TripsSectionStatus.initial ||
+        tripsState.requestedRidesStatus == TripsSectionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final requests = tripsState.requestedRides;
+    if (requests.isEmpty) {
+      return Center(
+        child: Text(
+          'You haven\'t requested any rides yet.',
+          style: TextStyle(color: AppColors.grey500, fontSize: 16),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async => _requestRideRequestsFromHomeState(),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: requests.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) => _RequestedRideCard(
+          request: requests[index],
+          onCancelled: () => _requestRideRequestsFromHomeState(),
+          onFindDriver: () {
+            final r = requests[index];
+            final homeBloc = context.read<HomeBloc>();
+            homeBloc.add(FromAddressChanged(r.riderStartAddress, lat: r.riderStartLat, lng: r.riderStartLng));
+            homeBloc.add(ToAddressChanged(r.riderEndAddress, lat: r.riderEndLat, lng: r.riderEndLng));
+            
+            _bloc.add(
+              TripsAvailableRidesRequested(
+                fromAddress: r.riderStartAddress,
+                toAddress: r.riderEndAddress,
+                fromLat: r.riderStartLat,
+                fromLng: r.riderStartLng,
+                toLat: r.riderEndLat,
+                toLng: r.riderEndLng,
+              ),
+            );
+            setState(() {
+              _findRideFilter = 'Suggested Rides';
+            });
+          },
+        ),
+      ),
+    );
   }
 }
 
 class _AvailableRideCard extends StatefulWidget {
   const _AvailableRideCard({
     required this.ride,
-    required this.db,
     required this.onRequested,
+    this.onFindDriver,
   });
 
-  final _AvailableRide ride;
-  final FirebaseFirestore db;
+  final AvailableRide ride;
   final VoidCallback onRequested;
+  final VoidCallback? onFindDriver;
 
   @override
   State<_AvailableRideCard> createState() => _AvailableRideCardState();
 }
 
 class _AvailableRideCardState extends State<_AvailableRideCard> {
-
   final _messageController = TextEditingController();
+  final _priceController = TextEditingController();
   bool _submitting = false;
   bool _justRequested = false;
+  bool _negotiating = false;
+  bool _offerSent = false;
+  bool _offerDeclined = false;
+  String _offeredPrice = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.ride.negotiatedPrice != null) {
+      _offeredPrice = widget.ride.negotiatedPrice!.toInt().toString();
+      if (widget.ride.negotiationStatus == 'declined') {
+        _offerDeclined = true;
+      } else {
+        _offerSent = true;
+      }
+    }
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -930,9 +644,9 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send message: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
         }
       } finally {
         if (mounted) setState(() => _submitting = false);
@@ -945,84 +659,11 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      String riderName = '';
-      String? riderPhotoUrl;
-      try {
-        final userDoc =
-            await widget.db.collection('users').doc(uid).get();
-        riderName = userDoc.data()?['fullName'] as String? ?? '';
-        riderPhotoUrl =
-            userDoc.data()?['profileImageUrl'] as String?;
-      } catch (_) {}
-
-      // Decide if we should meet at driver's endpoints (Endpoint Match) 
-      // or at rider's requested points (Detour Match).
-      bool isEndpointMatch = false;
-      if (widget.ride.userFromLat != null && widget.ride.userFromLng != null &&
-          widget.ride.fromLat != null && widget.ride.fromLng != null &&
-          widget.ride.userToLat != null && widget.ride.userToLng != null &&
-          widget.ride.toLat != null && widget.ride.toLng != null) {
-        final dFrom = RideMatcher.distanceKm(widget.ride.userFromLat!, widget.ride.userFromLng!, widget.ride.fromLat!, widget.ride.fromLng!);
-        final dTo = RideMatcher.distanceKm(widget.ride.userToLat!, widget.ride.userToLng!, widget.ride.toLat!, widget.ride.toLng!);
-        isEndpointMatch = dFrom <= RideMatcher.maxMatchDistanceKm && dTo <= RideMatcher.maxMatchDistanceKm;
-      }
-
-      final pickupPoint = isEndpointMatch ? widget.ride.fromAddress : 'Pick Up Point';
-      final pickupLatLng = isEndpointMatch 
-          ? {'latitude': widget.ride.fromLat, 'longitude': widget.ride.fromLng}
-          : (widget.ride.userFromLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userFromLat!, widget.ride.userFromLng!)
-              : {'latitude': widget.ride.userFromLat, 'longitude': widget.ride.userFromLng});
-
-      final dropOffPoint = isEndpointMatch ? widget.ride.toAddress : 'Drop Point';
-      final dropOffLatLng = isEndpointMatch
-          ? {'latitude': widget.ride.toLat, 'longitude': widget.ride.toLng}
-          : (widget.ride.userToLat != null && widget.ride.fromLat != null 
-              ? RideMatcher.projectPointToSegment(widget.ride.fromLat!, widget.ride.fromLng!, widget.ride.toLat!, widget.ride.toLng!, widget.ride.userToLat!, widget.ride.userToLng!)
-              : {'latitude': widget.ride.userToLat, 'longitude': widget.ride.userToLng});
-
-      final requestRef = widget.db.collection('ride_requests').doc();
-      final rideRef = widget.db.collection('rides').doc(widget.ride.id);
-      final batch = widget.db.batch();
-
-      batch.set(requestRef, {
-        'rideId': widget.ride.id,
-        'riderId': uid,
-        'riderName': riderName,
-        'riderPhotoUrl': riderPhotoUrl,
-        'riderStartAddress': widget.ride.userFromAddress,
-        'riderEndAddress': widget.ride.userToAddress,
-        'riderStartLatLng': (widget.ride.userFromLat != null && widget.ride.userFromLng != null) ? {
-          'latitude': widget.ride.userFromLat,
-          'longitude': widget.ride.userFromLng,
-        } : null,
-        'riderEndLatLng': (widget.ride.userToLat != null && widget.ride.userToLng != null) ? {
-          'latitude': widget.ride.userToLat,
-          'longitude': widget.ride.toLng,
-        } : null,
-        'pickupPoint': pickupPoint,
-        'pickupLatLng': pickupLatLng,
-        'dropOffPoint': dropOffPoint,
-        'dropOffLatLng': dropOffLatLng,
-        'pickupTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'message': messageText,
-        'status': 'accepted',
-        'createdAt': FieldValue.serverTimestamp(),
-        'rideFrom': widget.ride.fromAddress,
-        'rideTo': widget.ride.toAddress,
-        'rideDate': Timestamp.fromDate(widget.ride.date),
-        'rideTime': {
-          'hour': widget.ride.time.hour,
-          'minute': widget.ride.time.minute,
-        },
-        'driverId': widget.ride.driverId,
-        'driverName': widget.ride.driverName,
-      });
-      batch.update(rideRef, {'seatsFilled': FieldValue.increment(1)});
-      await batch.commit();
+      await sl<TripsRepository>().requestAvailableRide(
+        ride: widget.ride,
+        message: messageText,
+        negotiatedPrice: _offerSent ? double.tryParse(_offeredPrice) : null,
+      );
 
       if (messageText.isNotEmpty) {
         await _sendMessage(messageText);
@@ -1039,37 +680,18 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not request ride: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not request ride: $e')));
       }
     }
   }
 
   Future<void> _sendMessage(String text) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    String senderName = '';
-    try {
-      final userDoc = await widget.db.collection('users').doc(uid).get();
-      senderName = userDoc.data()?['fullName'] as String? ?? 'User';
-    } catch (_) {}
-
-    final ids = [uid, widget.ride.driverId]..sort();
-    final chatId = ids.join('_');
-
-    await sl<ChatRepository>().sendMessage(
-      chatId,
-      ChatMessage(
-        id: '',
-        senderId: uid,
-        receiverId: widget.ride.driverId,
-        text: text,
-        timestamp: DateTime.now(),
-      ),
-      senderName,
-      widget.ride.driverName,
+    await sl<RidesRepository>().sendRideChatMessage(
+      driverId: widget.ride.driverId,
+      driverName: widget.ride.driverName,
+      text: text,
     );
   }
 
@@ -1078,396 +700,805 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
     final r = widget.ride;
     final requested = r.alreadyRequested || _justRequested;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RideDetailsPage(
-              ride: RideMatch(
-                id: r.id,
-                driverId: r.driverId,
-                driverName: r.driverName,
-                date: r.date,
-                time: r.time,
-                fromAddress: r.fromAddress,
-                toAddress: r.toAddress,
-                seatsFilled: r.seatsFilled,
-                seatsTotal: r.seatsTotal,
-                vehicleType: r.vehicleType,
-                alreadyRequested: r.alreadyRequested,
-                distanceKm: r.distanceKm,
-                matchPercent: r.matchPercent,
-                farePerSeat: r.farePerSeat,
-                fromLat: r.fromLat,
-                fromLng: r.fromLng,
-                toLat: r.toLat,
-                toLng: r.toLng,
-              ),
-              db: widget.db,
-              riderFromAddress: r.userFromAddress,
-              riderFromLat: r.userFromLat,
-              riderFromLng: r.userFromLng,
-              riderToAddress: r.userToAddress,
-              riderToLat: r.userToLat,
-              riderToLng: r.userToLng,
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDDDDDD)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top banner + match% overlay ──
+          SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            color: Colors.white,
+                            size: 15,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                            style: GoogleFonts.mulish(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              height: 18 / 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: GoogleFonts.mulish(
+                          color: AppColors.primaryGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 18 / 14,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.more_vert,
+                        size: 18,
+                        color: Color(0xFF757474),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top banner + match% overlay (pinned to extreme corners) ──
-            SizedBox(
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: ColoredBox(
-                      color: AppColors.primaryGreen,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.person_outline,
-                                color: AppColors.white, size: 15),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      r.dateLabel,
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        height: 18 / 16,
+                        color: const Color(0xFF1E1E1E),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const Spacer(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        const Icon(
+                          Icons.directions_walk,
+                          size: 12,
+                          color: Color(0xFF757474),
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          '${r.matchPercent}% Match',
-                          style: const TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontSize: 13,
+                          r.distanceLabel ?? '500 m',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            color: const Color(0xFF757474),
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.more_vert, size: 18, color: AppColors.grey600),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        r.dateLabel,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppColors.black87,
-                        ),
-                      ),
-                      const Spacer(),
-                      Transform.translate(
-                        offset: const Offset(0, -2),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Icon(Icons.directions_walk,
-                                size: 12, color: AppColors.grey600),
-                            const SizedBox(width: 4),
-                            Text(
-                              r.distanceLabel ??
-                                  (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.grey600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(Icons.chevron_right,
-                                size: 14, color: AppColors.grey400),
-                            const SizedBox(width: 6),
-                            Icon(
-                              r.vehicleType == 'bike'
-                                  ? Icons.two_wheeler
-                                  : Icons.directions_car,
-                              size: 14,
-                              color: AppColors.grey700,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 2),
-
-                  // ── Row 4: time + vehicle pill ───────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        r.timeLabel,
-                        style: const TextStyle(
-                            color: AppColors.black45, fontSize: 12),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.grey300),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              r.vehicleType == 'bike'
-                                  ? Icons.two_wheeler
-                                  : Icons.directions_car,
-                              size: 14,
-                              color: AppColors.black87,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              r.vehicleType == 'bike' ? 'Bike' : 'Car',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-                  const Divider(height: 1, color: AppColors.black12),
-                  const SizedBox(height: 8),
-
-                  // Driver info
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.grey200,
-                        backgroundImage: r.driverPhotoUrl.isNotEmpty
-                            ? NetworkImage(r.driverPhotoUrl)
-                            : null,
-                        child: r.driverPhotoUrl.isEmpty
-                            ? Icon(Icons.person, color: AppColors.grey400)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r.driverName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            Text(
-                              'Verified ID',
-                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: r.driverPhone.isNotEmpty
-                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
-                            : null,
-                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
-                      ),
-                      const SizedBox(width: 2),
-                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
-                      const SizedBox(width: 2),
-                      GestureDetector(
-                        onTap: () {},
-                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Row(
-                    children: [
-                      _dot(filled: false),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(r.fromAddress,
-                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(
-                        3,
-                        (i) => Container(
-                          width: 1.5,
-                          height: 3,
-                          margin: EdgeInsets.only(
-                            top: i == 0 ? 0 : 1,
-                            bottom: i == 2 ? 0 : 1,
-                          ),
-                          color: AppColors.black26,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      _dot(filled: true),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(r.toAddress,
-                            style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-                  Divider(color: AppColors.grey200, height: 1),
-                  const SizedBox(height: 8),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        r.farePerSeat != null
-                            ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
-                            : 'Fare not set',
-                        style: TextStyle(
-                          color: r.farePerSeat != null
-                              ? AppColors.primaryGreen
-                              : AppColors.grey500,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'View Details',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.black54,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.only(
-                        left: 16, right: 4, top: 4, bottom: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.grey100,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            enabled: !_submitting,
-                            style: const TextStyle(fontSize: 13),
-                            onChanged: (_) => setState(() {}),
-                            decoration: InputDecoration(
-                              hintText: 'Share message with driver',
-                              hintStyle: TextStyle(
-                                  fontSize: 13, color: AppColors.grey400),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 6),
-                            ),
+                            height: 18 / 12,
                           ),
                         ),
                         const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: _submitting ? null : _requestRide,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: (requested && _messageController.text.trim().isEmpty) ? AppColors.grey400 : AppColors.primaryGreen,
-                              borderRadius: BorderRadius.circular(30),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 14,
+                          color: Color(0xFFDDDDDD),
+                        ),
+                        const SizedBox(width: 6),
+                        Image.asset(
+                          'assets/images/location_pin.png',
+                          width: 14,
+                          height: 14,
+                          color: const Color(0xFF757474),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── Row: time + vehicle pill ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      r.timeLabel,
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF1E1E1E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 18 / 16,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFDDDDDD)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            r.vehicleType == 'bike'
+                                ? Icons.two_wheeler
+                                : Icons.directions_car,
+                            size: 14,
+                            color: const Color(0xFF1D1D1D),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            r.vehicleType == 'bike' ? 'Bike' : 'Car',
+                            style: GoogleFonts.mulish(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: const Color(0xFF1D1D1D),
                             ),
-                            child: _submitting
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: AppColors.white),
-                                  )
-                                : Text(
-                                    (requested && _messageController.text.trim().isNotEmpty) ? 'Send' : (requested ? 'Requested' : 'Request ride'),
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+                const Divider(height: 1, color: Color(0xFFDDDDDD)),
+                const SizedBox(height: 8),
+
+                // Driver info
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: const Color(0xFFF0F1F2),
+                      backgroundImage: r.driverPhotoUrl.isNotEmpty
+                          ? NetworkImage(r.driverPhotoUrl)
+                          : null,
+                      child: r.driverPhotoUrl.isEmpty
+                          ? const Icon(Icons.person, color: Color(0xFFB6B6B6))
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.driverName,
+                            style: GoogleFonts.mulish(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              height: 18 / 16,
+                              color: const Color(0xFF1D1D1D),
+                            ),
+                          ),
+                          Text(
+                            'Verified ID',
+                            style: GoogleFonts.mulish(
+                              color: const Color(0xFF757474),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              height: 18 / 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: r.driverPhone.isNotEmpty
+                          ? () => LocationShareHelper.launchDialer(
+                                r.driverPhone,
+                              )
+                          : null,
+                      child: const Icon(
+                        Icons.phone_outlined,
+                        size: 18,
+                        color: Color(0xFF757474),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '|',
+                      style: TextStyle(
+                        color: Colors.grey[300],
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {},
+                      child: Image.asset(
+                        'assets/images/chat_square.png',
+                        width: 18,
+                        height: 18,
+                        color: const Color(0xFF757474),
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 18,
+                          color: Color(0xFF757474),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    _dot(filled: false),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        r.fromAddress,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          height: 18 / 16,
+                          color: const Color(0xFF4C515B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      3,
+                      (i) => Container(
+                        width: 1.5,
+                        height: 3,
+                        margin: EdgeInsets.only(
+                          top: i == 0 ? 0 : 1,
+                          bottom: i == 2 ? 0 : 1,
+                        ),
+                        color: const Color(0xFFDDDDDD),
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    _dot(filled: true),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        r.toAddress,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          height: 18 / 16,
+                          color: const Color(0xFF4C515B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+                const Divider(color: Color(0xFFDDDDDD), height: 1),
+                const SizedBox(height: 12),
+
+                // ── Price + Negotiate ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      r.effectiveFare != null
+                          ? '₹${r.effectiveFare!.toStringAsFixed(2)} / seat'
+                          : 'Fare not set',
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF1B8A3F),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 18 / 16,
+                      ),
+                    ),
+                    if (_offerDeclined)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC82323).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFC82323).withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          '₹ $_offeredPrice - Declined',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 16.5 / 12,
+                            color: const Color(0xFFC82323),
+                          ),
+                        ),
+                      )
+                    else if (_offerSent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF046B4B).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF046B4B).withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          'Offer : ₹ $_offeredPrice',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 16.5 / 12,
+                            color: const Color(0xFF046B4B),
+                          ),
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _negotiating = !_negotiating;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDDDDDD).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFDDDDDD)),
+                          ),
+                          child: Text(
+                            _negotiating ? 'Cancel' : 'Negotiate',
+                            style: GoogleFonts.mulish(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 16.5 / 12,
+                              color: const Color(0xFF1E1E1E),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                if (_offerDeclined) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, color: Color(0xFFC82323), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Driver declined your offer. Try a higher offer or find another driver.',
+                          style: GoogleFonts.mulish(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            height: 1.4, // 20 / 14
+                            color: const Color(0xFFC82323),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: widget.onFindDriver,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFDDDDDD)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: const Color(0xFF1E1E1E),
+                          ),
+                          child: Text(
+                            'Find Driver',
+                            style: GoogleFonts.mulish(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _offerDeclined = false;
+                              _negotiating = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEFEFE),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFFDDDDDD)),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Revise Offer',
+                            style: GoogleFonts.mulish(
+                              color: const Color(0xFF1E1E1E),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (_offerSent && widget.ride.negotiationStatus != 'accepted') ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Offer Sent - waiting for driver to respond',
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.125, // 18/16
+                      color: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (_negotiating) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'What would you like to offer ?',
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.125, // 18/16
+                      color: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDDDDDD).withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFDDDDDD)),
+                    ),
+                    child: TextField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      style: GoogleFonts.mulish(fontSize: 16, color: const Color(0xFF1E1E1E)),
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your price',
+                        hintStyle: TextStyle(fontSize: 16, color: Color(0xFF616874), fontWeight: FontWeight.normal),
+                        border: InputBorder.none,
+                        prefixIcon: Icon(Icons.currency_rupee, size: 16, color: Color(0xFF1E1E1E)),
+                        prefixIconConstraints: BoxConstraints(minWidth: 24),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final price = double.tryParse(_priceController.text);
+                      if (price == null) return;
+
+                      if (widget.ride.requestId != null) {
+                        setState(() => _submitting = true);
+                        try {
+                          await sl<TripsRepository>().reviseNegotiation(
+                            requestId: widget.ride.requestId!,
+                            price: price,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _offerSent = true;
+                              _offeredPrice = _priceController.text;
+                              _negotiating = false;
+                              _submitting = false;
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _submitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to update offer: $e')),
+                            );
+                          }
+                        }
+                      } else {
+                        setState(() {
+                          _offerSent = true;
+                          _offeredPrice = _priceController.text;
+                          _negotiating = false;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _submitting ? const Color(0xFF757474) : const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _submitting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFFFEFEFE),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                height: 1.0,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFDDDDDD)),
+                const SizedBox(height: 16),
+
+                Text(
+                  'Payment Method',
+                  style: GoogleFonts.mulish(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.125, // 18/16
+                    color: const Color(0xFF1E1E1E),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet_outlined, size: 20, color: Color(0xFF1E1E1E)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'UPI',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            color: const Color(0xFF1E1E1E),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(width: 20),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.payments_outlined, size: 20, color: Color(0xFF1E1E1E)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Cash',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                Container(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 4,
+                    top: 4,
+                    bottom: 4,
                   ),
-                ],
-              ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F1F2),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          enabled: !_submitting,
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 18 / 16,
+                            color: const Color(0xFF616874),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: requested
+                                ? 'Request Sent. Share a message'
+                                : 'Share message with driver',
+                            hintStyle: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF616874),
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 6,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: _submitting ? null : _requestRide,
+                        child: Container(
+                          padding: _messageController.text.trim().isEmpty && requested
+                              ? const EdgeInsets.all(10)
+                              : const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                          decoration: BoxDecoration(
+                            color: _messageController.text.trim().isEmpty && requested
+                                ? Colors.transparent
+                                : AppColors.primaryGreen,
+                            borderRadius: BorderRadius.circular(30),
+                            border: _messageController.text.trim().isEmpty && requested
+                                ? Border.all(color: AppColors.primaryGreen, width: 1.5)
+                                : null,
+                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : _messageController.text.trim().isEmpty && requested
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: AppColors.primaryGreen,
+                                      size: 20,
+                                    )
+                                  : Text(
+                                      _messageController.text.trim().isNotEmpty
+                                          ? 'Send'
+                                          : (requested ? 'Requested' : 'Request ride'),
+                                      style: GoogleFonts.mulish(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.28, // 18 / 14
+                                      ),
+                                    ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RideDetailsPage(
+                            ride: RideMatch(
+                              id: r.id,
+                              driverId: r.driverId,
+                              driverName: r.driverName,
+                              date: r.date,
+                              time: r.time,
+                              fromAddress: r.fromAddress,
+                              toAddress: r.toAddress,
+                              seatsFilled: r.seatsFilled,
+                              seatsTotal: r.seatsTotal,
+                              vehicleType: r.vehicleType,
+                              alreadyRequested: r.alreadyRequested,
+                              distanceKm: r.distanceKm,
+                              matchPercent: r.matchPercent,
+                              farePerSeat: r.farePerSeat,
+                              fromLat: r.fromLat,
+                              fromLng: r.fromLng,
+                              toLat: r.toLat,
+                              toLng: r.toLng,
+                            ),
+                            riderFromAddress: r.userFromAddress,
+                            riderFromLat: r.userFromLat,
+                            riderFromLng: r.userFromLng,
+                            riderToAddress: r.userToAddress,
+                            riderToLat: r.userToLat,
+                            riderToLng: r.userToLng,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'View Ride Details',
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        color: const Color(0xFF616874),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 14,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1477,7 +1508,10 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
       width: 10,
       height: 10,
       decoration: filled
-          ? const BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGreen)
+          ? const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGreen,
+            )
           : BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.primaryGreen, width: 1.5),
@@ -1486,91 +1520,47 @@ class _AvailableRideCardState extends State<_AvailableRideCard> {
   }
 }
 
-class _RequestedRide {
-  final String id;
-  final String rideId;
-  final String driverId;
-  final String driverName;
-  final String driverPhotoUrl;
-  final String driverPhone;
-  final DateTime date;
-  final TimeOfDay time;
-  final String fromAddress;
-  final String toAddress;
-  final String riderStartAddress;
-  final String riderEndAddress;
-  final int seatsFilled;
-  final int seatsTotal;
-  final String status;
-  final double? farePerSeat;
-  final String vehicleType;
-  final int matchPercent;
-  final double? distanceKm;
-
-  _RequestedRide({
-    required this.id,
-    required this.rideId,
-    required this.driverId,
-    required this.driverName,
-    required this.driverPhotoUrl,
-    this.driverPhone = '',
-    required this.date,
-    required this.time,
-    required this.fromAddress,
-    required this.toAddress,
-    required this.riderStartAddress,
-    required this.riderEndAddress,
-    required this.seatsFilled,
-    required this.seatsTotal,
-    required this.status,
-    this.farePerSeat,
-    required this.vehicleType,
-    required this.matchPercent,
-    this.distanceKm,
-  });
-
-  String? get distanceLabel =>
-      distanceKm == null ? null : RideMatcher.formatDistance(distanceKm!);
-
-  String get timeLabel {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final m = time.minute.toString().padLeft(2, '0');
-    final p = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
-
-  String get dateLabel {
-    const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month]} ${date.day}, ${date.year}';
-  }
-}
-
 class _RequestedRideCard extends StatefulWidget {
   const _RequestedRideCard({
     required this.request,
-    required this.db,
     required this.onCancelled,
+    required this.onFindDriver,
   });
 
-  final _RequestedRide request;
-  final FirebaseFirestore db;
+  final RequestedRide request;
   final VoidCallback onCancelled;
+  final VoidCallback onFindDriver;
 
   @override
   State<_RequestedRideCard> createState() => _RequestedRideCardState();
 }
 
 class _RequestedRideCardState extends State<_RequestedRideCard> {
-  bool _cancelling = false;
   final _messageController = TextEditingController();
+  final _priceController = TextEditingController();
   bool _submitting = false;
+  bool _negotiating = false;
+  bool _offerSent = false;
+  bool _offerDeclined = false;
+  String _offeredPrice = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.request.negotiatedPrice != null) {
+      _offeredPrice = widget.request.negotiatedPrice!.toInt().toString();
+      if (widget.request.negotiationStatus == 'declined') {
+        _offerDeclined = true;
+      } else {
+        _offerSent = true;
+      }
+    }
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -1580,42 +1570,23 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
 
     setState(() => _submitting = true);
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      String senderName = '';
-      try {
-        final userDoc = await widget.db.collection('users').doc(uid).get();
-        senderName = userDoc.data()?['fullName'] as String? ?? 'User';
-      } catch (_) {}
-
-      final ids = [uid, widget.request.driverId]..sort();
-      final chatId = ids.join('_');
-
-      await sl<ChatRepository>().sendMessage(
-        chatId,
-        ChatMessage(
-          id: '',
-          senderId: uid,
-          receiverId: widget.request.driverId,
-          text: text,
-          timestamp: DateTime.now(),
-        ),
-        senderName,
-        widget.request.driverName,
+      await sl<RidesRepository>().sendRideChatMessage(
+        driverId: widget.request.driverId,
+        driverName: widget.request.driverName,
+        text: text,
       );
 
       if (mounted) {
         _messageController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Message sent to driver')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Message sent to driver')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -1634,25 +1605,17 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
         coPassengersCount: r.seatsFilled,
         onCancelConfirmed: (reason) async {
           try {
-            final batch = widget.db.batch();
-            batch.update(widget.db.collection('ride_requests').doc(r.id), {
-              'status': 'cancelled',
-              'cancellationReason': reason,
-              'cancelledAt': FieldValue.serverTimestamp(),
-            });
-            batch.update(widget.db.collection('rides').doc(r.rideId), {
-              'seatsFilled': FieldValue.increment(-1),
-            });
-            await batch.commit();
+            await sl<TripsRepository>().cancelRideRequest(
+              requestId: r.id,
+              rideId: r.rideId,
+              reason: reason,
+            );
 
             if (mounted) {
               Navigator.pop(dialogContext); // Close dialog
               riderContext.push(
                 '/ride-cancelled',
-                extra: {
-                  'fromAddress': r.fromAddress,
-                  'toAddress': r.toAddress,
-                },
+                extra: {'fromAddress': r.fromAddress, 'toAddress': r.toAddress},
               );
               widget.onCancelled();
             }
@@ -1660,7 +1623,8 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
             if (mounted) {
               ScaffoldMessenger.of(riderContext).showSnackBar(
                 const SnackBar(
-                    content: Text('Could not cancel ride. Please try again.')),
+                  content: Text('Could not cancel ride. Please try again.'),
+                ),
               );
             }
           }
@@ -1671,13 +1635,13 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
 
   Future<void> _showDriverProfile(BuildContext context) async {
     final r = widget.request;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: FutureBuilder<DocumentSnapshot>(
-          future: widget.db.collection('users').doc(r.driverId).get(),
+        child: FutureBuilder<DriverProfileStats>(
+          future: sl<TripsRepository>().getDriverProfileStats(r.driverId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -1685,12 +1649,12 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 child: Center(child: CircularProgressIndicator()),
               );
             }
-            
-            final userData = snapshot.data?.data() as Map<String, dynamic>?;
-            final employeeId = userData?['employeeId'] as String? ?? 'ASC 2001922';
-            final completedRides = userData?['completedRidesCount'] as int? ?? 30;
-            final rating = (userData?['rating'] as num?)?.toDouble() ?? 4.72;
-            final ratingCount = userData?['ratingCount'] as int? ?? 15;
+
+            final stats = snapshot.data ?? const DriverProfileStats();
+            final employeeId = stats.employeeId;
+            final completedRides = stats.completedRidesCount;
+            final rating = stats.rating;
+            final ratingCount = stats.ratingCount;
 
             return Container(
               padding: const EdgeInsets.all(20),
@@ -1713,7 +1677,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 ? NetworkImage(r.driverPhotoUrl)
                                 : null,
                             child: r.driverPhotoUrl.isEmpty
-                                ? Icon(Icons.person, size: 40, color: AppColors.grey400)
+                                ? Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: AppColors.grey400,
+                                  )
                                 : null,
                           ),
                         ],
@@ -1737,16 +1705,32 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                   children: [
                                     GestureDetector(
                                       onTap: r.driverPhone.isNotEmpty
-                                          ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                                          ? () =>
+                                                LocationShareHelper.launchDialer(
+                                                  r.driverPhone,
+                                                )
                                           : null,
-                                      child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
+                                      child: Icon(
+                                        Icons.phone_outlined,
+                                        size: 18,
+                                        color: AppColors.grey600,
+                                      ),
                                     ),
                                     const SizedBox(width: 2),
-                                    Text('|', style: TextStyle(color: AppColors.grey400)),
+                                    Text(
+                                      '|',
+                                      style: TextStyle(
+                                        color: AppColors.grey400,
+                                      ),
+                                    ),
                                     const SizedBox(width: 2),
                                     GestureDetector(
                                       onTap: () {},
-                                      child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
+                                      child: Icon(
+                                        Icons.chat_bubble_outline,
+                                        size: 18,
+                                        color: AppColors.grey600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1770,7 +1754,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 14),
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primaryGreen,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Verified ID',
@@ -1784,7 +1772,11 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.star, color: Colors.orange, size: 16),
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.orange,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '$rating ($ratingCount)',
@@ -1813,44 +1805,15 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
   @override
   Widget build(BuildContext context) {
     final r = widget.request;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RideDetailsPage(
-              ride: RideMatch(
-                id: r.rideId,
-                driverId: r.driverId,
-                driverName: r.driverName,
-                driverPhotoUrl: r.driverPhotoUrl,
-                date: r.date,
-                time: r.time,
-                fromAddress: r.fromAddress,
-                toAddress: r.toAddress,
-                seatsFilled: r.seatsFilled,
-                seatsTotal: r.seatsTotal,
-                vehicleType: r.vehicleType,
-                alreadyRequested: true,
-                distanceKm: null,
-                matchPercent: 100,
-                farePerSeat: r.farePerSeat,
-              ),
-              db: widget.db,
-              riderFromAddress: r.riderStartAddress,
-              riderToAddress: r.riderEndAddress,
-            ),
-          ),
-        );
-      },
-      child: Container(
+    return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDDDDDD)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -1859,80 +1822,95 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: seats filled + popup menu
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-                child: ColoredBox(
-                  color: const Color(0xFF6B6B6B),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.person_outline, color: AppColors.white, size: 15),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${r.seatsFilled}/${r.seatsTotal} seats filled',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+          // Top banner + match% overlay
+          SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  child: ColoredBox(
+                    color: AppColors.primaryGreen,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            color: Colors.white,
+                            size: 15,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Text(
+                            '${r.seatsFilled}/${r.seatsTotal} seats filled',
+                            style: GoogleFonts.mulish(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              height: 18 / 14,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, right: 0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${r.matchPercent}% Match',
-                      style: const TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
-                      onSelected: (val) {
-                        if (val == 'cancel') _handleCancelRequest();
-                      },
-                      offset: const Offset(8, 0),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'cancel',
-                          child: Row(
-                            children: [
-                              Icon(Icons.cancel_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Cancel Ride'),
-                            ],
-                          ),
+                Positioned(
+                  top: 0,
+                  right: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${r.matchPercent}% Match',
+                        style: GoogleFonts.mulish(
+                          color: AppColors.primaryGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 18 / 14,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: Color(0xFF757474),
+                          size: 18,
+                        ),
+                        onSelected: (val) {
+                          if (val == 'cancel') _handleCancelRequest();
+                        },
+                        offset: const Offset(8, 0),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'cancel',
+                            child: Row(
+                              children: [
+                                Icon(Icons.cancel_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Cancel Ride'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1941,52 +1919,73 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                   children: [
                     Text(
                       r.dateLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
-                    Transform.translate(
-                      offset: const Offset(0, -2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(Icons.directions_walk, size: 12, color: AppColors.grey600),
-                          const SizedBox(width: 4),
-                          Text(
-                            r.distanceLabel ?? (r.vehicleType == 'bike' ? 'Bike' : 'Car'),
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.grey600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.chevron_right, size: 14, color: AppColors.grey400),
-                          const SizedBox(width: 6),
-                          Icon(
-                            r.vehicleType == 'bike' ? Icons.two_wheeler : Icons.directions_car,
-                            size: 14,
-                            color: AppColors.grey700,
-                          ),
-                        ],
+                      style: GoogleFonts.mulish(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        height: 18 / 16,
+                        color: const Color(0xFF1E1E1E),
                       ),
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.directions_walk,
+                          size: 12,
+                          color: Color(0xFF757474),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          r.distanceLabel ?? '500 m',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            color: const Color(0xFF757474),
+                            fontWeight: FontWeight.w600,
+                            height: 18 / 12,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 14,
+                          color: Color(0xFFDDDDDD),
+                        ),
+                        const SizedBox(width: 6),
+                        Image.asset(
+                          'assets/images/location_pin.png',
+                          width: 14,
+                          height: 14,
+                          color: const Color(0xFF757474),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                // ── Row 4: time + vehicle pill ───────────────────────────
+                
+                const SizedBox(height: 14),
+
+                // ── Row: time + vehicle pill ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       r.timeLabel,
-                      style: const TextStyle(
-                          color: AppColors.black45, fontSize: 12),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF1E1E1E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 18 / 16,
+                      ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.white,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.grey300),
+                        border: Border.all(color: const Color(0xFFDDDDDD)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1996,13 +1995,16 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                                 ? Icons.two_wheeler
                                 : Icons.directions_car,
                             size: 14,
-                            color: AppColors.black87,
+                            color: const Color(0xFF1D1D1D),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             r.vehicleType == 'bike' ? 'Bike' : 'Car',
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.normal, color: AppColors.black87),
+                            style: GoogleFonts.mulish(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: const Color(0xFF1D1D1D),
+                            ),
                           ),
                         ],
                       ),
@@ -2011,7 +2013,7 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 ),
 
                 const SizedBox(height: 6),
-                const Divider(height: 1, color: AppColors.black12),
+                const Divider(height: 1, color: Color(0xFFDDDDDD)),
                 const SizedBox(height: 6),
 
                 // Driver info
@@ -2022,12 +2024,12 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: AppColors.grey200,
+                        backgroundColor: const Color(0xFFF0F1F2),
                         backgroundImage: r.driverPhotoUrl.isNotEmpty
                             ? NetworkImage(r.driverPhotoUrl)
                             : null,
                         child: r.driverPhotoUrl.isEmpty
-                            ? Icon(Icons.person, color: AppColors.grey400)
+                            ? const Icon(Icons.person, color: Color(0xFFB6B6B6))
                             : null,
                       ),
                       const SizedBox(width: 12),
@@ -2037,87 +2039,431 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                           children: [
                             Text(
                               r.driverName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
+                              style: GoogleFonts.mulish(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                height: 18 / 16,
+                                color: const Color(0xFF1D1D1D),
+                              ),
                             ),
                             Text(
                               'Verified ID',
-                              style: TextStyle(color: AppColors.grey500, fontSize: 11),
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFF757474),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                height: 18 / 14,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       GestureDetector(
                         onTap: r.driverPhone.isNotEmpty
-                            ? () => LocationShareHelper.launchDialer(r.driverPhone)
+                            ? () => LocationShareHelper.launchDialer(
+                                r.driverPhone,
+                              )
                             : null,
-                        child: Icon(Icons.phone_outlined, size: 18, color: AppColors.grey600),
+                        child: const Icon(
+                          Icons.phone_outlined,
+                          size: 18,
+                          color: Color(0xFF757474),
+                        ),
                       ),
-                      const SizedBox(width: 2),
-                      Text('|', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 8),
+                      Text(
+                        '|',
+                        style: TextStyle(
+                          color: Colors.grey[300],
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () {},
-                        child: Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.grey600),
+                        child: Image.asset(
+                          'assets/images/chat_square.png',
+                          width: 18,
+                          height: 18,
+                          color: const Color(0xFF757474),
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.chat_bubble_outline,
+                            size: 18,
+                            color: Color(0xFF757474),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
                 Row(
                   children: [
                     _dot(filled: false),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(r.fromAddress,
-                          style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        r.fromAddress,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          height: 18 / 16,
+                          color: const Color(0xFF4C515B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
-                  child: Container(width: 1.5, height: 10, color: AppColors.black26),
+                  child: Container(
+                    width: 1.5,
+                    height: 10,
+                    color: const Color(0xFFDDDDDD),
+                  ),
                 ),
                 Row(
                   children: [
                     _dot(filled: true),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(r.toAddress,
-                          style: const TextStyle(fontSize: 13, color: AppColors.black54),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        r.toAddress,
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          height: 18 / 16,
+                          color: const Color(0xFF4C515B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                const Divider(color: Color(0xFFDDDDDD), height: 1),
+                const SizedBox(height: 12),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      r.farePerSeat != null
-                          ? '₹${r.farePerSeat!.toStringAsFixed(2)} / seat'
+                      r.effectiveFare != null
+                          ? '₹${r.effectiveFare!.toStringAsFixed(2)} / seat'
                           : 'Fare not set',
-                      style: TextStyle(
-                        color: r.farePerSeat != null
-                            ? AppColors.primaryGreen
-                            : AppColors.grey500,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF1B8A3F),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 18 / 16,
                       ),
                     ),
-                    const Text(
-                      'View Details',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.black54,
-                        decoration: TextDecoration.underline,
+                    if (_offerDeclined)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC82323).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFC82323).withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          '₹ $_offeredPrice - Declined',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 16.5 / 12,
+                            color: const Color(0xFFC82323),
+                          ),
+                        ),
+                      )
+                    else if (_offerSent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF046B4B).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF046B4B).withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          'Offer : ₹ $_offeredPrice',
+                          style: GoogleFonts.mulish(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 16.5 / 12,
+                            color: const Color(0xFF046B4B),
+                          ),
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _negotiating = !_negotiating;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDDDDDD).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFDDDDDD)),
+                          ),
+                          child: Text(
+                            _negotiating ? 'Cancel' : 'Negotiate',
+                            style: GoogleFonts.mulish(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 16.5 / 12,
+                              color: const Color(0xFF1E1E1E),
+                            ),
+                          ),
+                        ),
                       ),
+                  ],
+                ),
+
+                if (_offerDeclined) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, color: Color(0xFFC82323), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Driver declined your offer. Try a higher offer or find another driver.',
+                          style: GoogleFonts.mulish(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            height: 1.4, // 20 / 14
+                            color: const Color(0xFFC82323),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: widget.onFindDriver,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFDDDDDD)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: const Color(0xFF1E1E1E),
+                          ),
+                          child: Text(
+                            'Find Driver',
+                            style: GoogleFonts.mulish(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _offerDeclined = false;
+                              _negotiating = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEFEFE),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFFDDDDDD)),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Revise Offer',
+                            style: GoogleFonts.mulish(
+                              color: const Color(0xFF1E1E1E),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (_offerSent && widget.request.negotiationStatus != 'accepted') ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Offer Sent - waiting for driver to respond',
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.125, // 18/16
+                      color: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (_negotiating) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'What would you like to offer ?',
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      height: 1.125, // 18/16
+                      color: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDDDDDD).withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFDDDDDD)),
+                    ),
+                    child: TextField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      style: GoogleFonts.mulish(fontSize: 16, color: const Color(0xFF1E1E1E)),
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your price',
+                        hintStyle: TextStyle(fontSize: 16, color: Color(0xFF616874), fontWeight: FontWeight.normal),
+                        border: InputBorder.none,
+                        prefixIcon: Icon(Icons.currency_rupee, size: 16, color: Color(0xFF1E1E1E)),
+                        prefixIconConstraints: BoxConstraints(minWidth: 24),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final price = double.tryParse(_priceController.text);
+                      if (price == null) return;
+
+                      if (widget.request.id.isNotEmpty) {
+                        setState(() => _submitting = true);
+                        try {
+                          await sl<TripsRepository>().reviseNegotiation(
+                            requestId: widget.request.id,
+                            price: price,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _offerSent = true;
+                              _offeredPrice = _priceController.text;
+                              _negotiating = false;
+                              _submitting = false;
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _submitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to update offer: $e')),
+                            );
+                          }
+                        }
+                      } else {
+                        setState(() {
+                          _offerSent = true;
+                          _offeredPrice = _priceController.text;
+                          _negotiating = false;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _submitting ? const Color(0xFF757474) : const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _submitting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Send Offer - ₹ ${_priceController.text.isEmpty ? '0' : _priceController.text}/seat',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFFFEFEFE),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                height: 1.0,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFDDDDDD)),
+                const SizedBox(height: 16),
+
+                Text(
+                  'Payment Method',
+                  style: GoogleFonts.mulish(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.125, // 18/16
+                    color: const Color(0xFF1E1E1E),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet_outlined, size: 20, color: Color(0xFF1E1E1E)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'UPI',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 20),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.payments_outlined, size: 20, color: Color(0xFF1E1E1E)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Cash',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -2125,11 +2471,15 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                 const SizedBox(height: 12),
 
                 Container(
-                  padding: const EdgeInsets.only(left: 16, right: 4, top: 4, bottom: 4),
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 4,
+                    top: 4,
+                    bottom: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.transparent,
+                    color: const Color(0xFFF0F1F2),
                     borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: AppColors.grey200),
                   ),
                   child: Row(
                     children: [
@@ -2137,14 +2487,24 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                         child: TextField(
                           controller: _messageController,
                           enabled: !_submitting,
-                          style: const TextStyle(fontSize: 13),
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 18 / 16,
+                            color: const Color(0xFF616874),
+                          ),
                           onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Share a message...',
-                            hintStyle: TextStyle(fontSize: 13, color: AppColors.grey400),
+                          decoration: const InputDecoration(
+                            hintText: 'Request Sent. Share a message',
+                            hintStyle: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF616874),
+                            ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 6,
+                            ),
                           ),
                         ),
                       ),
@@ -2152,33 +2512,102 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
                       GestureDetector(
                         onTap: _submitting ? null : _sendMessage,
                         child: Container(
-                          width: 32,
-                          height: 32,
+                          padding: _messageController.text.trim().isEmpty
+                              ? const EdgeInsets.all(10)
+                              : const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _messageController.text.trim().isEmpty ? Colors.transparent : AppColors.primaryGreen,
-                            border: _messageController.text.trim().isEmpty ? Border.all(color: AppColors.primaryGreen, width: 2) : null,
+                            color: _messageController.text.trim().isEmpty
+                                ? Colors.transparent
+                                : AppColors.primaryGreen,
+                            borderRadius: BorderRadius.circular(30),
+                            border: _messageController.text.trim().isEmpty
+                                ? Border.all(color: AppColors.primaryGreen, width: 1.5)
+                                : null,
                           ),
                           child: _submitting
-                            ? const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen),
-                              )
-                            : Icon(
-                                _messageController.text.trim().isEmpty ? Icons.check : Icons.send,
-                                color: _messageController.text.trim().isEmpty ? AppColors.primaryGreen : AppColors.white,
-                                size: 18,
-                              ),
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : _messageController.text.trim().isEmpty
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: AppColors.primaryGreen,
+                                      size: 20,
+                                    )
+                                  : Text(
+                                      'Send',
+                                      style: GoogleFonts.mulish(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.28, // 18 / 14
+                                      ),
+                                    ),
                         ),
                       ),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RideDetailsPage(
+                            ride: RideMatch(
+                              id: r.rideId,
+                              driverId: r.driverId,
+                              driverName: r.driverName,
+                              driverPhotoUrl: r.driverPhotoUrl,
+                              date: r.date,
+                              time: r.time,
+                              fromAddress: r.fromAddress,
+                              toAddress: r.toAddress,
+                              seatsFilled: r.seatsFilled,
+                              seatsTotal: r.seatsTotal,
+                              vehicleType: r.vehicleType,
+                              alreadyRequested: true,
+                              distanceKm: null,
+                              matchPercent: 100,
+                              farePerSeat: r.farePerSeat,
+                            ),
+                            riderFromAddress: r.riderStartAddress,
+                            riderToAddress: r.riderEndAddress,
+                            riderFromLat: r.riderStartLat,
+                            riderFromLng: r.riderStartLng,
+                            riderToLat: r.riderEndLat,
+                            riderToLng: r.riderEndLng,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'View Ride Details',
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        color: const Color(0xFF616874),
+                        fontWeight: FontWeight.w400,
+                        height: 18 / 14,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
       ),
     );
   }
@@ -2188,7 +2617,10 @@ class _RequestedRideCardState extends State<_RequestedRideCard> {
       width: 10,
       height: 10,
       decoration: filled
-          ? const BoxDecoration(shape: BoxShape.circle, color: AppColors.primaryGreen)
+          ? const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGreen,
+            )
           : BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.primaryGreen, width: 1.5),

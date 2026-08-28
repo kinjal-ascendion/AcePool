@@ -2,8 +2,12 @@ import 'dart:async';
 
 import 'package:acepool/core/services/places_service.dart';
 import 'package:acepool/core/theme/app_colors.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/address/domain/entities/address_record.dart';
+import 'package:acepool/features/address/presentation/bloc/addresses_bloc.dart';
 import 'package:acepool/features/home/domain/entities/picked_location.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class LocationResult {
@@ -35,6 +39,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _places = PlacesService();
+  late final AddressesBloc _addressesBloc;
 
   List<_PlacePrediction> _predictions = [];
   bool _isLoading = false;
@@ -46,6 +51,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
   @override
   void initState() {
     super.initState();
+    _addressesBloc = sl<AddressesBloc>()..add(const AddressesStarted());
     _sessionToken = PlacesService.newSessionToken();
     if (widget.initialValue != null) {
       _controller.text = widget.initialValue!;
@@ -59,6 +65,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     _debounce?.cancel();
     _controller.dispose();
     _focusNode.dispose();
+    _addressesBloc.close();
     super.dispose();
   }
 
@@ -132,6 +139,27 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     );
   }
 
+  void _selectSavedAddress(AddressRecord address) {
+    Navigator.of(context).pop(
+      PickedLocation(
+        address: address.address,
+        lat: address.lat,
+        lng: address.lng,
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Home':
+        return Icons.home_outlined;
+      case 'Office':
+        return Icons.business_outlined;
+      default:
+        return Icons.location_on_outlined;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -201,8 +229,11 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
               )
             : null,
       ),
-      body: _error != null
-          ? Center(
+      body: BlocBuilder<AddressesBloc, AddressesState>(
+        bloc: _addressesBloc,
+        builder: (context, addressState) {
+          if (_error != null) {
+            return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -222,17 +253,32 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   ],
                 ),
               ),
-            )
-          // Only take over the whole body with a spinner on the very first
-          // search — once results exist, keep them on screen (the AppBar's
-          // thin progress bar already signals a refresh) instead of wiping
-          // the list on every keystroke.
-          : _isLoading && _predictions.isEmpty
-          ? const Center(
+            );
+          }
+
+          final query = _controller.text.toLowerCase().trim();
+          final matchingSaved = addressState.addresses.where((a) {
+            if (query.isEmpty) return true;
+            return a.category.toLowerCase().contains(query) ||
+                a.address.toLowerCase().contains(query);
+          }).toList();
+
+          if (_isLoading && _predictions.isEmpty && matchingSaved.isEmpty) {
+            return const Center(
               child: CircularProgressIndicator(color: AppColors.black),
-            )
-          : _predictions.isEmpty
-          ? Center(
+            );
+          }
+
+          if (query.isEmpty &&
+              matchingSaved.isEmpty &&
+              addressState.status == AddressesStatus.loading) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.black),
+            );
+          }
+
+          if (matchingSaved.isEmpty && _predictions.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -251,7 +297,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _controller.text.isEmpty
+                    query.isEmpty
                         ? 'Type to search for a location'
                         : 'No results found',
                     style: const TextStyle(
@@ -262,72 +308,171 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   ),
                 ],
               ),
-            )
-          : ListView.separated(
-              itemCount: _predictions.length,
-              separatorBuilder: (_, i) =>
-                  Divider(height: 0, color: AppColors.grey200),
-              itemBuilder: (context, i) {
-                final p = _predictions[i];
-                return InkWell(
-                  onTap: _isResolvingSelection ? null : () => _select(p),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.grey100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.location_on_outlined,
-                            size: 20,
-                            color: AppColors.black,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.mainText,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (p.secondaryText.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  p.secondaryText,
-                                  style: const TextStyle(
-                                    color: AppColors.black45,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
+            );
+          }
+
+          return ListView(
+            children: [
+              if (matchingSaved.isNotEmpty) ...[
+                if (query.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      'SAVED PLACES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.grey600,
+                        letterSpacing: 1.1,
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
+                ...matchingSaved.map((address) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => _selectSavedAddress(address),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.grey100,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _getCategoryIcon(address.category),
+                                    size: 20,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        address.category,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        address.address,
+                                        style: const TextStyle(
+                                          color: AppColors.black45,
+                                          fontSize: 12,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Divider(height: 0, color: AppColors.grey200),
+                      ],
+                    )),
+              ],
+              if (_predictions.isNotEmpty) ...[
+                if (matchingSaved.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      'SEARCH RESULTS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.grey600,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ),
+                ..._predictions.map((p) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: _isResolvingSelection ? null : () => _select(p),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.grey100,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 20,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.mainText,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (p.secondaryText.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          p.secondaryText,
+                                          style: const TextStyle(
+                                            color: AppColors.black45,
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Divider(height: 0, color: AppColors.grey200),
+                      ],
+                    )),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 }

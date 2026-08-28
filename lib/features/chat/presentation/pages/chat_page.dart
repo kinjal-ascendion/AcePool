@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'dart:async';
+import 'package:google_fonts/google_fonts.dart';
 
 class ChatPage extends StatefulWidget {
   final String chatId;
@@ -178,12 +179,13 @@ class _ChatPageState extends State<ChatPage> {
       create: (context) => sl<ChatBloc>()..add(ChatMessagesSubscriptionRequested(widget.chatId)),
       child: Builder(
         builder: (context) => Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            backgroundColor: AppColors.scaffoldBackground,
+            backgroundColor: Colors.white,
             elevation: 0,
             scrolledUnderElevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.black),
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF1D1D1D), size: 26),
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Column(
@@ -191,12 +193,24 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Text(
                   widget.title,
-                  style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.mulish(
+                    color: const Color(0xFF1D1D1D),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                    letterSpacing: 0,
+                  ),
                 ),
                 if (widget.subtitle != null)
                   Text(
                     widget.subtitle!,
-                    style: const TextStyle(color: AppColors.black54, fontSize: 11),
+                    style: GoogleFonts.mulish(
+                      color: const Color(0xFF757474),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      height: 1.0,
+                      letterSpacing: 0,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -215,12 +229,17 @@ class _ChatPageState extends State<ChatPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.grey100,
+                      color: const Color(0xFFF9FAFA),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Today',
-                      style: TextStyle(color: AppColors.black54, fontSize: 12),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF757474),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),
@@ -343,7 +362,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildBottomPanel(BuildContext context) {
     return Container(
-      color: AppColors.white,
+      color: Colors.white,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -353,12 +372,9 @@ class _ChatPageState extends State<ChatPage> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.white,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.grey200),
-                boxShadow: [
-                  BoxShadow(color: AppColors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
-                ]
+                border: Border.all(color: const Color(0xFFBBBEC5), width: 1.0),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,13 +382,19 @@ class _ChatPageState extends State<ChatPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'SUGGESTED REPLIES',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.black54),
+                        style: GoogleFonts.inter(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          height: 14.25 / 9.5,
+                          letterSpacing: 1.09,
+                          color: const Color(0xFF1D1D1D),
+                        ),
                       ),
                       GestureDetector(
                         onTap: () => setState(() => _showSuggestions = false),
-                        child: const Icon(Icons.close, size: 16, color: AppColors.black54),
+                        child: const Icon(Icons.close, size: 16, color: Color(0xFF1D1D1D)),
                       ),
                     ],
                   ),
@@ -386,16 +408,19 @@ class _ChatPageState extends State<ChatPage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [AppColors.grey600, AppColors.grey800],
-                            ),
+                            color: const Color(0xFFFDFDFD),
+                            border: Border.all(color: const Color(0xFFBBBEC5), width: 1.0),
                             borderRadius: BorderRadius.circular(25),
                           ),
                           child: Text(
                             reply,
-                            style: const TextStyle(fontSize: 13, color: AppColors.white),
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 21.13 / 13,
+                              letterSpacing: -0.08,
+                              color: const Color(0xFF1E1E1E),
+                            ),
                           ),
                         ),
                       )).toList(),
@@ -412,8 +437,9 @@ class _ChatPageState extends State<ChatPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.grey100,
+                color: const Color(0xFFF9FAFA),
                 borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
               ),
               child: Row(
                 children: [
@@ -442,34 +468,28 @@ class _ChatPageState extends State<ChatPage> {
                       child: TextField(
                         controller: _messageController,
                         onSubmitted: (v) => _sendTextMessage(v, context),
-                        decoration: const InputDecoration(
+                        style: GoogleFonts.mulish(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1D1D1D),
+                        ),
+                        decoration: InputDecoration(
                           hintText: 'Type a message',
+                          hintStyle: GoogleFonts.mulish(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.016 * 14,
+                            color: const Color(0xFF757474),
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
                     ),
-                  /* GestureDetector(
-                    onLongPress: _startRecording,
-                    onLongPressUp: () => _stopRecording(context),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Hold to record voice message'), duration: Duration(seconds: 1)),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Icon(
-                        _isRecording ? Icons.mic : Icons.mic_none_rounded,
-                        color: _isRecording ? AppColors.red : AppColors.grey,
-                        size: 24,
-                      ),
-                    ),
-                  ), */
                   const SizedBox(width: 12),
                   Builder(
                     builder: (ctx) => GestureDetector(
                       onTap: () => _sendTextMessage(_messageController.text, ctx),
-                      child: const Icon(Icons.send_rounded, color: AppColors.primaryGreen, size: 22),
+                      child: Image.asset('assets/images/chat_send.png', width: 22, height: 22),
                     ),
                   ),
                 ],
@@ -526,24 +546,37 @@ class _MessageBubble extends StatelessWidget {
                     children: [
                       Text(
                         senderName ?? 'User',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.grey),
+                        style: GoogleFonts.mulish(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF757474),
+                          height: 1.0,
+                          letterSpacing: 0,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _formatTime(time),
-                        style: const TextStyle(fontSize: 11, color: AppColors.grey),
+                        style: GoogleFonts.mulish(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF757474),
+                          height: 1.0,
+                          letterSpacing: 0,
+                        ),
                       ),
                     ],
                   ),
                 if (isMe)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _formatTime(time),
-                        style: const TextStyle(fontSize: 11, color: AppColors.grey),
-                      ),
-                    ],
+                  Text(
+                    _formatTime(time),
+                    style: GoogleFonts.mulish(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF757474),
+                      height: 1.0,
+                      letterSpacing: 0,
+                    ),
                   ),
                 const SizedBox(height: 4),
                 Stack(
@@ -554,15 +587,21 @@ class _MessageBubble extends StatelessWidget {
                           ? const EdgeInsets.symmetric(vertical: 8, horizontal: 12)
                           : const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isMe ? AppColors.chatBubbleMe : AppColors.white,
+                        color: isMe ? const Color(0x14059669) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: isMe ? null : Border.all(color: AppColors.grey200),
+                        border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
                       ),
                       child: type == MessageType.audio
                           ? _AudioPlayerWidget(url: audioUrl!, isMe: isMe)
                           : Text(
                               text,
-                              style: const TextStyle(color: AppColors.black87, fontSize: 14),
+                              style: GoogleFonts.mulish(
+                                color: const Color(0xFF1D1D1D),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                height: 1.0,
+                                letterSpacing: 0.016 * 16,
+                              ),
                             ),
                     ),
                     if (reactionCount > 0)

@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/license_scanner.dart';
+import 'package:acepool/di/injection.dart';
 import 'package:acepool/features/auth/presentation/widgets/license_upload_box.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:acepool/features/profile/presentation/bloc/account_settings_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AccountSettingsPage extends StatefulWidget {
@@ -35,6 +37,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   late final TextEditingController _employeeIdController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+  late final TextEditingController _confirmPasswordController;
 
   final _imagePicker = ImagePicker();
 
@@ -45,13 +49,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   bool? _frontLicenseValid;
   bool? _backLicenseValid;
   String? _licenseNumber;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
-  bool _isSaving = false;
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
+  late final AccountSettingsBloc _bloc;
 
   bool get _isLicenseVerified =>
       widget.licenceVerified == true ||
@@ -62,6 +63,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   void initState() {
     super.initState();
 
+    _bloc = sl<AccountSettingsBloc>();
+
     _fullNameController = TextEditingController(text: widget.fullName);
     _employeeIdController = TextEditingController(text: widget.employeeId);
     _phoneController = TextEditingController(text: widget.phone ?? '');
@@ -70,6 +73,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _emailController = TextEditingController(
       text: FirebaseAuth.instance.currentUser?.email ?? '',
     );
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
   }
 
   @override
@@ -78,6 +83,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _employeeIdController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _bloc.close();
     super.dispose();
   }
 
@@ -121,53 +129,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     });
   }
 
-  Future<void> _saveProfile() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isNotEmpty && phone.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid 10-digit phone number')),
-      );
-      return;
-    }
-
-    try {
-      setState(() => _isSaving = true);
-
-      final user = FirebaseAuth.instance.currentUser!;
-      final newFullName = _fullNameController.text.trim();
-
-      final data = <String, dynamic>{
-        'fullName': newFullName,
-        'phone': phone,
-        'email': _emailController.text.trim(),
-      };
-
-      if (_frontLicenseValid == true || _backLicenseValid == true) {
-        data['licenceVerified'] = true;
-        if (_licenseNumber != null) data['licenceNumber'] = _licenseNumber;
-      }
-
-      await _db.collection('users').doc(user.uid).update(data);
-
-      // Home reads FirebaseAuth's displayName, not Firestore's fullName -
-      // keep them in sync so the change shows up there too.
-      if (newFullName != user.displayName) {
-        await user.updateDisplayName(newFullName);
-        await user.reload();
-      }
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
+  void _saveProfile() {
+    _bloc.add(AccountSettingsSaveRequested(
+      fullName: _fullNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      email: _emailController.text.trim(),
+      licenceVerified: (_frontLicenseValid == true || _backLicenseValid == true) ? true : null,
+      licenceNumber: _licenseNumber,
+    ));
   }
 
   @override
@@ -182,16 +151,35 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               .join()
         : '?';
 
+    return BlocProvider.value(
+      value: _bloc,
+      child: BlocConsumer<AccountSettingsBloc, AccountSettingsState>(
+        listener: (context, state) {
+          if (state.status == AccountSettingsStatus.success) {
+            Navigator.pop(context, true);
+          } else if (state.status == AccountSettingsStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message ?? 'Failed to save profile')),
+            );
+          }
+        },
+        builder: (context, state) => _buildScaffold(context, state, initials),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, AccountSettingsState state, String initials) {
+    final isSaving = state.status == AccountSettingsStatus.saving;
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppColors.black87),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Expanded(
@@ -199,9 +187,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       'Account settings',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.black87,
+                        color: AppColors.black,
+                        height: 1.0,
                       ),
                     ),
                   ),
@@ -265,7 +254,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     const Center(
                       child: Text(
                         'Change your profile picture',
-                        style: TextStyle(fontSize: 13, color: AppColors.black45),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.subheadingGrey,
+                          fontWeight: FontWeight.w600,
+                          height: 1.285, // 18/14
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -273,35 +267,65 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       label: 'Full Name',
                       controller: _fullNameController,
                       enabled: true,
+                      isRequired: true,
                     ),
                     const SizedBox(height: 16),
                     _SettingsField(
-                      label: 'Asc ID',
+                      label: 'Employee ID',
                       controller: _employeeIdController,
                       enabled: false,
+                      isRequired: true,
                     ),
                     const SizedBox(height: 16),
                     _SettingsField(
-                      label: 'Phone Number',
+                      label: 'Work Email',
+                      controller: _emailController,
+                      enabled: false,
+                      isRequired: true,
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Note : Email Id can be edited only once',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.subheadingGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _SettingsField(
+                      label: 'Phone No',
                       controller: _phoneController,
                       enabled: true,
+                      isRequired: true,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(10),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    _SettingsField(
-                      label: 'Email',
-                      controller: _emailController,
-                      enabled: false,
-                    ),
                     const SizedBox(height: 20),
-                    Divider(color: AppColors.grey200, height: 1),
+                    Divider(color: AppColors.dividerGrey, height: 1),
                     const SizedBox(height: 20),
                     _buildLicenseSection(),
                     const SizedBox(height: 24),
+                    _SettingsField(
+                      label: 'Password',
+                      controller: _passwordController,
+                      enabled: true,
+                      obscureText: _obscurePassword,
+                      hintText: 'Minimum 6 characters',
+                      onSuffixTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                    const SizedBox(height: 16),
+                    _SettingsField(
+                      label: 'Confirm Password',
+                      controller: _confirmPasswordController,
+                      enabled: true,
+                      obscureText: _obscureConfirmPassword,
+                      hintText: 'Re-enter password',
+                      onSuffixTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                    ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -312,7 +336,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      onPressed: isSaving ? null : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: BorderSide(color: AppColors.grey300),
@@ -323,8 +347,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       child: const Text(
                         'Cancel',
                         style: TextStyle(
-                          color: AppColors.black87,
+                          color: AppColors.black,
                           fontWeight: FontWeight.w600,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -332,15 +357,15 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveProfile,
+                      onPressed: isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.black87,
+                        backgroundColor: AppColors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      child: _isSaving
+                      child: isSaving
                           ? const SizedBox(
                               width: 18,
                               height: 18,
@@ -354,6 +379,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                               style: TextStyle(
                                 color: AppColors.white,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 16,
                               ),
                             ),
                     ),
@@ -407,38 +433,42 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         RichText(
-          text: const TextSpan(
+          text: TextSpan(
             text: "DRIVER'S LICENSE",
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-              color: AppColors.black87,
+              letterSpacing: 0.3,
+              height: 1.33,
+              color: AppColors.black,
             ),
-            children: [
-              TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
-            ],
           ),
         ),
         const SizedBox(height: 8),
         RichText(
-          text: const TextSpan(
+          text: TextSpan(
             text: 'Upload license image (Front & Back)',
-            style: TextStyle(
-              fontSize: 13,
+            style: GoogleFonts.mulish(
+              fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppColors.black87,
+              color: AppColors.black,
+              height: 1.5, // 24/16
             ),
-            children: [
+            children: const [
               TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
             ],
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'A valid license is required before scheduling a ride. '
           'Upload both sides to continue.',
-          style: TextStyle(fontSize: 12, color: AppColors.black45),
+          style: GoogleFonts.mulish(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: AppColors.subheadingGrey,
+            height: 1.5, // 24/16
+          ),
         ),
         const SizedBox(height: 12),
         Row(
@@ -465,14 +495,19 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           ],
         ),
         const SizedBox(height: 8),
-        const Row(
+        Row(
           children: [
-            Icon(Icons.info_outline, size: 14, color: Colors.orange),
-            SizedBox(width: 6),
+            const Icon(Icons.info_outline, size: 14, color: Color(0xFFD97706)),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Required before you can schedule a ride',
-                style: TextStyle(fontSize: 12, color: Colors.orange),
+                style: GoogleFonts.mulish(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFFD97706),
+                  height: 1.285, // 18/14
+                ),
               ),
             ),
           ],
@@ -489,6 +524,10 @@ class _SettingsField extends StatefulWidget {
     required this.enabled,
     this.keyboardType,
     this.inputFormatters,
+    this.obscureText = false,
+    this.hintText,
+    this.onSuffixTap,
+    this.isRequired = false,
   });
 
   final String label;
@@ -496,6 +535,10 @@ class _SettingsField extends StatefulWidget {
   final bool enabled;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
+  final bool obscureText;
+  final String? hintText;
+  final VoidCallback? onSuffixTap;
+  final bool isRequired;
 
   @override
   State<_SettingsField> createState() => _SettingsFieldState();
@@ -521,15 +564,50 @@ class _SettingsFieldState extends State<_SettingsField> {
 
   @override
   Widget build(BuildContext context) {
+    TextStyle fieldStyle;
+    if (widget.label.toUpperCase() == 'EMPLOYEE ID') {
+      fieldStyle = GoogleFonts.mulish(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.subheadingGrey,
+        height: 1.5, // 21/14
+      );
+    } else if (widget.label.toUpperCase() == 'WORK EMAIL' || !widget.enabled) {
+      fieldStyle = GoogleFonts.mulish(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFF1E1E1E),
+        height: 1.0,
+      );
+    } else {
+      fieldStyle = GoogleFonts.mulish(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFF1E1E1E),
+        height: 1.0,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.black87,
+        RichText(
+          text: TextSpan(
+            text: widget.label.toUpperCase(),
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.black,
+              height: 1.33, // 16/12
+              letterSpacing: 0.3,
+            ),
+            children: [
+              if (widget.isRequired)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: AppColors.red),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -552,19 +630,31 @@ class _SettingsFieldState extends State<_SettingsField> {
                   enabled: widget.enabled,
                   keyboardType: widget.keyboardType,
                   inputFormatters: widget.inputFormatters,
-                  style: TextStyle(
-                    color: widget.enabled
-                        ? AppColors.black87
-                        : AppColors.black45,
-                  ),
-                  decoration: const InputDecoration(
+                  obscureText: widget.obscureText,
+                  style: fieldStyle,
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    hintText: widget.hintText,
+                    hintStyle: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.subheadingGrey,
+                    ),
                   ),
                 ),
               ),
-              if (widget.enabled)
+              if (widget.onSuffixTap != null)
+                GestureDetector(
+                  onTap: widget.onSuffixTap,
+                  child: Icon(
+                    widget.obscureText ? Icons.visibility_off : Icons.visibility,
+                    size: 18,
+                    color: AppColors.black45,
+                  ),
+                )
+              else if (widget.enabled)
                 const Icon(Icons.edit, size: 16, color: AppColors.black45),
             ],
           ),

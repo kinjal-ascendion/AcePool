@@ -139,6 +139,7 @@ class HomeState extends Equatable {
       upcomingTrips: upcomingTrips,
       currentLat: currentLat,
       currentLng: currentLng,
+      travelPreference: travelPreference,
     );
   }
 

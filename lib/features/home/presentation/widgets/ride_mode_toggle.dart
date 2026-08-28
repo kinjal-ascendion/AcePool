@@ -1,15 +1,41 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RideModeToggle extends StatelessWidget {
-  const RideModeToggle({super.key, required this.selected, required this.onChanged});
+  const RideModeToggle({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.showBoth = true,
+  });
 
   final RideMode selected;
   final ValueChanged<RideMode> onChanged;
+  final bool showBoth;
 
   @override
   Widget build(BuildContext context) {
+    if (!showBoth) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Text(
+          selected == RideMode.find ? 'Find ride' : 'Offer ride',
+          style: GoogleFonts.mulish(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            height: 1.0,
+          ),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
       child: Container(
@@ -17,15 +43,8 @@ class RideModeToggle extends StatelessWidget {
         height: 40,
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: AppColors.toggleBackground,
+          color: const Color(0xFFF0F1F2),
           borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.10),
-              blurRadius: 5,
-              blurStyle: BlurStyle.inner,
-            ),
-          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -35,6 +54,8 @@ class RideModeToggle extends StatelessWidget {
                 label: 'Find ride',
                 selected: selected == RideMode.find,
                 onTap: () => onChanged(RideMode.find),
+                fontWeight: FontWeight.w600,
+                textColor: const Color(0xFF1E1E1E),
               ),
             ),
             Expanded(
@@ -42,6 +63,8 @@ class RideModeToggle extends StatelessWidget {
                 label: 'Offer ride',
                 selected: selected == RideMode.offer,
                 onTap: () => onChanged(RideMode.offer),
+                fontWeight: FontWeight.w700,
+                textColor: const Color(0xFF1E1E1E),
               ),
             ),
           ],
@@ -56,11 +79,15 @@ class _PillButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.fontWeight,
+    required this.textColor,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final FontWeight fontWeight;
+  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -70,15 +97,16 @@ class _PillButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.toggleActiveBlack : AppColors.transparent,
+          color: selected ? const Color(0xFF1E1E1E) : Colors.transparent,
           borderRadius: BorderRadius.circular(26),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: selected ? AppColors.white : AppColors.black87,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          style: GoogleFonts.mulish(
+            color: selected ? (label == 'Offer ride' ? const Color(0xFFF0F1F2) : Colors.white) : textColor,
+            fontWeight: fontWeight,
             fontSize: 14,
+            height: 1.0,
           ),
         ),
       ),

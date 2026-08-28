@@ -1,7 +1,10 @@
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/presentation/bloc/review_riders_bloc.dart';
+import 'package:acepool/features/profile/presentation/pages/all_done_page.dart';
+import 'package:acepool/features/profile/presentation/widgets/passenger_review_card.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../widgets/rider_rating_card.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ReviewRidersPage extends StatefulWidget {
   final String rideId;
@@ -16,144 +19,166 @@ class ReviewRidersPage extends StatefulWidget {
 }
 
 class _ReviewRidersPageState extends State<ReviewRidersPage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
-
-  late Future<List<RiderReview>> _ridersFuture;
+  late final ReviewRidersBloc _bloc;
 
   @override
   void initState() {
     super.initState();
-
-    _ridersFuture = _fetchRiders();
+    _bloc = sl<ReviewRidersBloc>()..add(ReviewRidersStarted(widget.rideId));
   }
 
-final Map<String, int> _selectedRatings = {};
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
 
-Future<List<RiderReview>> _fetchRiders() async {
-  final snapshot = await _db
-      .collection('ride_requests')
-      .where('rideId', isEqualTo: widget.rideId)
-      .where('status', isEqualTo: 'accepted')
-      .get();
-
-  final List<RiderReview> riders = [];
-
-for (final doc in snapshot.docs) {
-  final data = doc.data();
-
-  final userDoc = await _db
-      .collection('users')
-      .doc(data['riderId'])
-      .get();
-
-  final userData = userDoc.data();
-
-  riders.add(
-    RiderReview(
-      requestId: doc.id,
-      riderId: data['riderId'],
-      riderName: data['riderName'],
-      employeeId: userData?['employeeId'] ?? '',
-      pickupPoint: data['pickupPoint'] ?? '',
-      dropOffPoint: data['dropOffPoint'] ?? '',
-      driverRating: data['driverRating'],
-    ),
-  );
-}
-
-return riders;
-}
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text("Review Riders"),
-    ),
-    body: FutureBuilder<List<RiderReview>>(
-      future: _ridersFuture,
-      builder: (context, snapshot) {
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text("No riders found"),
-          );
-        }
-
-        final riders = snapshot.data!;
-
-        return ListView.builder(
-          itemCount: riders.length,
-          itemBuilder: (context, index) {
-
-            final rider = riders[index];
-
-   return RiderRatingCard(
-  riderName: rider.riderName,
-  employeeId: rider.employeeId,
-   pickupPoint: rider.pickupPoint,
-  dropOffPoint: rider.dropOffPoint,
-  driverRating: rider.driverRating,
-  selectedRating:
-      _selectedRatings[rider.requestId] ?? 0,
-
-  onRatingChanged: (rating) {
-    setState(() {
-      _selectedRatings[rider.requestId] = rating;
-    });
-  },
-
-  onSubmit: () async {
-  await _db
-      .collection('ride_requests')
-      .doc(rider.requestId)
-      .update({
-    "driverRating": _selectedRatings[rider.requestId],
-    "driverRatedAt": FieldValue.serverTimestamp(),
-  });
-
-  if (!mounted) return;
-  setState(() {
-    rider.driverRating = _selectedRatings[rider.requestId];
-  });
-
-},
-);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text(
+          'Ride statistics',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
+          ),
+        ),
+      ),
+      body: BlocProvider.value(
+        value: _bloc,
+        child: BlocConsumer<ReviewRidersBloc, ReviewRidersState>(
+          listenWhen: (previous, current) =>
+              !previous.completed && current.completed,
+          listener: (context, state) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AllDonePage(passengerCount: state.riders.length),
+              ),
+            );
           },
+          builder: (context, state) {
+            if (state.status == ReviewRidersStatus.initial ||
+                state.status == ReviewRidersStatus.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (state.riders.isEmpty) {
+              return const Center(child: Text('No riders found'));
+            }
+
+            final rider = state.currentRider!;
+            final isRated = rider.driverRating != null;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'REVIEW YOUR RIDERS',
+                    style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: const Color(0xFF1E1E1E),
+                      height: 15 / 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ProgressBar(
+                    total: state.riders.length,
+                    filled: state.currentIndex + 1,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'PASSENGER ${state.currentIndex + 1} OF ${state.riders.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                      color: Color(0xFF8A8A8A),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  PassengerReviewCard(
+                    key: ValueKey(rider.requestId),
+                    riderName: rider.riderName,
+                    employeeId: rider.employeeId,
+                    riderPhotoUrl: rider.riderPhotoUrl,
+                    pickupPoint: rider.pickupPoint,
+                    dropOffPoint: rider.dropOffPoint,
+                    vehicleInfo: rider.vehicleInfo,
+                    selectedEmoji: state.selectedEmoji,
+                    selectedTags: state.selectedTags,
+                    comment: state.comment,
+                    isRated: isRated,
+                    isSubmitting: state.isSubmitting,
+                    onEmojiSelected: (rating) =>
+                        _bloc.add(ReviewRidersEmojiSelected(rating)),
+                    onTagToggled: (tag) =>
+                        _bloc.add(ReviewRidersTagToggled(tag)),
+                    onCommentChanged: (text) =>
+                        _bloc.add(ReviewRidersCommentChanged(text)),
+                    onSubmit: () => _bloc.add(const ReviewRidersSubmitted()),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _bloc.add(const ReviewRidersSkipped()),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Skip',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF616874),
+                            height: 21 / 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  final int total;
+  final int filled;
+
+  const _ProgressBar({required this.total, required this.filled});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(total, (index) {
+        return Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: index == total - 1 ? 0 : 5),
+            decoration: BoxDecoration(
+              color: index < filled
+                  ? const Color(0xFF1A1A1A)
+                  : const Color(0xFFE5E5E5),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
         );
-      },
-    ),
-  );
-}
-
-}
-class RiderReview {
-
-  final String requestId;
-  final String riderId;
-final String pickupPoint;
-final String dropOffPoint;
-  final String riderName;
-  final String employeeId;
-
-   int? driverRating;
-
-  RiderReview({
-    required this.requestId,
-    required this.riderId,
-    required this.riderName,
-    required this.employeeId,
-    required this.driverRating,
-    required this.dropOffPoint,
-    required this.pickupPoint,
-  });
+      }),
+    );
+  }
 }

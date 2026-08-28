@@ -9,17 +9,21 @@ import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart
 import 'package:acepool/features/home/presentation/widgets/ride_schedule_form.dart';
 import 'package:acepool/features/home/presentation/widgets/upcoming_trips_section.dart';
 import 'package:acepool/features/rides/presentation/pages/find_ride_results_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.onViewAllTrips, this.onOpenProfile});
+  const HomePage({
+    super.key,
+    this.onViewAllTrips,
+    this.onViewAllMatchingRides,
+    this.onOpenProfile,
+  });
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onViewAllMatchingRides;
   final VoidCallback? onOpenProfile;
 
   @override
@@ -28,21 +32,22 @@ class HomePage extends StatelessWidget {
     // "Find ride" tab so both reflect the same search state.
     return _HomeView(
       onViewAllTrips: onViewAllTrips,
+      onViewAllMatchingRides: onViewAllMatchingRides,
       onOpenProfile: onOpenProfile,
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView({this.onViewAllTrips, this.onOpenProfile});
+  const _HomeView({
+    this.onViewAllTrips,
+    this.onViewAllMatchingRides,
+    this.onOpenProfile,
+  });
 
   final VoidCallback? onViewAllTrips;
+  final VoidCallback? onViewAllMatchingRides;
   final VoidCallback? onOpenProfile;
-
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
 
   Future<void> _pickDate(BuildContext context) async {
     final picked = await showDatePicker(
@@ -173,14 +178,14 @@ class _HomeView extends StatelessWidget {
                           onAvatarTap: onOpenProfile,
                         ),
                         const SizedBox(height: 14),
-                        if (state.travelPreference == 'both')
-                          Center(
-                            child: RideModeToggle(
-                              selected: state.rideMode,
-                              onChanged: (mode) =>
-                                  bloc.add(RideModeChanged(mode)),
-                            ),
+                        Center(
+                          child: RideModeToggle(
+                            selected: state.rideMode,
+                            onChanged: (mode) =>
+                                bloc.add(RideModeChanged(mode)),
+                            showBoth: state.travelPreference == 'both',
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -295,25 +300,8 @@ class _HomeView extends StatelessWidget {
                               riderTime: state.selectedTime ?? TimeOfDay.now(),
                               currentLat: state.currentLat,
                               currentLng: state.currentLng,
-                              db: _db,
                               onRequested: () => _handleFindRide(context, bloc),
-                              onViewAll: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => FindRideResultsPage(
-                                    fromAddress: state.fromAddress!,
-                                    toAddress: state.toAddress!,
-                                    fromLat: state.fromLat,
-                                    fromLng: state.fromLng,
-                                    toLat: state.toLat,
-                                    toLng: state.toLng,
-                                    date: state.selectedDate!,
-                                    time: state.selectedTime!,
-                                    vehicleType: state.vehicleType.name,
-                                    currentLat: state.currentLat,
-                                    currentLng: state.currentLng,
-                                  ),
-                                ),
-                              ),
+                              onViewAll: onViewAllMatchingRides,
                             ),
                             const SizedBox(height: 16),
                           ],

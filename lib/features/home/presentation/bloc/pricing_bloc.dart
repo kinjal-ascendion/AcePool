@@ -1,12 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:acepool/features/home/domain/entities/fare_breakdown.dart';
 import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
 import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/get_vehicle_options_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
 
 part 'pricing_event.dart';
@@ -15,6 +13,7 @@ part 'pricing_state.dart';
 class PricingBloc extends Bloc<PricingEvent, PricingState> {
   final EstimateRouteUseCase _estimateRoute;
   final ScheduleRideUseCase _scheduleRide;
+  final GetVehicleOptionsUseCase _getVehicleOptions;
 
   double? _fromLat;
   double? _fromLng;
@@ -26,43 +25,16 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
   PricingBloc({
     required EstimateRouteUseCase estimateRoute,
     required ScheduleRideUseCase scheduleRide,
+    required GetVehicleOptionsUseCase getVehicleOptions,
   })  : _estimateRoute = estimateRoute,
         _scheduleRide = scheduleRide,
+        _getVehicleOptions = getVehicleOptions,
         super(const PricingState()) {
     on<PricingStarted>(_onPricingStarted);
     on<VehicleSelected>(_onVehicleSelected);
     on<RatePerKmChanged>(_onRatePerKmChanged);
     on<VehiclesRefreshRequested>(_onVehiclesRefreshRequested);
     on<PublishRideRequested>(_onPublishRideRequested);
-  }
-
-  Future<List<VehicleOption>> _fetchVehicles(String vehicleType) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const [];
-
-    final db = FirebaseFirestore.instanceFor(
-      app: Firebase.app(),
-      databaseId: 'acepool',
-    );
-    final expectedType = vehicleType == 'bike' ? 'two_wheeler' : 'four_wheeler';
-    final snapshot = await db
-        .collection('users')
-        .doc(uid)
-        .collection('vehicles')
-        .where('type', isEqualTo: expectedType)
-        .get();
-
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      final brand = data['brand'] as String? ?? '';
-      final model = data['model'] as String? ?? '';
-      final label = [brand, model].where((s) => s.isNotEmpty).join(' ');
-      return VehicleOption(
-        id: doc.id,
-        label: label.isNotEmpty ? label : 'Vehicle',
-        type: data['type'] as String? ?? expectedType,
-      );
-    }).toList();
   }
 
   Future<void> _onPricingStarted(
@@ -99,7 +71,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       durationMinutes = route.durationMinutes;
     }
 
-    final vehicles = await _fetchVehicles(_vehicleType);
+    final vehicles = await _getVehicleOptions(_vehicleType);
 
     emit(state.copyWith(
       status: PricingStatus.ready,
@@ -130,7 +102,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
     VehiclesRefreshRequested event,
     Emitter<PricingState> emit,
   ) async {
-    final vehicles = await _fetchVehicles(_vehicleType);
+    final vehicles = await _getVehicleOptions(_vehicleType);
     emit(state.copyWith(vehicles: vehicles));
   }
 

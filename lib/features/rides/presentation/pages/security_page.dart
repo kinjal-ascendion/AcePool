@@ -2,6 +2,7 @@ import 'package:acepool/core/constants/app_constants.dart';
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/location_share_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SecurityPage extends StatelessWidget {
   const SecurityPage({super.key});
@@ -15,12 +16,17 @@ class SecurityPage extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
+          icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Security',
-          style: TextStyle(color: AppColors.black, fontWeight: FontWeight.w600),
+          style: GoogleFonts.mulish(
+            color: const Color(0xFF1E1E1E),
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            height: 1.0,
+          ),
         ),
       ),
       body: SafeArea(
@@ -78,33 +84,40 @@ class SecurityPage extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.red50,
+          color: const Color(0xFFFCE9E9),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.red.withOpacity(0.15)),
+          border: Border.all(color: const Color(0xFFC82323).withOpacity(0.1)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Emergency SOS',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.red,
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFC82323), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Emergency SOS',
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFC82323),
+                      height: 20 / 16,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 28),
-              child: Text(
-                'Calls the support team and shares location',
-                style: TextStyle(fontSize: 13, color: AppColors.red.withOpacity(0.8)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Calls the support team and shares location',
+                    style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      color: const Color(0xFFC82323),
+                      fontWeight: FontWeight.w400,
+                      height: 16 / 14,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -125,28 +138,44 @@ class SecurityPage extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 22, color: AppColors.grey700),
+            Icon(icon, size: 24, color: const Color(0xFF6B7280)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.mulish(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1E1E1E),
+                      height: 18 / 16,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 13, color: AppColors.grey600),
+                    style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF6B7280),
+                      height: 18 / 14,
+                    ),
                   ),
                   if (subtitle2 != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       subtitle2,
-                      style: TextStyle(fontSize: 13, color: AppColors.grey600),
+                      style: GoogleFonts.mulish(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF6B7280),
+                        height: 18 / 14,
+                      ),
                     ),
                   ],
                 ],

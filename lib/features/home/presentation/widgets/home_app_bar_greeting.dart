@@ -1,5 +1,6 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeAppBarGreeting extends StatelessWidget {
   const HomeAppBarGreeting({
@@ -24,7 +25,7 @@ class HomeAppBarGreeting extends StatelessWidget {
             backgroundColor: AppColors.black87,
             child: Text(
               initials,
-              style: const TextStyle(
+              style: GoogleFonts.mulish(
                 color: AppColors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -34,8 +35,13 @@ class HomeAppBarGreeting extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          'Hi, $name 👋',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          'Hi, $name 👋🏻',
+          style: GoogleFonts.mulish(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            height: 1.0,
+            color: const Color(0xFF1E1E1E),
+          ),
         ),
       ],
     );

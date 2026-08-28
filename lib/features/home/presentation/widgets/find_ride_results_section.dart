@@ -2,8 +2,8 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/ride_matcher.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/presentation/widgets/ride_result_card.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class FindRideResultsSection extends StatelessWidget {
   const FindRideResultsSection({
@@ -14,7 +14,6 @@ class FindRideResultsSection extends StatelessWidget {
     required this.riderFromAddress,
     required this.riderToAddress,
     required this.riderTime,
-    required this.db,
     required this.onRequested,
     this.onViewAll,
     this.riderFromLat,
@@ -31,7 +30,6 @@ class FindRideResultsSection extends StatelessWidget {
   final String riderFromAddress;
   final String riderToAddress;
   final TimeOfDay riderTime;
-  final FirebaseFirestore db;
   final VoidCallback onRequested;
   final VoidCallback? onViewAll;
   final double? riderFromLat;
@@ -82,7 +80,12 @@ class FindRideResultsSection extends StatelessWidget {
               riderFromLat!,
               riderFromLng!,
             ))} from your current location',
-            style: TextStyle(fontSize: 12.5, color: AppColors.grey600),
+            style: GoogleFonts.mulish(
+              fontSize: 12.5,
+              color: const Color(0xFF616874),
+              fontWeight: FontWeight.w400,
+              height: 18 / 12.5,
+            ),
           ),
         ],
         const SizedBox(height: 12),
@@ -115,7 +118,6 @@ class FindRideResultsSection extends StatelessWidget {
               riderToLat: riderToLat,
               riderToLng: riderToLng,
               riderTime: riderTime,
-              db: db,
               onRequested: onRequested,
             ),
             const SizedBox(height: 12),

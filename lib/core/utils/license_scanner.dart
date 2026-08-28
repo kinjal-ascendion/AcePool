@@ -43,12 +43,15 @@ class LicenseScanner {
   /// a null [LicenseScanResult.licenseNumber] and ocrFailed = false, since
   /// most licenses only print the full number on one side.
   static Future<LicenseScanResult> extractLicenseNumber(
-    String imagePath,
-  ) async {
-    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    String imagePath, {
+    TextRecognizer? recognizer,
+  }) async {
+    final ownsRecognizer = recognizer == null;
+    final textRecognizer =
+        recognizer ?? TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final inputImage = InputImage.fromFilePath(imagePath);
-      final recognizedText = await recognizer.processImage(inputImage);
+      final recognizedText = await textRecognizer.processImage(inputImage);
       final match = RegExp(
         r'([A-Z]{2})[-\s]*(\d{2})[-\s]*(\d{11})',
       ).firstMatch(recognizedText.text);
@@ -62,7 +65,7 @@ class LicenseScanner {
     } catch (_) {
       return const LicenseScanResult(ocrFailed: true);
     } finally {
-      recognizer.close();
+      if (ownsRecognizer) textRecognizer.close();
     }
   }
 }

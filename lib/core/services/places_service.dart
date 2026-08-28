@@ -37,6 +37,10 @@ class PlaceDetails {
 /// there (unlike OpenStreetMap-based search, which has much sparser
 /// building/flat-level address coverage).
 class PlacesService {
+  PlacesService({http.Client? httpClient}) : _client = httpClient ?? http.Client();
+
+  final http.Client _client;
+
   static const _autocompleteUrl =
       'https://places.googleapis.com/v1/places:autocomplete';
   static const _detailsBaseUrl = 'https://places.googleapis.com/v1/places';
@@ -58,7 +62,7 @@ class PlacesService {
     double? biasLng,
   }) async {
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse(_autocompleteUrl),
             headers: {
@@ -129,7 +133,7 @@ class PlacesService {
       final uri = Uri.parse(
         '$_detailsBaseUrl/$placeId',
       ).replace(queryParameters: {'sessionToken': sessionToken});
-      final response = await http
+      final response = await _client
           .get(
             uri,
             headers: {

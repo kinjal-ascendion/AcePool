@@ -2,6 +2,7 @@ import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/presentation/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class DriveTripCard extends StatelessWidget {
   const DriveTripCard({
@@ -13,6 +14,8 @@ class DriveTripCard extends StatelessWidget {
     this.onStartRide,
     this.onEndRide,
     this.onCancel,
+    this.onEditFare,
+    this.onEditPayment,
   });
 
   final UpcomingTrip trip;
@@ -22,198 +25,307 @@ class DriveTripCard extends StatelessWidget {
   final VoidCallback? onStartRide;
   final VoidCallback? onEndRide;
   final VoidCallback? onCancel;
+  final VoidCallback? onEditFare;
+  final VoidCallback? onEditPayment;
 
   @override
   Widget build(BuildContext context) {
     final bool isInProgress = trip.status == 'in_progress';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top row: seats-filled badge or status badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(20),
-                  ),
-                  child: ColoredBox(
-                    color: isInProgress ? AppColors.primaryGreen : AppColors.primaryGreen,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isInProgress ? Icons.directions_car : Icons.person_outline,
-                            color: AppColors.white,
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row: seats-filled badge or status badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  bottomRight: Radius.circular(20),
+                ),
+                child: ColoredBox(
+                  color: AppColors.primaryGreen, // Match brand green (arrow mark color)
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/person_icon.png',
+                          width: 15,
+                          height: 15,
+                          color: Colors.white,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.person_outline,
+                            color: Colors.white,
                             size: 15,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isInProgress ? 'Trip in Progress' : '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${trip.seatsFilled}/${trip.seatsTotal} seats filled',
+                          style: GoogleFonts.mulish(
+                            color: const Color(0xFFFEFEFE),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.125, // 18/16
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                if (!isInProgress && onCancel != null)
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
-                    onSelected: (val) {
-                      if (val == 'cancel') onCancel!();
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'cancel',
-                        child: Row(
-                          children: [
-                            Icon(Icons.cancel_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Cancel Ride'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                if (isInProgress)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Text(
-                      'Ride ID #${trip.id.substring(0, 5)}',
-                      style: TextStyle(
-                        color: AppColors.grey500,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
+              ),
+              if (!isInProgress && onCancel != null)
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.more_vert, color: AppColors.grey600, size: 20),
+                  onSelected: (val) {
+                    if (val == 'cancel') onCancel!();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'cancel',
+                      child: Row(
+                        children: [
+                          Icon(Icons.cancel_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Cancel Ride'),
+                        ],
                       ),
                     ),
-                  ),
-              ],
-            ),
+                  ],
+                ),
+            ],
+          ),
 
           // Card content
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   trip.dateLabel,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.black87,
+                  style: GoogleFonts.mulish(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    height: 1.125, // 18/16
+                    color: const Color(0xFF1D1D1D),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  trip.timeLabel,
-                  style: const TextStyle(color: AppColors.black45, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text(
+                      trip.timeLabel,
+                      style: GoogleFonts.mulish(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 1.125, // 18/16
+                        color: const Color(0xFF1E1E1E),
+                      ),
+                    ),
                     Container(
-                      width: 10,
-                      height: 10,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryGreen, width: 1.5),
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        trip.fromAddress,
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.black54),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(
-                      3,
-                      (i) => Container(
-                        width: 1.5,
-                        height: 3,
-                        margin: EdgeInsets.only(
-                          top: i == 0 ? 0 : 1,
-                          bottom: i == 2 ? 0 : 1,
-                        ),
-                        color: AppColors.black26,
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        trip.toAddress,
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.black54),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Divider(color: AppColors.grey200, height: 1),
-                const SizedBox(height: 8),
-
-                // Price + view details
-                showViewDetails
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _fareLabel(trip.farePerSeat),
-                          GestureDetector(
-                            onTap: () {}, // Handled by parent
-                            child: const Text(
-                              'View Details',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.black54,
-                                decoration: TextDecoration.underline,
-                              ),
+                          Icon(
+                            trip.vehicleType == 'bike'
+                                ? Icons.two_wheeler
+                                : Icons.directions_car,
+                            size: 16,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            trip.vehicleType == 'bike' ? 'Bike' : 'Car',
+                            style: GoogleFonts.mulish(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1E1E1E),
                             ),
                           ),
                         ],
-                      )
-                    : _fareLabel(trip.farePerSeat),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      children: [
+                        _dot(filled: false),
+                        Container(
+                          width: 1.5,
+                          height: 24,
+                          color: AppColors.black26,
+                        ),
+                        _dot(filled: true),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            trip.fromAddress,
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              height: 1.125, // 18/16
+                              color: const Color(0xFF757474),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            trip.toAddress,
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              height: 1.125, // 18/16
+                              color: const Color(0xFF757474),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/universal_currency.png',
+                          width: 24,
+                          height: 24,
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          trip.farePerSeat != null ? '₹${trip.farePerSeat!.toStringAsFixed(0)} / seat' : 'Fare not set',
+                          style: GoogleFonts.mulish(
+                            color: const Color(0xFF1B8A3F),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.125, // 18/16
+                          ),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: onEditFare,
+                      child: Text(
+                        'Edit',
+                        style: GoogleFonts.mulish(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          height: 1.28, // 18/14
+                          color: const Color(0xFF757474),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(color: Color(0xFFDDDDDD), height: 1),
+                const SizedBox(height: 12),
+                const SizedBox(height: 12),
+                
+                // Payment Method section
+                Text(
+                  'Payment Method',
+                  style: GoogleFonts.mulish(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.125, // 18/16
+                    color: const Color(0xFF1E1E1E),
+                  ),
+                ),
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/currency_rupee_circle.png',
+                          width: 20,
+                          height: 20,
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'UPI',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 20),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.payments_outlined, size: 16, color: Color(0xFF1E1E1E)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Cash',
+                          style: GoogleFonts.mulish(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: onEditPayment,
+                      child: Text(
+                        'Edit',
+                        style: GoogleFonts.mulish(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          height: 1.28, // 18/14
+                          color: const Color(0xFF616874),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
 
                 // Group chat pill
                 GestureDetector(
@@ -230,9 +342,11 @@ class DriveTripCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Start a group chat with all riders',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.grey500,
+                            style: GoogleFonts.mulish(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              height: 1.125, // 18/16
+                              color: const Color(0xFF757474),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -274,30 +388,56 @@ class DriveTripCard extends StatelessWidget {
                       ),
                       child: Text(
                         isInProgress ? 'End Ride' : 'Start Ride',
-                        style: const TextStyle(
+                        style: GoogleFonts.mulish(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
+                          height: 1.0,
+                          color: const Color(0xFFFEFEFE),
                         ),
                       ),
                     ),
                   ),
+                
+                // Figma also has one at the bottom
+                if (showViewDetails) ...[
+                  const SizedBox(height: 12),
+                  Center(
+                    child: GestureDetector(
+                      onTap: onTap,
+                      child: Text(
+                        'View Ride Details',
+                        style: GoogleFonts.mulish(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          height: 1.28, // 18/14
+                          color: const Color(0xFF616874),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-  Widget _fareLabel(double? farePerSeat) {
-    return Text(
-      farePerSeat != null ? '₹${farePerSeat.toStringAsFixed(2)} / seat' : 'Fare not set',
-      style: TextStyle(
-        color: farePerSeat != null ? AppColors.primaryGreen : AppColors.grey500,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-      ),
+  Widget _dot({required bool filled}) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: filled
+          ? const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryGreen,
+            )
+          : BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.primaryGreen, width: 1.5),
+            ),
     );
   }
 }

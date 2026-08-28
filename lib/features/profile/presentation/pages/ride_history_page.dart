@@ -1,9 +1,12 @@
 import 'package:acepool/core/theme/app_colors.dart';
 import 'package:acepool/core/utils/date_time_formatter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/presentation/bloc/ride_history_bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'ride_history_detail_page.dart';
 
 class RideHistoryPage extends StatefulWidget {
@@ -14,79 +17,24 @@ class RideHistoryPage extends StatefulWidget {
 }
 
 class _RideHistoryPageState extends State<RideHistoryPage> {
-  static final _db = FirebaseFirestore.instanceFor(
-    app: Firebase.app(),
-    databaseId: 'acepool',
-  );
-
-  late Future<List<Map<String, dynamic>>> _historyFuture;
+  late final RideHistoryBloc _bloc;
+  bool _showAllRides = false;
 
   @override
   void initState() {
     super.initState();
-    _historyFuture = _fetchHistory();
+    _bloc = sl<RideHistoryBloc>()..add(const RideHistoryStarted());
   }
 
-  Future<List<Map<String, dynamic>>> _fetchHistory() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    try {
-      // 1. Fetch rides where user was the DRIVER (creator)
-      final driverSnap = await _db
-          .collection('rides')
-          .where('uid', isEqualTo: uid)
-          .where('status', whereIn: ['completed', 'cancelled'])
-          .get();
-      
-      final driverRides = driverSnap.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-
-      // 2. Fetch rides where user was a RIDER
-      final riderSnap = await _db
-          .collection('ride_requests')
-          .where('riderId', isEqualTo: uid)
-          .where('status', whereIn: ['completed', 'cancelled'])
-          .get();
-
-      final riderRides = <Map<String, dynamic>>[];
-      for (var doc in riderSnap.docs) {
-        final requestData = doc.data();
-        final rideId = requestData['rideId'] as String;
-        
-        // Fetch full ride details to get price, vehicle info etc.
-        final rideDoc = await _db.collection('rides').doc(rideId).get();
-        if (rideDoc.exists) {
-          final rideData = rideDoc.data()!;
-          riderRides.add({
-            'id': rideId,
-            ...rideData,
-            'status': requestData['status'],
-            'rideMode': 'find', // Force 'find' mode for history display
-            'fromAddress': requestData['pickupPoint'] ?? rideData['fromAddress'],
-            'toAddress': requestData['dropOffPoint'] ?? rideData['toAddress'],
-          });
-        }
-      }
-
-      // Combine and sort by date descending
-      final allRides = [...driverRides, ...riderRides];
-      allRides.sort((a, b) {
-        final timestampA = a['date'] as Timestamp?;
-        final timestampB = b['date'] as Timestamp?;
-        if (timestampA == null || timestampB == null) return 0;
-        return timestampB.compareTo(timestampA);
-      });
-
-      return allRides;
-    } catch (e) {
-      debugPrint('Error fetching ride history: $e');
-      return [];
-    }
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupRides(List<Map<String, dynamic>> rides) {
+  Map<String, List<Map<String, dynamic>>> _groupRides(
+    List<Map<String, dynamic>> rides,
+  ) {
     final Map<String, List<Map<String, dynamic>>> groups = {
       'TODAY': [],
       'YESTERDAY': [],
@@ -102,7 +50,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
     for (var ride in rides) {
       final timestamp = ride['date'] as Timestamp?;
       if (timestamp == null) continue;
-      
+
       final rideDate = timestamp.toDate();
       final rideDay = DateTime(rideDate.year, rideDate.month, rideDate.day);
 
@@ -110,7 +58,9 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
         groups['TODAY']!.add(ride);
       } else if (rideDay.isAtSameMomentAs(yesterday)) {
         groups['YESTERDAY']!.add(ride);
-      } else if (rideDay.isAfter(firstOfThisMonth.subtract(const Duration(seconds: 1)))) {
+      } else if (rideDay.isAfter(
+        firstOfThisMonth.subtract(const Duration(seconds: 1)),
+      )) {
         groups['THIS MONTH']!.add(ride);
       } else {
         groups['OLDER RIDES']!.add(ride);
@@ -123,94 +73,118 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffoldBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Ride History',
-          style: TextStyle(
-            color: AppColors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _historyFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final rides = snapshot.data ?? [];
-          if (rides.isEmpty) {
-            return const Center(
-              child: Text('No completed rides found.'),
-            );
-          }
-
-          final groups = _groupRides(rides);
-          final hasData = groups.values.any((list) => list.isNotEmpty);
-
-          if (!hasData) {
-            return const Center(
-              child: Text('No completed rides found.'),
-            );
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE0E0E0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
                 children: [
-                  ..._buildGroup('TODAY', groups['TODAY']!),
-                  ..._buildGroup('YESTERDAY', groups['YESTERDAY']!),
-                  ..._buildGroup('THIS MONTH', groups['THIS MONTH']!),
-                  ..._buildGroup('OLDER RIDES', groups['OLDER RIDES']!),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                      child: Text(
-                        'View All',
-                        style: TextStyle(
-                          color: AppColors.grey500,
-                          decoration: TextDecoration.underline,
-                          fontSize: 14,
-                        ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.black, size: 26),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Ride History',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.mulish(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E1E1E),
+                        height: 1.0,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-          );
-        },
+            Expanded(
+              child: BlocProvider.value(
+                value: _bloc,
+                child: BlocBuilder<RideHistoryBloc, RideHistoryState>(
+                  builder: (context, state) {
+                    if (state.status == RideHistoryStatus.initial ||
+                        state.status == RideHistoryStatus.loading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final rides = state.rides;
+                    if (rides.isEmpty) {
+                      return const Center(child: Text('No completed rides found.'));
+                    }
+
+                    final groups = _groupRides(rides);
+                    final hasData = groups.values.any((list) => list.isNotEmpty);
+
+                    if (!hasData) {
+                      return const Center(child: Text('No completed rides found.'));
+                    }
+
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE0E0E0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ..._buildGroup('TODAY', groups['TODAY']!),
+                            ..._buildGroup('YESTERDAY', groups['YESTERDAY']!),
+                            ..._buildGroup('THIS MONTH', groups['THIS MONTH']!),
+                            ..._buildGroup('OLDER RIDES', groups['OLDER RIDES']!),
+                            if (!_showAllRides)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: TextButton(
+                                    onPressed: () => setState(() => _showAllRides = true),
+                                    child: Text(
+                                      'View All',
+                                      style: GoogleFonts.mulish(
+                                        color: const Color(0xFF616874),
+                                        decoration: TextDecoration.underline,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   List<Widget> _buildGroup(String title, List<Map<String, dynamic>> rides) {
     if (rides.isEmpty) return [];
-    
+
+    List<Map<String, dynamic>> displayRides = rides;
+    if (!_showAllRides && rides.length > 2) {
+      displayRides = rides.take(2).toList();
+    }
+
     return [
       _buildSectionHeader(title),
-      ...rides.map((ride) {
+      ...displayRides.map((ride) {
         final data = ride;
         final isDriver = data['rideMode'] == 'offer';
         final vehicleType = data['vehicleType'] as String? ?? 'car';
         final toAddress = data['toAddress'] as String? ?? 'Unknown Destination';
-        
+
         final timestamp = data['date'] as Timestamp;
         final rideDate = timestamp.toDate();
         final timeMap = data['time'] as Map<String, dynamic>?;
@@ -219,17 +193,18 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
           minute: timeMap?['minute'] as int? ?? 0,
         );
 
-        final dateTimeStr = '${DateTimeFormatter.monthDayYear(rideDate)} ; ${DateTimeFormatter.time12h(time)}';
-        
+        final dateTimeStr =
+            '${DateTimeFormatter.monthDayYear(rideDate)} ; ${DateTimeFormatter.time12h(time)}';
+
         final fareMap = data['fare'] as Map<String, dynamic>?;
-        final price = isDriver 
+        final price = isDriver
             ? (fareMap?['driverEarnings'] ?? fareMap?['totalCost'] ?? 0.0)
             : (fareMap?['farePerSeat'] ?? 0.0);
-            
+
         final status = data['status'] as String? ?? 'completed';
         final statusLabel = status == 'cancelled' ? 'Cancelled' : 'Completed';
-        final priceStatus = '₹ $price ; $statusLabel';
-        
+        final priceStatus = '₹ ${price.toStringAsFixed(2)} ; $statusLabel';
+
         final relativeTime = _getRelativeTimeLabel(rideDate);
 
         return InkWell(
@@ -240,8 +215,8 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
             ),
           ),
           child: _buildRideItem(
-            icon: vehicleType.toLowerCase() == 'bike' 
-                ? Icons.directions_bike_outlined 
+            icon: vehicleType.toLowerCase() == 'bike'
+                ? Icons.directions_bike_outlined
                 : Icons.directions_car_filled_outlined,
             title: toAddress,
             dateTime: dateTimeStr,
@@ -258,7 +233,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
     final today = DateTime(now.year, now.month, now.day);
     final rideDay = DateTime(date.year, date.month, date.day);
     final difference = today.difference(rideDay).inDays;
-    
+
     if (difference == 0) return 'Today';
     if (difference == 1) return 'Yesterday';
     return DateTimeFormatter.monthDayYear(date);
@@ -272,14 +247,21 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
           child: Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF4C515B),
+            style: GoogleFonts.mulish(
+              color: const Color(0xFF4C515B),
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              height: 15 / 14,
+              letterSpacing: 0.8,
             ),
           ),
         ),
-        Divider(color: const Color(0xFFE0E0E0), height: 1, indent: 16, endIndent: 16),
+        const Divider(
+          color: Color(0xFFE0E0E0),
+          height: 1,
+          indent: 16,
+          endIndent: 16,
+        ),
       ],
     );
   }
@@ -309,10 +291,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: GoogleFonts.mulish(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: Color(0xFF1E1E1E),
+                          color: const Color(0xFF1E1E1E),
+                          height: 1.0,
+                          letterSpacing: -0.32, // -2% of 16
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -320,8 +304,8 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     ),
                     Text(
                       relativeTime,
-                      style: const TextStyle(
-                        color: Color(0xFF616874),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF616874),
                         fontSize: 14,
                       ),
                     ),
@@ -330,9 +314,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                 const SizedBox(height: 4),
                 Text(
                   dateTime,
-                  style: const TextStyle(
-                    color: Color(0xFF616874),
+                  style: GoogleFonts.mulish(
+                    color: const Color(0xFF616874),
                     fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    height: 1.0,
+                    letterSpacing: 0.256, // 1.6% of 16
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -341,9 +328,12 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   children: [
                     Text(
                       priceStatus,
-                      style: const TextStyle(
-                        color: Color(0xFF616874),
+                      style: GoogleFonts.mulish(
+                        color: const Color(0xFF616874),
                         fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        height: 1.0,
+                        letterSpacing: 0.256, // 1.6% of 16
                       ),
                     ),
                     const Icon(

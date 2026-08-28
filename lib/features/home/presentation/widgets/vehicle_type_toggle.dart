@@ -1,7 +1,6 @@
-import 'package:acepool/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:acepool/core/theme/app_theme.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VehicleTypeToggle extends StatelessWidget {
   const VehicleTypeToggle({super.key, required this.selected, required this.onChanged});
@@ -38,7 +37,9 @@ class _RadioOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const active = AppTheme.scheduleButtonColor;
+    const Color activeColor = Color(0xFF1E1E1E);
+    const Color inactiveColor = Color(0xFF757474);
+    
     return InkWell(
       onTap: onTap,
       child: Row(
@@ -48,14 +49,14 @@ class _RadioOption extends StatelessWidget {
             height: 20,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: selected ? active : AppColors.black38, width: 2),
+              border: Border.all(color: selected ? activeColor : inactiveColor, width: 2),
             ),
             child: selected
                 ? Center(
                     child: Container(
                       width: 10,
                       height: 10,
-                      decoration: const BoxDecoration(color: active, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: activeColor, shape: BoxShape.circle),
                     ),
                   )
                 : null,
@@ -63,9 +64,11 @@ class _RadioOption extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: TextStyle(
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: selected ? AppColors.black87 : AppColors.grey600,
+            style: GoogleFonts.mulish(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              height: 1.125, // 18px line-height / 16px font-size
+              color: selected ? activeColor : inactiveColor,
             ),
           ),
         ],

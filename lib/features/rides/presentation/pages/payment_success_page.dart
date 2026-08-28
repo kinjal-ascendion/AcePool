@@ -33,7 +33,7 @@ class PaymentSuccessPage extends StatelessWidget {
                 child: const Center(
                   child: Icon(
                     Icons.check_circle,
-                    color: Color(0xFF308666),
+                    color: Color(0xFF1B8A3F),
                     size: 48,
                   ),
                 ),
