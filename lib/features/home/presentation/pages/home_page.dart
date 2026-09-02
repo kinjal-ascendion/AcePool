@@ -5,6 +5,7 @@ import 'package:acepool/features/home/presentation/pages/location_search_page.da
 import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
 import 'package:acepool/features/home/presentation/widgets/find_ride_results_section.dart';
 import 'package:acepool/features/home/presentation/widgets/home_app_bar_greeting.dart';
+import 'package:acepool/features/home/presentation/widgets/recurring_rides_section.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_mode_toggle.dart';
 import 'package:acepool/features/home/presentation/widgets/ride_schedule_form.dart';
 import 'package:acepool/features/home/presentation/widgets/upcoming_trips_section.dart';
@@ -13,7 +14,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:acepool/features/home/presentation/pages/pricing_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({
@@ -278,8 +278,8 @@ Future<PickedLocation?> _pickCabLocation(
     );
   },
 
-  onCabBookPressed: () {
-  Navigator.of(context).push(
+  onCabBookPressed: () async {
+  final booked = await Navigator.of(context).push<bool>(
     MaterialPageRoute(
       builder: (_) => PricingPage(
         fromAddress: state.fromAddress!,
@@ -296,6 +296,9 @@ Future<PickedLocation?> _pickCabLocation(
       ),
     ),
   );
+  if (booked == true && context.mounted) {
+    context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+  }
 },
 
                             onSwap: () => bloc.add(const LocationsSwapped()),
@@ -341,6 +344,45 @@ Future<PickedLocation?> _pickCabLocation(
                             },
                           ),
                           if (state.rideMode == RideMode.offer) ...[
+                            const SizedBox(height: 12),
+                            RecurringRidesSection(
+                              fromAddress: state.fromAddress,
+                              toAddress: state.toAddress,
+                              fromLat: state.fromLat,
+                              fromLng: state.fromLng,
+                              toLat: state.toLat,
+                              toLng: state.toLng,
+                              vehicleType: state.vehicleType,
+                              onFromTap: () => _pickLocation(
+                                context,
+                                title: 'Start location',
+                                current: state.fromAddress,
+                                biasLat: state.currentLat,
+                                biasLng: state.currentLng,
+                                onConfirm: (loc) => bloc.add(
+                                  FromAddressChanged(
+                                    loc.address,
+                                    lat: loc.lat,
+                                    lng: loc.lng,
+                                  ),
+                                ),
+                              ),
+                              onToTap: () => _pickLocation(
+                                context,
+                                title: 'Office location',
+                                current: state.toAddress,
+                                biasLat: state.currentLat,
+                                biasLng: state.currentLng,
+                                onConfirm: (loc) => bloc.add(
+                                  ToAddressChanged(
+                                    loc.address,
+                                    lat: loc.lat,
+                                    lng: loc.lng,
+                                  ),
+                                ),
+                              ),
+                              onSwap: () => bloc.add(const LocationsSwapped()),
+                            ),
                             const SizedBox(height: 28),
                             UpcomingTripsSection(
                               trips: state.upcomingTrips,

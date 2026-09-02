@@ -24,6 +24,29 @@ abstract class HomeRepository {
     Map<String, dynamic>? fare,
   });
 
+  Future<void> updateRide({
+    required String rideId,
+    Map<String, dynamic>? fare,
+    int? seatCount,
+  });
+
+  Future<void> scheduleRecurringRides({
+    required String rideMode,
+    required String vehicleType,
+    required String fromAddress,
+    required String toAddress,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
+    required List<DateTime> dates,
+    required TimeOfDay time,
+    required int seatCount,
+    double? routeDistanceKm,
+    int? routeDurationMinutes,
+    Map<String, dynamic>? fare,
+  });
+
   Future<RouteDetails> estimateRoute({
     required double originLat,
     required double originLng,

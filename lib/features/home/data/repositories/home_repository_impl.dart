@@ -141,6 +141,96 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
+  Future<void> updateRide({
+    required String rideId,
+    Map<String, dynamic>? fare,
+    int? seatCount,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('User not authenticated');
+
+    final updates = <String, dynamic>{};
+    if (fare != null) updates['fare'] = fare;
+    if (seatCount != null) updates['seatCount'] = seatCount;
+
+    if (updates.isEmpty) return;
+
+    await _db.collection('rides').doc(rideId).update(updates).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () =>
+              throw Exception('Request timed out. Check your connection.'),
+        );
+  }
+
+  @override
+  Future<void> scheduleRecurringRides({
+    required String rideMode,
+    required String vehicleType,
+    required String fromAddress,
+    required String toAddress,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
+    required List<DateTime> dates,
+    required TimeOfDay time,
+    required int seatCount,
+    double? routeDistanceKm,
+    int? routeDurationMinutes,
+    Map<String, dynamic>? fare,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('User not authenticated');
+
+    if (routeDistanceKm == null &&
+        fromLat != null &&
+        fromLng != null &&
+        toLat != null &&
+        toLng != null) {
+      routeDistanceKm = await _directions.fetchRouteDistanceKm(
+        originLat: fromLat,
+        originLng: fromLng,
+        destLat: toLat,
+        destLng: toLng,
+      );
+    }
+
+    final batch = _db.batch();
+    final seriesId = _db.collection('rides').doc().id;
+
+    for (final date in dates) {
+      final docRef = _db.collection('rides').doc();
+      batch.set(docRef, {
+        'uid': uid,
+        'rideMode': rideMode,
+        'vehicleType': vehicleType,
+        'fromAddress': fromAddress,
+        'toAddress': toAddress,
+        'fromLat': fromLat,
+        'fromLng': fromLng,
+        'toLat': toLat,
+        'toLng': toLng,
+        'routeDistanceKm': routeDistanceKm,
+        'routeDurationMinutes': routeDurationMinutes,
+        'date': Timestamp.fromDate(date),
+        'time': {'hour': time.hour, 'minute': time.minute},
+        'seatCount': seatCount,
+        'seatsFilled': 0,
+        if (fare != null) 'fare': fare,
+        'seriesId': seriesId,
+        'isRecurring': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit().timeout(
+          const Duration(seconds: 20),
+          onTimeout: () =>
+              throw Exception('Batch request timed out. Check your connection.'),
+        );
+  }
+
+  @override
   Future<RouteDetails> estimateRoute({
     required double originLat,
     required double originLng,
