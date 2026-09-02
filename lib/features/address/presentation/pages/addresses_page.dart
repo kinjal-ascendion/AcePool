@@ -204,45 +204,21 @@ class _AddressesPageState extends State<AddressesPage> {
     }
   }
 
-  Widget _sectionHeader(String label, VoidCallback? onAdd) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.mulish(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF1D1D1D),
-              letterSpacing: 1.3,
-              height: 19.5 / 14,
-            ),
-          ),
-          if (onAdd != null)
-            InkWell(
-              onTap: onAdd,
-              child: Row(
-                children: [
-                  const Icon(Icons.add, size: 16, color: Color(0xFF1D1D1D)),
-                  const SizedBox(width: 2),
-                  Text(
-                    'Add',
-                    style: GoogleFonts.mulish(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1D1D1D),
-                      height: 18 / 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
+  Widget _sectionHeader(String label) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8, top: 20),
+    child: Text(
+      label.toUpperCase(),
+      style: GoogleFonts.mulish(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF1D1D1D),
+        letterSpacing: 1.3,
+        height: 19.5 / 14,
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _addressCard({
     required String docId,
@@ -391,78 +367,58 @@ class _AddressesPageState extends State<AddressesPage> {
     );
   }
 
-  Widget _emptyAddressPlaceholder(String category, VoidCallback onAdd) {
-    return InkWell(
-      onTap: onAdd,
+  Widget _emptyAddressPlaceholder(String category) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppColors.white,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.grey200),
+      border: Border.all(color: AppColors.grey200),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            color: AppColors.black,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.location_off_outlined,
+            size: 18,
+            color: AppColors.white,
+          ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: AppColors.black,
-                shape: BoxShape.circle,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'No $category address added',
+                style: const TextStyle(
+                  color: AppColors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              child: const Icon(Icons.location_off_outlined,
-                  size: 18, color: AppColors.white),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No $category address added',
-                    style: const TextStyle(
-                      color: AppColors.black87,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap to add one now',
-                    style: TextStyle(color: AppColors.grey500, fontSize: 12),
-                  ),
-                ],
+              const SizedBox(height: 2),
+              Text(
+                'Add an address using the button below',
+                style: TextStyle(
+                  color: AppColors.grey500,
+                  fontSize: 12,
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: AppColors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add, size: 14, color: AppColors.white),
-                  SizedBox(width: 4),
-                  Text(
-                    'Add',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -525,12 +481,9 @@ class _AddressesPageState extends State<AddressesPage> {
                   return ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     children: [
-                      _sectionHeader(
-                        'Home',
-                        homeDocs.isEmpty ? null : () => _addAddress('home', 'Home'),
-                      ),
+                      _sectionHeader('Home'),
                       if (homeDocs.isEmpty)
-                        _emptyAddressPlaceholder('home', () => _addAddress('home', 'Home')),
+                        _emptyAddressPlaceholder('home'),
                       for (var i = 0; i < homeDocs.length; i++)
                         _addressCard(
                           docId: homeDocs[i].id,
@@ -541,12 +494,9 @@ class _AddressesPageState extends State<AddressesPage> {
                           isDefault: homeDocs[i].id == firstHomeOrOfficeId,
                           category: 'home',
                         ),
-                      _sectionHeader(
-                        'Office',
-                        officeDocs.isEmpty ? null : () => _addAddress('office', 'Office'),
-                      ),
+                      _sectionHeader('Office'),
                       if (officeDocs.isEmpty)
-                        _emptyAddressPlaceholder('office', () => _addAddress('office', 'Office')),
+                        _emptyAddressPlaceholder('office'),
                       for (var i = 0; i < officeDocs.length; i++)
                         _addressCard(
                           docId: officeDocs[i].id,
@@ -559,7 +509,7 @@ class _AddressesPageState extends State<AddressesPage> {
                         ),
 
       if (otherDocs.isNotEmpty) ...[
-        _sectionHeader('Saved', () => _addAddress('other', 'Other')),
+        _sectionHeader('Saved'),
 
         for (final doc in otherDocs)
           _addressCard(
@@ -579,6 +529,37 @@ class _AddressesPageState extends State<AddressesPage> {
                 ),
               ),
             ),
+             Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => _addAddress('other', 'Other'),
+                icon: const Icon(
+                  Icons.add,
+                  size: 20,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  'Add Address',
+                  style: GoogleFonts.mulish(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
           ],
         ),
       ),

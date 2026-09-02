@@ -84,26 +84,33 @@ class PaymentMethodCard extends StatelessWidget {
     required String value,
   }) {
     final isSelected = selectedMethod == value;
-    final isUPI = value == "UPI";
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => onChanged(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isUPI ? _PayColors.mintTint : _PayColors.badgeGray,
-          border: Border.all(
-            color: isUPI ? _PayColors.brandGreen : _PayColors.borderGray,
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
+  color: isSelected
+      ? _PayColors.mintTint
+      : _PayColors.badgeGray,
+  border: Border.all(
+    color: isSelected
+        ? _PayColors.brandGreen
+        : _PayColors.borderGray,
+    width: 1,
+  ),
+  borderRadius: BorderRadius.circular(12),
+),
         child: Row(
           children: [
             Image.asset(
-              isUPI ? 'assets/images/currency_rupee_circle.png' : 'assets/images/universal_currency.png',
+              value == "UPI"
+      ? 'assets/images/currency_rupee_circle.png'
+      : 'assets/images/universal_currency.png',
               width: 24,
               height: 24,
+              color: Colors.black,
+  colorBlendMode: BlendMode.srcIn,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -113,7 +120,7 @@ class PaymentMethodCard extends StatelessWidget {
                   Text(
                     title,
                     style: GoogleFonts.mulish(
-                      fontWeight: isUPI ? FontWeight.w600 : FontWeight.w700,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w700,
                       fontSize: 16,
                       color: _PayColors.ink,
                       height: 20 / 16,
