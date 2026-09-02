@@ -173,8 +173,8 @@ class _TripsPageState extends State<TripsPage>
           onStartRide: () => _updateTripStatus(trip.id, 'in_progress'),
           onEndRide: () => _updateTripStatus(trip.id, 'completed'),
           onCancel: () => _handleCancelRide(trip),
-          onEditFare: () {
-            Navigator.push(
+          onEditFare: () async {
+            final updated = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
                 builder: (context) => PricingPage(
@@ -189,12 +189,17 @@ class _TripsPageState extends State<TripsPage>
                   seatCount: trip.seatsTotal,
                   vehicleType: trip.vehicleType ?? 'car',
                   rideMode: 'offer',
+                  rideId: trip.id,
                 ),
               ),
             );
+            if (updated == true && mounted) {
+              _bloc.add(const TripsDrivesRequested());
+              context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+            }
           },
-          onEditPayment: () {
-            Navigator.push(
+          onEditPayment: () async {
+            final updated = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
                 builder: (context) => PaymentPage(
@@ -212,6 +217,10 @@ class _TripsPageState extends State<TripsPage>
                 ),
               ),
             );
+            if (updated == true && mounted) {
+              _bloc.add(const TripsDrivesRequested());
+              context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+            }
           },
         );
       },

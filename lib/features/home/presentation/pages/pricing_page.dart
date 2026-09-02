@@ -30,6 +30,7 @@ class PricingPage extends StatelessWidget {
     this.hasReturnRide = false,
     this.returnTime,
     this.returnSeatCount = 1,
+    this.rideId,
   });
 
   final String fromAddress;
@@ -47,6 +48,7 @@ class PricingPage extends StatelessWidget {
   final bool hasReturnRide;
   final TimeOfDay? returnTime;
   final int returnSeatCount;
+  final String? rideId;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +70,7 @@ class PricingPage extends StatelessWidget {
             hasReturnRide: hasReturnRide,
             returnTime: returnTime,
             returnSeatCount: returnSeatCount,
+            rideId: rideId,
           ),
         ),
       child: _PricingView(

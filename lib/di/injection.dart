@@ -26,7 +26,9 @@ import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dar
 import 'package:acepool/features/home/domain/usecases/get_travel_preference_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_vehicle_options_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/schedule_recurring_rides_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/update_ride_usecase.dart';
 import 'package:acepool/features/home/presentation/bloc/home_bloc.dart';
 import 'package:acepool/features/home/presentation/bloc/pricing_bloc.dart';
 import 'package:acepool/features/onboarding/data/repositories/onboarding_repository_impl.dart';
@@ -100,6 +102,8 @@ void initDependencies() {
     () => GetUpcomingTripsUseCase(sl()),
   );
   sl.registerLazySingleton<ScheduleRideUseCase>(() => ScheduleRideUseCase(sl()));
+  sl.registerLazySingleton<UpdateRideUseCase>(() => UpdateRideUseCase(sl()));
+  sl.registerLazySingleton<ScheduleRecurringRidesUseCase>(() => ScheduleRecurringRidesUseCase(sl()));
   sl.registerLazySingleton<GetTravelPreferenceUseCase>(
     () => GetTravelPreferenceUseCase(sl()),
   );
@@ -140,12 +144,14 @@ void initDependencies() {
       getUpcomingTrips: sl(),
       getTravelPreference: sl(),
       findMatchingRides: sl(),
+      scheduleRecurringRides: sl(),
     ),
   );
   sl.registerFactory<PricingBloc>(
     () => PricingBloc(
       estimateRoute: sl(),
       scheduleRide: sl(),
+      updateRide: sl(),
       getVehicleOptions: sl(),
     ),
   );

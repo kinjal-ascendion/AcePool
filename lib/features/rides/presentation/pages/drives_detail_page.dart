@@ -355,8 +355,8 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                             showViewDetails: false,
                             onCancel: () => _handleCancelRide(currentTrip),
                             onChatTap: () => _onChatTap(state.riders),
-                            onEditFare: () {
-                              Navigator.push(
+                            onEditFare: () async {
+                              final updated = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => PricingPage(
@@ -371,12 +371,17 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                     seatCount: currentTrip.seatsTotal,
                                     vehicleType: currentTrip.vehicleType ?? 'car',
                                     rideMode: 'offer',
+                                    rideId: currentTrip.id,
                                   ),
                                 ),
                               );
+                              if (updated == true && mounted) {
+                                _bloc.add(const DrivesDetailReloadRequested());
+                                context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+                              }
                             },
-                            onEditPayment: () {
-                              Navigator.push(
+                            onEditPayment: () async {
+                              final updated = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => PaymentPage(
@@ -394,6 +399,10 @@ class _DrivesDetailPageState extends State<DrivesDetailPage> {
                                   ),
                                 ),
                               );
+                              if (updated == true && mounted) {
+                                _bloc.add(const DrivesDetailReloadRequested());
+                                context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+                              }
                             },
                           ),
 

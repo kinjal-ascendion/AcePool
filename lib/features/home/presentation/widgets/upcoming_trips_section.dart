@@ -80,8 +80,8 @@ class UpcomingTripsSection extends StatelessWidget {
                   ),
                 );
               },
-              onEditFare: () {
-                Navigator.push(
+              onEditFare: () async {
+                final updated = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => PricingPage(
@@ -96,12 +96,16 @@ class UpcomingTripsSection extends StatelessWidget {
                       seatCount: trip.seatsTotal,
                       vehicleType: trip.vehicleType ?? 'car',
                       rideMode: 'offer',
+                      rideId: trip.id,
                     ),
                   ),
                 );
+                if (updated == true && context.mounted) {
+                  context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+                }
               },
-              onEditPayment: () {
-                Navigator.push(
+              onEditPayment: () async {
+                final updated = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => PaymentPage(
@@ -119,6 +123,9 @@ class UpcomingTripsSection extends StatelessWidget {
                     ),
                   ),
                 );
+                if (updated == true && context.mounted) {
+                  context.read<HomeBloc>().add(const RefreshUpcomingTrips());
+                }
               },
             ),
             const SizedBox(height: 12),
