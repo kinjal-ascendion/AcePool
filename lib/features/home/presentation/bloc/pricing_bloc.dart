@@ -40,6 +40,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
     on<RatePerKmChanged>(_onRatePerKmChanged);
     on<VehiclesRefreshRequested>(_onVehiclesRefreshRequested);
     on<PublishRideRequested>(_onPublishRideRequested);
+    on<PricingLocationsSwapped>(_onLocationsSwapped);
   }
 
   void _onPricingTabChanged(PricingTabChanged event, Emitter<PricingState> emit) {
@@ -140,6 +141,50 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       final fare = state.returnFare;
       if (fare == null) return;
       emit(state.copyWith(returnFare: fare.copyWith(ratePerKm: event.value)));
+    }
+  }
+
+  Future<void> _onLocationsSwapped(
+    PricingLocationsSwapped event,
+    Emitter<PricingState> emit,
+  ) async {
+    final tempLat = _fromLat;
+    final tempLng = _fromLng;
+    _fromLat = _toLat;
+    _fromLng = _toLng;
+    _toLat = tempLat;
+    _toLng = tempLng;
+
+    final newFromAddress = state.toAddress;
+    final newToAddress = state.fromAddress;
+
+    emit(state.copyWith(
+      fromAddress: newFromAddress,
+      toAddress: newToAddress,
+    ));
+
+    if (_fromLat != null && _fromLng != null && _toLat != null && _toLng != null) {
+      try {
+        final route = await _estimateRoute(
+          originLat: _fromLat!,
+          originLng: _fromLng!,
+          destLat: _toLat!,
+          destLng: _toLng!,
+        );
+        final distanceKm = route.distanceKm;
+        final durationMinutes = route.durationMinutes;
+
+        emit(state.copyWith(
+          fare: state.fare?.copyWith(
+            distanceKm: distanceKm,
+            durationMinutes: durationMinutes,
+          ),
+          returnFare: state.returnFare?.copyWith(
+            distanceKm: distanceKm,
+            durationMinutes: durationMinutes,
+          ),
+        ));
+      } catch (_) {}
     }
   }
 

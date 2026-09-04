@@ -95,3 +95,7 @@ class VehiclesRefreshRequested extends PricingEvent {
 class PublishRideRequested extends PricingEvent {
   const PublishRideRequested();
 }
+
+class PricingLocationsSwapped extends PricingEvent {
+  const PricingLocationsSwapped();
+}

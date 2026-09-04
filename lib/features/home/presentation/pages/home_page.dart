@@ -14,6 +14,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:acepool/di/injection.dart';
+import 'package:acepool/features/profile/domain/repositories/profile_repository.dart';
+import 'package:acepool/features/profile/presentation/pages/account_settings_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({
@@ -315,6 +318,23 @@ Future<PickedLocation?> _pickCabLocation(
                             onSchedulePressed: () async {
                               if (state.rideMode == RideMode.find) {
                                 await _handleFindRide(context, bloc);
+                                return;
+                              }
+                              final profile = await sl<ProfileRepository>().watchProfile().first;
+                              if (profile.licenceVerified != true) {
+                                if (!context.mounted) return;
+                                await Navigator.of(context).push<bool>(
+                                  MaterialPageRoute(
+                                    builder: (_) => AccountSettingsPage(
+                                      fullName: profile.fullName,
+                                      employeeId: profile.employeeId,
+                                      phone: profile.phone,
+                                      licenceVerified: profile.licenceVerified,
+                                      licenceNumber: profile.licenceNumber,
+                                      fromOfferRide: true,
+                                    ),
+                                  ),
+                                );
                                 return;
                               }
                               final published = await Navigator.of(context)

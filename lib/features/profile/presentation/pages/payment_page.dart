@@ -29,6 +29,12 @@ class _PaymentPageState extends State<PaymentPage> {
   void initState() {
     super.initState();
     _bloc = sl<ProfilePaymentBloc>();
+    if (_bloc.state.upiId.isNotEmpty) {
+      _upiController.text = _bloc.state.upiId;
+    }
+    if (_bloc.state.upiPhone.isNotEmpty) {
+      _phoneController.text = _bloc.state.upiPhone;
+    }
   }
 
   @override
@@ -45,6 +51,14 @@ class _PaymentPageState extends State<PaymentPage> {
       value: _bloc,
       child: BlocConsumer<ProfilePaymentBloc, ProfilePaymentState>(
         listener: (context, state) {
+          if (!state.isEditing) {
+            if (_upiController.text != state.upiId) {
+              _upiController.text = state.upiId;
+            }
+            if (_phoneController.text != state.upiPhone) {
+              _phoneController.text = state.upiPhone;
+            }
+          }
           if (state.savedTick != _lastSavedTick) {
             _lastSavedTick = state.savedTick;
             ScaffoldMessenger.of(context).showSnackBar(

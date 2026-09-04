@@ -256,6 +256,7 @@ class _PricingViewState extends State<_PricingView> {
                                   ? state.toAddress
                                   : state.fromAddress,
                               fare: fare,
+                              onSwap: () => bloc.add(const PricingLocationsSwapped()),
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -312,8 +313,8 @@ class _PricingViewState extends State<_PricingView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CabBookedPage(
-          fromAddress: widget.fromAddress,
-          toAddress: widget.toAddress,
+          fromAddress: state.fromAddress,
+          toAddress: state.toAddress,
           estimatedFare: fare.totalCost,
           seatCount: state.seatCount,
           date: widget.date,
@@ -439,11 +440,13 @@ class _RouteSummarySection extends StatelessWidget {
     required this.fromAddress,
     required this.toAddress,
     required this.fare,
+    this.onSwap,
   });
 
   final String fromAddress;
   final String toAddress;
   final FareBreakdown fare;
+  final VoidCallback? onSwap;
 
   @override
   Widget build(BuildContext context) {
@@ -532,7 +535,14 @@ class _RouteSummarySection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.swap_vert, size: 24, color: Color(0xFF757474)),
+              InkWell(
+                onTap: onSwap,
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.swap_vert, size: 24, color: Color(0xFF757474)),
+                ),
+              ),
             ],
           ),
         ),
