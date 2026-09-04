@@ -86,9 +86,13 @@ class _NavItem extends StatelessWidget {
         : HomeBottomNavBar._inactiveColor;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      borderRadius: BorderRadius.circular(32),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(32),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

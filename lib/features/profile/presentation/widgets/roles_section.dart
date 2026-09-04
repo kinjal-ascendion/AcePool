@@ -89,8 +89,8 @@ class _RolesSectionState extends State<RolesSection> {
                   ),
                 ),
                 AnimatedRotation(
-                  turns: _isExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
+                  turns: _isExpanded ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 300),
                   child: Image.asset(
                     'assets/images/next.png',
                     width: 9,
@@ -102,7 +102,6 @@ class _RolesSectionState extends State<RolesSection> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
         Text(
           'Manage ride preferences',
           style: GoogleFonts.mulish(

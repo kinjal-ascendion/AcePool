@@ -272,7 +272,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   final _modelController = TextEditingController();
 
   List<int> get _seatOptions =>
-      _type == 'four_wheeler' ? const [2, 4, 5, 6, 7] : const [1, 2];
+      _type == 'four_wheeler' ? const [2, 3, 4, 5, 6, 7] : const [1];
 
   String get _nameHint => _type == 'four_wheeler'
       ? 'E.g., City, Swift, Creta, Nexon, Slavia'
@@ -435,7 +435,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
               style: GoogleFonts.mulish(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB6B6B6),
+                color: const Color(0xFF000000),
                 height: 1.285,
               ),
               decoration: _fieldDecoration('E.g., KA 52 MV 2931'),
@@ -448,7 +448,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
               style: GoogleFonts.mulish(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB6B6B6),
+                color: const Color(0xFF000000),
                 height: 1.285,
               ),
               decoration: _fieldDecoration(_brandHint),
@@ -461,7 +461,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
               style: GoogleFonts.mulish(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB6B6B6),
+                color: const Color(0xFF000000),
                 height: 1.285,
               ),
               decoration: _fieldDecoration(_nameHint),
@@ -477,7 +477,7 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
               style: GoogleFonts.mulish(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB6B6B6),
+                color: const Color(0xFF000000),
                 height: 1.285,
               ),
               items: _seatOptions

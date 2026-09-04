@@ -17,6 +17,7 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
   late final TextEditingController _radiusController;
   late final RouteMatchingBloc _bloc;
   int _lastSavedTick = 0;
+  bool _showNoRideCard = true;
 
   @override
   void initState() {
@@ -105,7 +106,7 @@ class _RouteMatchingPageState extends State<RouteMatchingPage> {
                         children: [
                           buildRadiusCard(),
                           const Spacer(),
-                          buildNoRideCard(),
+                          if (_showNoRideCard) buildNoRideCard(),
                           const SizedBox(height: 20),
                           buildButtons(state),
                         ],
@@ -386,7 +387,11 @@ Widget buildNoRideCard() {
         ),
 
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+             setState(() {
+      _showNoRideCard = false;
+    });
+          },
           icon: const Icon(Icons.close),
           iconSize: 20,
         ),

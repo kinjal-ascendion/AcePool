@@ -73,34 +73,45 @@ class UpiDetailsCard extends StatelessWidget {
               ),
               OutlinedButton.icon(
                 onPressed: onEdit,
-                icon: const Icon(
-                  Icons.edit,
-                  size: 14,
-                  color: Color(0xFF1D1D1D),
-                ),
+               icon: Icon(
+  Icons.edit,
+  size: 14,
+  color: isEditing
+      ? Colors.white
+      : const Color(0xFF1D1D1D),
+),
                 label: Text(
                   "Edit",
                   style: GoogleFonts.mulish(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: const Color(0xFF1D1D1D),
+                    color: isEditing
+    ? Colors.white
+    : const Color(0xFF1D1D1D),
                     height: 16 / 14,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF1D1D1D),
-                  side: const BorderSide(
-                    color: Color(0xFFDDDDDD),
-                    width: 1,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  shape: const StadiumBorder(),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+  backgroundColor: isEditing
+      ? const Color(0xFF000000)
+      : Colors.white,
+  foregroundColor: isEditing
+      ? Colors.white
+      : const Color(0xFF1D1D1D),
+  side: BorderSide(
+    color: isEditing
+        ? const Color(0xFF000000)
+        : const Color(0xFFDDDDDD),
+    width: 1,
+  ),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 14,
+    vertical: 6,
+  ),
+  shape: const StadiumBorder(),
+  minimumSize: Size.zero,
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+),
               ),
             ],
           ),
