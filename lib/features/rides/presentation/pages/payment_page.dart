@@ -48,6 +48,7 @@ class _PaymentView extends StatelessWidget {
                 toAddress: rideData['toAddress'] ?? '',
               ),
             ),
+            result: true,
           );
         }
       },

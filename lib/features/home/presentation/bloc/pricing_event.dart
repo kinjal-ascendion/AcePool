@@ -23,6 +23,7 @@ class PricingStarted extends PricingEvent {
   final bool hasReturnRide;
   final TimeOfDay? returnTime;
   final int returnSeatCount;
+  final String? rideId;
 
   const PricingStarted({
     required this.fromAddress,
@@ -39,6 +40,7 @@ class PricingStarted extends PricingEvent {
     this.hasReturnRide = false,
     this.returnTime,
     this.returnSeatCount = 1,
+    this.rideId,
   });
 
   @override
@@ -57,6 +59,7 @@ class PricingStarted extends PricingEvent {
         hasReturnRide,
         returnTime,
         returnSeatCount,
+        rideId,
       ];
 }
 

@@ -127,3 +127,24 @@ class CurrentLocationFetched extends HomeEvent {
   @override
   List<Object?> get props => [lat, lng];
 }
+
+class RecurringRideScheduled extends HomeEvent {
+  final List<String> days;
+  final DateTime fromDate;
+  final DateTime untilDate;
+  final TimeOfDay time;
+  final int seatCount;
+  final VehicleType vehicleType;
+
+  const RecurringRideScheduled({
+    required this.days,
+    required this.fromDate,
+    required this.untilDate,
+    required this.time,
+    required this.seatCount,
+    required this.vehicleType,
+  });
+
+  @override
+  List<Object?> get props => [days, fromDate, untilDate, time, seatCount, vehicleType];
+}

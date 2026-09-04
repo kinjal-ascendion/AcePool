@@ -7,6 +7,7 @@ import 'package:acepool/core/services/location_service.dart';
 import 'package:acepool/features/home/domain/entities/upcoming_trip.dart';
 import 'package:acepool/features/home/domain/usecases/get_travel_preference_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_upcoming_trips_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/schedule_recurring_rides_usecase.dart';
 import 'package:acepool/features/rides/domain/entities/ride_match.dart';
 import 'package:acepool/features/rides/domain/usecases/find_matching_rides_usecase.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -18,16 +19,19 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetUpcomingTripsUseCase _getUpcomingTrips;
   final GetTravelPreferenceUseCase _getTravelPreference;
   final FindMatchingRidesUseCase _findMatchingRides;
+  final ScheduleRecurringRidesUseCase _scheduleRecurringRides;
   final LocationService _location;
 
   HomeBloc({
     required GetUpcomingTripsUseCase getUpcomingTrips,
     required GetTravelPreferenceUseCase getTravelPreference,
     required FindMatchingRidesUseCase findMatchingRides,
+    required ScheduleRecurringRidesUseCase scheduleRecurringRides,
     LocationService? locationService,
   })  : _getUpcomingTrips = getUpcomingTrips,
         _getTravelPreference = getTravelPreference,
         _findMatchingRides = findMatchingRides,
+        _scheduleRecurringRides = scheduleRecurringRides,
         _location = locationService ?? LocationService(),
         super(const HomeState()) {
     on<HomeStarted>(_onHomeStarted);
@@ -47,6 +51,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<RefreshUpcomingTrips>(_onRefreshUpcomingTrips);
     on<HomePreferenceUpdated>(_onPreferenceUpdated);
     on<CurrentLocationFetched>(_onCurrentLocationFetched);
+    on<RecurringRideScheduled>(_onRecurringRideScheduled);
   }
 
   Future<void> _onHomeStarted(HomeStarted event, Emitter<HomeState> emit) async {
@@ -238,6 +243,76 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       emit(state.copyWith(
         findStatus: HomeStatus.failure,
         findResults: const <RideMatch>[],
+        errorMessage: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onRecurringRideScheduled(
+    RecurringRideScheduled event,
+    Emitter<HomeState> emit,
+  ) async {
+    if (state.fromAddress == null || state.toAddress == null) return;
+
+    emit(state.copyWith(status: HomeStatus.loading));
+    try {
+      final dates = <DateTime>[];
+      final dayMap = {
+        'Mon': DateTime.monday,
+        'Tue': DateTime.tuesday,
+        'Wed': DateTime.wednesday,
+        'Thu': DateTime.thursday,
+        'Fri': DateTime.friday,
+        'Sat': DateTime.saturday,
+        'Sun': DateTime.sunday,
+      };
+
+      final selectedDayInts = event.days.map((d) => dayMap[d]!).toSet();
+
+      var current = DateTime(
+        event.fromDate.year,
+        event.fromDate.month,
+        event.fromDate.day,
+      );
+      final last = DateTime(
+        event.untilDate.year,
+        event.untilDate.month,
+        event.untilDate.day,
+      );
+
+      while (!current.isAfter(last)) {
+        if (selectedDayInts.contains(current.weekday)) {
+          dates.add(current);
+        }
+        current = current.add(const Duration(days: 1));
+      }
+
+      if (dates.isEmpty) {
+        throw Exception('No valid dates found for the selected days.');
+      }
+
+      await _scheduleRecurringRides(
+        rideMode: state.rideMode.name,
+        vehicleType: event.vehicleType.name,
+        fromAddress: state.fromAddress!,
+        toAddress: state.toAddress!,
+        fromLat: state.fromLat,
+        fromLng: state.fromLng,
+        toLat: state.toLat,
+        toLng: state.toLng,
+        dates: dates,
+        time: event.time,
+        seatCount: event.seatCount,
+      );
+
+      final trips = await _getUpcomingTrips();
+      emit(state.resetForm().copyWith(
+        status: HomeStatus.success,
+        upcomingTrips: trips,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: HomeStatus.failure,
         errorMessage: e.toString(),
       ));
     }

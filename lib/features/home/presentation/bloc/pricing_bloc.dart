@@ -6,6 +6,7 @@ import 'package:acepool/features/home/domain/entities/vehicle_option.dart';
 import 'package:acepool/features/home/domain/usecases/estimate_route_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/get_vehicle_options_usecase.dart';
 import 'package:acepool/features/home/domain/usecases/schedule_ride_usecase.dart';
+import 'package:acepool/features/home/domain/usecases/update_ride_usecase.dart';
 
 part 'pricing_event.dart';
 part 'pricing_state.dart';
@@ -13,6 +14,7 @@ part 'pricing_state.dart';
 class PricingBloc extends Bloc<PricingEvent, PricingState> {
   final EstimateRouteUseCase _estimateRoute;
   final ScheduleRideUseCase _scheduleRide;
+  final UpdateRideUseCase _updateRide;
   final GetVehicleOptionsUseCase _getVehicleOptions;
 
   double? _fromLat;
@@ -25,9 +27,11 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
   PricingBloc({
     required EstimateRouteUseCase estimateRoute,
     required ScheduleRideUseCase scheduleRide,
+    required UpdateRideUseCase updateRide,
     required GetVehicleOptionsUseCase getVehicleOptions,
   })  : _estimateRoute = estimateRoute,
         _scheduleRide = scheduleRide,
+        _updateRide = updateRide,
         _getVehicleOptions = getVehicleOptions,
         super(const PricingState()) {
     on<PricingStarted>(_onPricingStarted);
@@ -65,6 +69,7 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
       returnTime: event.returnTime,
       returnSeatCount: event.returnSeatCount,
       vehicleType: _vehicleType,
+      rideId: event.rideId,
     ));
 
     double distanceKm = 0.0;
@@ -213,61 +218,78 @@ class PricingBloc extends Bloc<PricingEvent, PricingState> {
 
     emit(state.copyWith(status: PricingStatus.publishing));
     try {
-      // 1. Publish main ride
-      final farePerSeat = fare.totalCost / state.seatCount;
-      final driverEarnings = fare.totalCost;
-      await _scheduleRide(
-        rideMode: _rideMode,
-        vehicleType: _vehicleType,
-        fromAddress: state.fromAddress,
-        toAddress: state.toAddress,
-        fromLat: _fromLat,
-        fromLng: _fromLng,
-        toLat: _toLat,
-        toLng: _toLng,
-        date: state.date!,
-        time: state.time!,
-        seatCount: state.seatCount,
-        routeDistanceKm: fare.distanceKm,
-        routeDurationMinutes: fare.durationMinutes,
-        fare: {
-          'vehicleId': fare.vehicleId,
-          'vehicleLabel': fare.vehicleLabel,
-          'ratePerKm': fare.ratePerKm,
-          'totalCost': fare.totalCost,
-          'farePerSeat': farePerSeat,
-          'driverEarnings': driverEarnings,
-        },
-      );
-
-      // 2. Publish return ride if requested
-      if (state.hasReturnRide) {
-        final rf = state.returnFare!;
-        final rfPerSeat = rf.totalCost / state.returnSeatCount;
-        final rfEarnings = rf.totalCost;
+      if (state.rideId != null) {
+        // Update existing ride
+        final farePerSeat = fare.totalCost / state.seatCount;
+        final driverEarnings = fare.totalCost;
+        await _updateRide(
+          rideId: state.rideId!,
+          fare: {
+            'vehicleId': fare.vehicleId,
+            'vehicleLabel': fare.vehicleLabel,
+            'ratePerKm': fare.ratePerKm,
+            'totalCost': fare.totalCost,
+            'farePerSeat': farePerSeat,
+            'driverEarnings': driverEarnings,
+          },
+        );
+      } else {
+        // 1. Publish main ride
+        final farePerSeat = fare.totalCost / state.seatCount;
+        final driverEarnings = fare.totalCost;
         await _scheduleRide(
           rideMode: _rideMode,
           vehicleType: _vehicleType,
-          fromAddress: state.toAddress,
-          toAddress: state.fromAddress,
-          fromLat: _toLat,
-          fromLng: _toLng,
-          toLat: _fromLat,
-          toLng: _fromLng,
+          fromAddress: state.fromAddress,
+          toAddress: state.toAddress,
+          fromLat: _fromLat,
+          fromLng: _fromLng,
+          toLat: _toLat,
+          toLng: _toLng,
           date: state.date!,
-          time: state.returnTime!,
-          seatCount: state.returnSeatCount,
-          routeDistanceKm: rf.distanceKm,
-          routeDurationMinutes: rf.durationMinutes,
+          time: state.time!,
+          seatCount: state.seatCount,
+          routeDistanceKm: fare.distanceKm,
+          routeDurationMinutes: fare.durationMinutes,
           fare: {
-            'vehicleId': rf.vehicleId,
-            'vehicleLabel': rf.vehicleLabel,
-            'ratePerKm': rf.ratePerKm,
-            'totalCost': rf.totalCost,
-            'farePerSeat': rfPerSeat,
-            'driverEarnings': rfEarnings,
+            'vehicleId': fare.vehicleId,
+            'vehicleLabel': fare.vehicleLabel,
+            'ratePerKm': fare.ratePerKm,
+            'totalCost': fare.totalCost,
+            'farePerSeat': farePerSeat,
+            'driverEarnings': driverEarnings,
           },
         );
+
+        // 2. Publish return ride if requested
+        if (state.hasReturnRide) {
+          final rf = state.returnFare!;
+          final rfPerSeat = rf.totalCost / state.returnSeatCount;
+          final rfEarnings = rf.totalCost;
+          await _scheduleRide(
+            rideMode: _rideMode,
+            vehicleType: _vehicleType,
+            fromAddress: state.toAddress,
+            toAddress: state.fromAddress,
+            fromLat: _toLat,
+            fromLng: _toLng,
+            toLat: _fromLat,
+            toLng: _fromLng,
+            date: state.date!,
+            time: state.returnTime!,
+            seatCount: state.returnSeatCount,
+            routeDistanceKm: rf.distanceKm,
+            routeDurationMinutes: rf.durationMinutes,
+            fare: {
+              'vehicleId': rf.vehicleId,
+              'vehicleLabel': rf.vehicleLabel,
+              'ratePerKm': rf.ratePerKm,
+              'totalCost': rf.totalCost,
+              'farePerSeat': rfPerSeat,
+              'driverEarnings': rfEarnings,
+            },
+          );
+        }
       }
 
       emit(state.copyWith(status: PricingStatus.published));

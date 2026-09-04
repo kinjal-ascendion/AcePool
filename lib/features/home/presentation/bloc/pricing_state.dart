@@ -25,6 +25,7 @@ class PricingState extends Equatable {
   final String vehicleType;
   final List<VehicleOption> vehicles;
   final String? errorMessage;
+  final String? rideId;
 
   const PricingState({
     this.status = PricingStatus.loading,
@@ -42,6 +43,7 @@ class PricingState extends Equatable {
     this.vehicleType = 'car',
     this.vehicles = const [],
     this.errorMessage,
+    this.rideId,
   });
 
   bool get isFormValid {
@@ -74,6 +76,7 @@ class PricingState extends Equatable {
     String? vehicleType,
     List<VehicleOption>? vehicles,
     String? errorMessage,
+    String? rideId,
   }) {
     return PricingState(
       status: status ?? this.status,
@@ -91,6 +94,7 @@ class PricingState extends Equatable {
       vehicleType: vehicleType ?? this.vehicleType,
       vehicles: vehicles ?? this.vehicles,
       errorMessage: errorMessage,
+      rideId: rideId ?? this.rideId,
     );
   }
 
@@ -111,5 +115,6 @@ class PricingState extends Equatable {
         vehicleType,
         vehicles,
         errorMessage,
+        rideId,
       ];
 }
