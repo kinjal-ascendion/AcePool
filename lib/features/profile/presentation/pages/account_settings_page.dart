@@ -18,6 +18,7 @@ class AccountSettingsPage extends StatefulWidget {
   final String? phone;
   final bool? licenceVerified;
   final String? licenceNumber;
+  final bool fromOfferRide;
 
   const AccountSettingsPage({
     super.key,
@@ -26,6 +27,7 @@ class AccountSettingsPage extends StatefulWidget {
     this.phone,
     required this.licenceVerified,
     this.licenceNumber,
+    this.fromOfferRide = false,
   });
 
   @override
@@ -48,16 +50,26 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   bool _isVerifyingBackLicense = false;
   bool? _frontLicenseValid;
   bool? _backLicenseValid;
+  String? _frontLicenseNumber;
+  String? _backLicenseNumber;
   String? _licenseNumber;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  final GlobalKey _licenseSectionKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
+
   late final AccountSettingsBloc _bloc;
 
-  bool get _isLicenseVerified =>
-      widget.licenceVerified == true ||
-      _frontLicenseValid == true ||
+  bool get _isNewlyVerified =>
+      _frontLicenseNumber != null &&
+      _backLicenseNumber != null &&
+      _frontLicenseNumber == _backLicenseNumber &&
+      _frontLicenseValid == true &&
       _backLicenseValid == true;
+
+  bool get _isLicenseVerified =>
+      widget.licenceVerified == true || _isNewlyVerified;
 
   @override
   void initState() {
@@ -75,6 +87,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
     _passwordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
+
+    if (widget.fromOfferRide) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_licenseSectionKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _licenseSectionKey.currentContext!,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -85,6 +109,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _scrollController.dispose();
     _bloc.close();
     super.dispose();
   }
@@ -114,19 +139,55 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final result = await LicenseScanner.extractLicenseNumber(picked.path);
 
     if (!mounted) return;
+    String? errorMessage;
     setState(() {
+      final number = result.licenseNumber;
       final status = result.ocrFailed
           ? false
-          : (result.licenseNumber != null ? true : null);
+          : (number != null ? true : false);
+
       if (isFront) {
         _isVerifyingFrontLicense = false;
+        _frontLicenseNumber = number;
         _frontLicenseValid = status;
+        if (number == null) {
+          errorMessage = 'Could not detect a valid license number on front image';
+        } else if (_backLicenseNumber != null) {
+          if (_frontLicenseNumber == _backLicenseNumber) {
+            _backLicenseValid = true;
+            _licenseNumber = number;
+          } else {
+            _frontLicenseValid = false;
+            errorMessage = 'License numbers on front and back do not match';
+          }
+        }
       } else {
         _isVerifyingBackLicense = false;
+        _backLicenseNumber = number;
         _backLicenseValid = status;
+        if (number == null) {
+          errorMessage = 'Could not detect a valid license number on back image';
+        } else if (_frontLicenseNumber != null) {
+          if (_frontLicenseNumber == _backLicenseNumber) {
+            _frontLicenseValid = true;
+            _licenseNumber = number;
+          } else {
+            _backLicenseValid = false;
+            errorMessage = 'License numbers on front and back do not match';
+          }
+        }
       }
-      if (result.licenseNumber != null) _licenseNumber = result.licenseNumber;
     });
+
+    if (errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage!)),
+      );
+    }
+
+    if (_isNewlyVerified && widget.fromOfferRide) {
+      _saveProfile();
+    }
   }
 
   void _saveProfile() {
@@ -134,7 +195,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       fullName: _fullNameController.text.trim(),
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
-      licenceVerified: (_frontLicenseValid == true || _backLicenseValid == true) ? true : null,
+      licenceVerified: _isLicenseVerified ? true : null,
       licenceNumber: _licenseNumber,
     ));
   }
@@ -200,6 +261,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -306,7 +368,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     const SizedBox(height: 20),
                     Divider(color: AppColors.dividerGrey, height: 1),
                     const SizedBox(height: 20),
-                    _buildLicenseSection(),
+                    KeyedSubtree(
+                      key: _licenseSectionKey,
+                      child: _buildLicenseSection(),
+                    ),
                     const SizedBox(height: 24),
                     _SettingsField(
                       label: 'Password',

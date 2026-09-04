@@ -14,10 +14,8 @@ class _ReviewCardColors {
   static const Color borderGray = Color(0xFFEDEDED);
   static const Color badgeOrange = Color(0xFFF5A623);
 
-  /// rgba(0, 0, 0, 0.03) — subtle card shadow.
   static const Color cardShadow = Color(0x08000000);
 
-  /// Fallback avatar palette (no photo) — warm accent reserved for +N badge.
   static const List<Color> avatarPalette = [
     Color(0xFF4A7DDB),
     Color(0xFF34A853),
@@ -27,25 +25,14 @@ class _ReviewCardColors {
     Color(0xFF7B8A2F),
   ];
 }
-
-/// Compact summary card for a completed offered ride: overlapping passenger
-/// avatar stack (photo or colored-initial circle, "+N" badge when there are
-/// more passengers than slots), passenger names + count + combined date/time
-/// line, and a trailing chevron. The whole card is tappable.
 class RideReviewCard extends StatelessWidget {
-  /// Passenger full names, in request order (same order as [riderPhotoUrls]).
   final List<String> riderNames;
 
-  /// Passenger avatar URLs (null/empty = no photo → colored initial circle).
   final List<String?> riderPhotoUrls;
-
-  /// Total passenger count shown as "{N} passengers".
   final int passengerCount;
 
-  /// Pre-formatted "{date} . {time}" subtitle line (e.g. "Today . 9.30 am").
   final String dateTimeText;
 
-  /// Optional vehicle info (e.g. "Honda City . KA 01 AB 2026").
   final String? vehicleInfo;
 
   final VoidCallback onTap;
@@ -154,7 +141,6 @@ class RideReviewCard extends StatelessWidget {
     );
   }
 
-  /// Comma-separated first names (first word of each full name).
   String _namesText() {
     final firstNames = riderNames
         .map((n) => n.trim().split(' ').first.trim())
@@ -164,9 +150,6 @@ class RideReviewCard extends StatelessWidget {
   }
 }
 
-/// Horizontally overlapping 40px circles: up to 2 passenger photos (or
-/// colored-initial fallbacks); when there are more passengers than slots the
-/// last circle is an orange "+N" badge.
 class _AvatarStack extends StatelessWidget {
   final List<String> riderNames;
   final List<String?> riderPhotoUrls;
@@ -182,8 +165,6 @@ class _AvatarStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // First circle is always a passenger; second is a photo only when there
-    // are exactly 2 passengers (3+ → "+N" badge instead).
     final showSecondPhoto = passengerCount == 2;
     final children = <Widget>[
       Positioned(
@@ -254,7 +235,6 @@ class _AvatarStack extends StatelessWidget {
   }
 }
 
-/// 40px circle with a 2px white ring (keeps overlapping edges crisp).
 class _Circle extends StatelessWidget {
   final Color? color;
   final Widget child;
@@ -276,8 +256,6 @@ class _Circle extends StatelessWidget {
   }
 }
 
-/// Colored circle with the passenger's initial (first letter of first name),
-/// like the avatars used elsewhere in the app.
 class _InitialCircle extends StatelessWidget {
   final String name;
 

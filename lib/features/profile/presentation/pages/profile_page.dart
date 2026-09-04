@@ -56,7 +56,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       height: 1.1, // Adjusted for 20px
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 10),
                   Text(
                     subtitle,
                     style: const TextStyle(

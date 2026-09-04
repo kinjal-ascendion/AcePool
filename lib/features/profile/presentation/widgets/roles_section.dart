@@ -75,7 +75,7 @@ class _RolesSectionState extends State<RolesSection> {
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           behavior: HitTestBehavior.opaque,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
